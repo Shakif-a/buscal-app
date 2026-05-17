@@ -1,0 +1,9 @@
+import { toast } from 'react-toastify'
+
+
+if( error logic here ){
+    toast.error('This is an error message!')
+} else{
+    toast.success('This is a success message!')
+}
+

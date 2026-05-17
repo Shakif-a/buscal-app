@@ -1,0 +1,27 @@
+//Button with link
+import Button from '@mui/material/Button';
+import { Link } from 'react-router-dom';
+
+<Button variant="contained" color="secondary2" component={Link} to="/"
+    sx={{
+        m: 0, boxShadow: 3, minWidth: '180px', //maxWidth: '100px',
+        '&:hover': { bgcolor: "#ff8f00" },
+    }}
+>
+    Submit
+</Button>
+
+//Button with onClick
+import Button from '@mui/material/Button';
+
+<Button variant="contained" color="secondary2"
+    onClick={() => }
+    sx={{
+        m: 0, boxShadow: 3, minWidth: '180px', //maxWidth: '100px',
+        '&:hover': { bgcolor: "#ff8f00" },
+    }}
+>
+    Submit
+</Button>
+
+

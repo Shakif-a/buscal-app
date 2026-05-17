@@ -1,0 +1,31 @@
+{
+  "name": "buscal-backend",
+  "version": "1.0.0",
+  "description": "Business Calendar standalone backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "bcryptjs": "3.0.2",
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.17.2",
+    "express-async-handler": "^1.2.0",
+    "jsonwebtoken": "9.0.2",
+    "lodash": "^4.17.21",
+    "moment-timezone": "^0.5.43",
+    "mongoose": "^6.1.9",
+    "node-cron": "^3.0.2",
+    "node-schedule": "^2.1.1",
+    "nodemailer": "^6.9.1",
+    "rrule": "^2.8.1",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "3.1.10"
+  }
+}
