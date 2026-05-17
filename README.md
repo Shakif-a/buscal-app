@@ -15,8 +15,8 @@ The **OKR module is intended to be built using this codebase as the foundation**
 ### 1. Clone the Repository
 
 ```bash
-git clone <repo-url>
-cd <repo-folder>
+git clone https://github.com/Shakif-a/buscal-app.git
+cd {your local path}/buscal-app
 ```
 
 ---
