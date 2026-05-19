@@ -20,9 +20,6 @@ const { errorHandler } = require("./middleware/errorMiddleware");
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
-
 const app = express();
 
 // Middleware
@@ -43,15 +40,34 @@ app.use("/api/users", require("./routes/userRoutes")); // Auth + account setting
 // Error handling middleware (must be after all routes)
 app.use(errorHandler);
 
-// Start server
 const PORT = process.env.PORT || 5000;
+let server;
 
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`.cyan.underline);
-});
+// Async to allow remote db connection before initialize
+const startServer = async () => {
+  try {
+    // 1. Wait until MongoDB is connected
+    await connectDB();
 
-// Initialise schedulers
-initializeCalendarScheduler();
+    // 2. Start the server
+    server = app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`.cyan.underline);
+    });
 
-// Export server instance (useful for testing)
-module.exports = server;
+    // 3. Initialize
+    await initializeCalendarScheduler();
+
+  } catch (error) {
+    console.error(`Failed to start server: ${error.message}`.red);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+// Export server instance wrapper/getter (useful for testing frameworks)
+module.exports = {
+  get instance() {
+    return server;
+  }
+};
