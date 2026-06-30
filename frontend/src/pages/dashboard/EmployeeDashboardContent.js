@@ -3,6 +3,7 @@
  *
  * Compact card layout. Cards are small and grouped, not full-screen.
  * OKR card included — links to /dashboard/okr when ready.
+ * Extra comment
  */
 import React from "react";
 import { useSelector } from "react-redux";
