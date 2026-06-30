@@ -17,7 +17,6 @@ const {
 } = require("./scheduling/calendarScheduler");
 const { errorHandler } = require("./middleware/errorMiddleware");
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -56,7 +55,6 @@ const startServer = async () => {
 
     // 3. Initialize
     await initializeCalendarScheduler();
-
   } catch (error) {
     console.error(`Failed to start server: ${error.message}`.red);
     process.exit(1);
@@ -69,5 +67,5 @@ startServer();
 module.exports = {
   get instance() {
     return server;
-  }
+  },
 };
