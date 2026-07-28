@@ -20,8 +20,8 @@ export default function DevPlayground() {
       <Box py={5}>
         <Typography variant="h5">Dev Playground</Typography>
         <Stack>
-          <Button onClick={runTest1}>Test1</Button>
-          <Button onClick={runTest2}>Test2</Button>
+          <Button variant="contained" onClick={runTest1}>Test1</Button>
+          <Button variant="contained" onClick={runTest2}>Test2</Button>
         </Stack>
       </Box>
     </Container>
