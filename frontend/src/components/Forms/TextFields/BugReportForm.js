@@ -30,7 +30,7 @@ const BugReportForm = ({ open, handleClose, currentUrl }) => {
         formData.append("file", image, "pasted-image.png"); // Ensure the file has a name
       }
 
-      const response = await fetch("/api/all/bug", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/all/bug`, {
         method: "POST",
         body: formData,
       });
