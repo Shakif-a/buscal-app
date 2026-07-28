@@ -27,6 +27,9 @@ import HistoryCalendar from "./businessCalendar/pages/HistoryCalendar";
 import CalendarView from "./businessCalendar/pages/CalendarView";
 import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
+// OKR Tracker
+import DevPlayground from "./okrTracker/pages/DevPlayground";
+
 // Shell
 import Nav from "./pages/navigation/Nav";
 import RequireAuth from "./components/Authenticate/RequireAuth";
@@ -139,6 +142,11 @@ function App() {
             <Route
               path="/dashboard/settings/qm"
               element={<Nav main={[<QMAccountHeader />]} />}
+            />
+
+            <Route
+              path="/dashboard/dev-playground"
+              element={<Nav main={[<DevPlayground />]} />}
             />
           </Route>
 
