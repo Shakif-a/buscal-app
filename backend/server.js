@@ -36,6 +36,15 @@ app.use("/api/users", require("./routes/userRoutes")); // Auth + account setting
 // ── Add new module routes below this line ────────────────────────────────────
 // app.use("/api/okr", require("./routes/okrRoutes"));
 
+// ── Serve frontend build in production ───────────────────────────────────
+if (process.env.NODE_ENV === "production") {
+  const frontendDist = path.join(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendDist));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 // Error handling middleware (must be after all routes)
 app.use(errorHandler);
 
