@@ -36,6 +36,3 @@ pids/
 *.pid
 *.seed
 *.pid.lock
-
-# Optional: lock files
-yarn.lock
