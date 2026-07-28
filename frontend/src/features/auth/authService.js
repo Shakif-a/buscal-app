@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "/api/users/";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/users/`;
 
 // Register user
 const register = async (userData) => {
@@ -107,7 +107,7 @@ const getUser = async (token) => {
     },
   };
 
-  const response = await axios.get("/api/users/user", config);
+  const response = await axios.get(API_URL + "user", config);
 
   return response.data;
 };
@@ -119,7 +119,7 @@ const getMe = async (token) => {
     },
   };
 
-  const response = await axios.get("/api/users/me", config);
+  const response = await axios.get(API_URL + "me", config);
 
   return response.data;
 };
@@ -155,7 +155,7 @@ const updateUser = async (user, token) => {
     },
   };
 
-  const response = await axios.put("/api/users/user/" + user._id, user, config);
+  const response = await axios.put(API_URL + "user/" + user._id, user, config);
 
   return response.data;
 };
@@ -171,7 +171,7 @@ const deleteUser = async (userId, token) => {
     },
   };
 
-  const response = await axios.delete("/api/users/user/" + userId, config);
+  const response = await axios.delete(API_URL + "user/" + userId, config);
 
   return response.data;
 };
@@ -187,7 +187,7 @@ const getUserOne = async (paramsField, token) => {
     },
   };
 
-  const response = await axios.get("/api/users/userOne/" + paramsField, config);
+  const response = await axios.get(API_URL + "userOne/" + paramsField, config);
 
   return response.data;
 };
@@ -204,7 +204,7 @@ const updateUserOne = async (userOne, token) => {
   };
 
   const response = await axios.put(
-    "/api/users/userOne/" + userOne._id,
+    API_URL + "userOne/" + userOne._id,
     userOne,
     config
   );
@@ -224,7 +224,7 @@ const manageUserOne = async (userOne, token) => {
   };
 
   const response = await axios.put(
-    "/api/users/manageUserOne/" + userOne._id,
+    API_URL + "manageUserOne/" + userOne._id,
     userOne,
     config
   );
