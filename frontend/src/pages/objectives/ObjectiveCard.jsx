@@ -1,8 +1,8 @@
 function ObjectiveCard({ objective }) {
   return (
     <div className="objective-card">
+      {/* Objective information */}
       <div className="objective-details">
-        {/* Information shown on the left */}
         <div className="objective-info">
           <h3 className="objective-title">{objective.title}</h3>
 
@@ -19,7 +19,6 @@ function ObjectiveCard({ objective }) {
           </p>
         </div>
 
-        {/* Due date shown on the far right */}
         <p className="objective-due-date">
           Due: <strong>{objective.dueDate}</strong>
         </p>
@@ -27,6 +26,7 @@ function ObjectiveCard({ objective }) {
 
       <hr />
 
+      {/* Progress section */}
       <div className="progress-section">
         <select defaultValue="progress">
           <option value="progress">Progress</option>
@@ -44,12 +44,12 @@ function ObjectiveCard({ objective }) {
             <div
               className="progress-fill"
               style={{ width: `${objective.progress}%` }}
-            ></div>
+            />
 
             <div
               className="progress-circle"
               style={{ left: `${objective.progress}%` }}
-            ></div>
+            />
           </div>
         </div>
       </div>

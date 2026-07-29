@@ -74,8 +74,14 @@
 .objective-details {
   display: flex;
   align-items: center;
-  gap: 20px;
   width: 100%;
+}
+
+.objective-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
 }
 
 .objective-title {
@@ -100,6 +106,8 @@
 
 .objective-due-date {
   margin-left: auto;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .objective-card hr {
@@ -107,7 +115,6 @@
   border-top: 1px solid #d9dfea;
   margin: 55px 0 18px;
 }
-
 /* ---------------- Progress ---------------- */
 
 .progress-section {
