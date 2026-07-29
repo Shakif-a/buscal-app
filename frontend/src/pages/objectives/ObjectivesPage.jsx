@@ -36,10 +36,12 @@ function ObjectivesPage() {
 
       {/* Objectives heading */}
       <div className="objectives-banner">
-        <h2>»» All Objectives</h2>
-        <p>View all objectives</p>
-        <span>»»</span>
-      </div>
+  <span className="banner-arrow">»»</span>
+
+  <h2>All Objectives</h2>
+
+  <span className="banner-arrow">»»</span>
+</div>
 
       {/* Filters */}
       <div className="objective-filters">

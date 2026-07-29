@@ -28,9 +28,9 @@ function ObjectiveCard({ objective }) {
 
       {/* Progress section */}
       <div className="progress-section">
-        <select defaultValue="progress">
-          <option value="progress">Progress</option>
-        </select>
+        <button className="progress-button">
+          View Progress
+        </button>
 
         <div className="progress-area">
           <div className="progress-labels">

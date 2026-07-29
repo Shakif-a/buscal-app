@@ -34,14 +34,15 @@
 
 .objectives-banner h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 30px;
+  font-weight: 700;
   color: #20203f;
 }
 
-.objectives-banner p {
-  margin: 0;
-  color: #707789;
-  font-style: italic;
+.banner-arrow {
+  font-size: 30px;
+  font-weight: 700;
+  color: #20203f;
 }
 
 /* ---------------- Filters ---------------- */
@@ -123,14 +124,22 @@
   gap: 18px;
 }
 
-.progress-section select {
+.progress-button {
   width: 130px;
   height: 38px;
   padding: 8px 12px;
   border: 1px solid #d9dfea;
   border-radius: 8px;
   background-color: white;
+  color: #20203f;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.progress-button:hover {
+  background-color: #f3f6fa;
 }
 
 .progress-area {
