@@ -30,6 +30,9 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
 
+    // Objectives page-Erika
+import ObjectivesPage from "./pages/objectives/ObjectivesPage";
+
 // Shell
 import Nav from "./pages/navigation/Nav";
 import RequireAuth from "./components/Authenticate/RequireAuth";
@@ -59,6 +62,14 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
           <Route path="/logout" element={<Logout />} />
+
+          // Erika 
+{/* Temporary public route for building the Objectives page */}
+<Route
+  path="/objectives"
+  element={<ObjectivesPage />}
+/>
+
 
           {/* ---------------- AUTH: ALL ROLES ---------------- */}
           <Route
