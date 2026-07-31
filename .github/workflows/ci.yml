@@ -53,8 +53,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # No MONGO_URI here on purpose: each test file falls back to its own
+    # distinctly-named database (okr_test / okr_gov_test) when this is unset.
+    # node --test runs the two files at once, so pointing them both at one
+    # fixed database name made them stomp on each other's data mid-run.
     env:
-      MONGO_URI: mongodb://localhost:27017/okr_test
       JWT_SECRET: test_secret_for_ci
 
     steps:
