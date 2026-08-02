@@ -1,16 +1,10 @@
 import React, { useState } from "react";
 
-// Role Management admin page for the OKR Calendar app.
-// This recreates the design: top nav bar, page header, a searchable
-// list of roles, an expandable permissions panel with checkboxes,
-// Reset and Save Changes buttons, and a permission reference table.
-
 function RoleManagement() {
   // The dark navy colour used for headings and text.
   const navy = "#1a2b4a";
 
   // The list of permissions shown for a role, laid out in two columns.
-  // The order here matches the screenshot: left column first, then right.
   const permissionList = [
     "Create Objectives",
     "Edit Objectives",
@@ -22,8 +16,6 @@ function RoleManagement() {
     "Manage Groups",
   ];
 
-  // The default permissions for each role. true means the box is ticked.
-  // We keep a copy of these defaults so the Reset button can restore them.
   const defaultRoles = {
     Admin: {
       "Create Objectives": true,
@@ -57,20 +49,18 @@ function RoleManagement() {
     },
   };
 
-  // The list of role names in the order they appear.
+  // The list of role names
   const roleNames = ["Admin", "Manager", "Employee"];
 
-  // The current, editable permission state for every role.
+  // The editable permission state for every role.
   const [roles, setRoles] = useState(defaultRoles);
 
   // Which role row is currently expanded. Manager is open to match
-  // the screenshot. null means no role is expanded.
   const [expandedRole, setExpandedRole] = useState("Manager");
 
   // The text typed into the role search box.
   const [searchText, setSearchText] = useState("");
 
-  // The rows for the permission reference table at the bottom.
   const permissionReference = [
     { area: "Dashboard", manager: "Read", employee: "Read" },
     { area: "Calendar", manager: "Read", employee: "Read" },

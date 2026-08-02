@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 
 // Group Management admin page for the OKR Calendar app.
-// Every control works: search, Add Group, Edit (expand), member
-// checkboxes, Add Users, Save Changes, and Cancel.
 
 function GroupManagement() {
   // The dark navy colour used for headings and text.
@@ -26,16 +24,13 @@ function GroupManagement() {
     { name: "Marketing", members: ["Sarah Nguyen", "Liam Brooks", "Emma Wills", "Noah Reed", "Olivia Tan"] },
   ]);
 
-  // The master list of every person's name. This grows when we add
-  // a new user through the Add Users button.
+  // add a new user through the Add Users button.
   const [people, setPeople] = useState(allPeople);
 
   // Which group is currently expanded for editing. null means none.
   const [expandedGroup, setExpandedGroup] = useState(null);
 
-  // A temporary copy of the members being edited. We only write this
-  // back to the real group when the user clicks Save Changes, so that
-  // Cancel can throw the edits away.
+  // A temporary copy of the members being edited. 
   const [draftMembers, setDraftMembers] = useState([]);
 
   // The text typed into the group search box.
@@ -84,7 +79,7 @@ function GroupManagement() {
     setExpandedGroup(null);
   }
 
-  // Add a brand new group. We ask for a name with a simple prompt.
+  // Add a brand new group. 
   function addGroup() {
     const name = window.prompt("Enter a name for the new group:");
     if (name && name.trim() !== "") {
@@ -171,7 +166,7 @@ function GroupManagement() {
               fontSize: "20px",
             }}
           >
-            👤
+            
           </div>
         </div>
       </div>
