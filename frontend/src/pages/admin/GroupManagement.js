@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 
-// Group Management admin page for the OKR Calendar app.
 
 function GroupManagement() {
   // The dark navy colour used for headings and text.
   const navy = "#1a2b4a";
 
-  // The full pool of people that can belong to a group.
-  // When you add a brand new user we push their name in here too.
+  // add user 
   const allPeople = [
     "Sarah Nguyen",
     "Liam Brooks",
@@ -16,8 +14,7 @@ function GroupManagement() {
     "Olivia Tan",
   ];
 
-  // The list of groups. Each group stores which people are members
-  // by keeping their names in a "members" array.
+  // The list of groups
   const [groups, setGroups] = useState([
     { name: "Sales", members: ["Sarah Nguyen", "Emma Wills"] },
     { name: "Tech", members: ["Liam Brooks", "Noah Reed", "Olivia Tan"] },
@@ -60,7 +57,6 @@ function GroupManagement() {
   }
 
   // Save the draft members back to the real group and close the editor.
-  // We also recompute the member count from the list length.
   function saveChanges(groupName) {
     setGroups((previous) =>
       previous.map((group) => {
@@ -87,8 +83,7 @@ function GroupManagement() {
     }
   }
 
-  // Add a brand new user to the pool and tick them into the current
-  // group's draft straight away.
+  // Add a new user to the pool and tick them into the current
   function addUser() {
     const name = window.prompt("Enter the new user's name:");
     if (name && name.trim() !== "") {
@@ -113,7 +108,7 @@ function GroupManagement() {
     <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "sans-serif" }}>
 
 
-      {/* Page header card */}
+      {/* header */}
       <div style={{ padding: "30px 40px" }}>
         <div
           style={{
@@ -135,7 +130,7 @@ function GroupManagement() {
         </div>
       </div>
 
-      {/* Main content card */}
+      {/* Main content*/}
       <div style={{ padding: "0 40px 40px" }}>
         <div
           style={{
