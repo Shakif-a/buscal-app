@@ -30,6 +30,10 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
 
+// Admin Pages
+import GroupManagement from "./pages/admin/GroupManagement";
+import RoleManagement from "./pages/admin/RoleManagement";
+
 // Shell
 import Nav from "./pages/navigation/Nav";
 import RequireAuth from "./components/Authenticate/RequireAuth";
@@ -148,6 +152,15 @@ function App() {
               path="/dashboard/dev-playground"
               element={<Nav main={[<DevPlayground />]} />}
             />
+                      
+          <Route
+            path="/dashboard/admin/groups"
+            element={<Nav main={[<GroupManagement />]} />}
+          />
+          <Route
+            path="/dashboard/admin/roles"
+            element={<Nav main={[<RoleManagement />]} />}
+          />
           </Route>
 
           {/* Catch-all */}
