@@ -33,9 +33,6 @@ import DevPlayground from "./okrTracker/pages/DevPlayground";
     // Objectives page-Erika
 import ObjectivesPage from "./pages/objectives/ObjectivesPage";
 
-    // Key Results page - Erika
-import KeyResultsPage from "./pages/key_results/KeyResultsPage";
-
 // Shell
 import Nav from "./pages/navigation/Nav";
 import RequireAuth from "./components/Authenticate/RequireAuth";
@@ -72,14 +69,6 @@ function App() {
   path="/objectives"
   element={<ObjectivesPage />}
 />
-
-          // Erika 
-{/* Key Results page */}
-<Route
-  path="/key-results"
-  element={<KeyResultsPage />}
-/>
-
 
           {/* ---------------- AUTH: ALL ROLES ---------------- */}
           <Route
