@@ -4,7 +4,7 @@ function RoleManagement() {
   // The dark navy colour used for headings and text.
   const navy = "#1a2b4a";
 
-  // The list of permissions shown for a role, laid out in two columns.
+  // The list of permissions shown for a role
   const permissionList = [
     "Create Objectives",
     "Edit Objectives",
@@ -55,7 +55,6 @@ function RoleManagement() {
   // The editable permission state for every role.
   const [roles, setRoles] = useState(defaultRoles);
 
-  // Which role row is currently expanded. Manager is open to match
   const [expandedRole, setExpandedRole] = useState("Manager");
 
   // The text typed into the role search box.
@@ -67,11 +66,11 @@ function RoleManagement() {
     { area: "Objectives (all)", manager: "Full Access", employee: "Read" },
     { area: "Objectives (create)", manager: "Full Access", employee: "No Access" },
     { area: "Key Results", manager: "Full Access", employee: "Read" },
-    { area: "Reports", manager: "Full Access", employee: "Read, Create" },
-    { area: "Admin (all)", manager: "Full Access", employee: "No Access" },
+    { area: "Reports", manager: "Full Access", employee: "Read, create" },
+    { area: "Admin", manager: "Full Access", employee: "No Access" },
   ];
 
-  // Open or close the permissions panel for a given role.
+  // Open or close the permissions panel for a role.
   function toggleExpand(roleName) {
     if (expandedRole === roleName) {
       setExpandedRole(null);
@@ -99,7 +98,7 @@ function RoleManagement() {
   }
 
   // Save the changes. Here we just show a confirmation, since there
-  // is no backend connected yet. Replace this with an API call later.
+  // is no backend connected yet. we have to Replace this with an API call later.
   function saveRole(roleName) {
     alert("Changes saved for " + roleName + " role.");
   }
@@ -111,82 +110,8 @@ function RoleManagement() {
 
   return (
     <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "sans-serif" }}>
-      {/* Top navigation bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "20px 40px",
-          gap: "40px",
-        }}
-      >
-        {/* Logo */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontWeight: "bold", fontSize: "24px" }}>
-            <span style={{ color: navy }}>micro</span>
-            <span style={{ color: "#4a7c9e" }}>max</span>
-            <span style={{ color: "#2e7d5b" }}> ))</span>
-          </div>
-          <div style={{ fontSize: "10px", letterSpacing: "3px", color: navy }}>
-            technology
-          </div>
-        </div>
 
-        {/* Nav links */}
-        <div style={{ color: navy, fontWeight: "600", cursor: "pointer" }}>Dashboard</div>
-        <div style={{ color: navy, fontWeight: "600", cursor: "pointer" }}>Objectives ▾</div>
-        <div style={{ color: navy, fontWeight: "600", cursor: "pointer" }}>Key Results</div>
-        <div style={{ color: navy, fontWeight: "600", cursor: "pointer" }}>Reports</div>
-
-        {/* Admin button, highlighted as the active page */}
-        <div
-          style={{
-            color: navy,
-            fontWeight: "600",
-            backgroundColor: "#d6e4f5",
-            padding: "8px 16px",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          Admin ▾
-        </div>
-
-        {/* Profile icon pushed to the far right */}
-        <div style={{ marginLeft: "auto" }}>
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "50%",
-              backgroundColor: "#e8ebf0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "20px",
-            }}
-          >
-            👤
-          </div>
-        </div>
-      </div>
-
-      {/* Top level search bar */}
-      <div style={{ padding: "0 40px", display: "flex", justifyContent: "flex-end" }}>
-        <input
-          type="text"
-          placeholder="Search"
-          style={{
-            width: "300px",
-            padding: "12px 16px",
-            borderRadius: "24px",
-            border: "1px solid #ddd",
-            outline: "none",
-          }}
-        />
-      </div>
-
-      {/* Page header card */}
+      {/* Page header */}
       <div style={{ padding: "30px 40px" }}>
         <div
           style={{
@@ -208,7 +133,7 @@ function RoleManagement() {
         </div>
       </div>
 
-      {/* Main content card */}
+      {/* Main content */}
       <div style={{ padding: "0 40px 40px" }}>
         <div
           style={{
@@ -409,7 +334,7 @@ function RoleManagement() {
         </div>
       </div>
 
-      {/* Permission reference card */}
+      {/* Permission reference */}
       <div style={{ padding: "0 40px 60px" }}>
         <div
           style={{
