@@ -36,12 +36,12 @@ function ObjectivesPage() {
 
       {/* Objectives heading */}
       <div className="objectives-banner">
-  <span className="banner-arrow">»»</span>
+        <span className="banner-arrow">»»</span>
 
-  <h2>All Objectives</h2>
+        <h2>All Objectives</h2>
 
-  <span className="banner-arrow">»»</span>
-</div>
+        <span className="banner-arrow">»»</span>
+      </div>
 
       {/* Filters */}
       <div className="objective-filters">
@@ -68,11 +68,17 @@ function ObjectivesPage() {
 
       {/* Footer */}
       <div className="objectives-footer">
-        <a href="#key-results">
-          Open Objective 1 key results →
-        </a>
+        <button className="page-button">
+          ← Previous
+        </button>
 
-        <span>1-2 of 2</span>
+        <span className="page-count">
+          1 of 2
+        </span>
+
+        <button className="page-button">
+          Next →
+        </button>
       </div>
     </div>
   );
