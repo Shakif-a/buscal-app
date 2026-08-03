@@ -10,10 +10,7 @@ const {
   canApprove,
 } = require("../middleware/okrAuthorization");
 
-// Governance controller: the parts that decide whether something is allowed
-// rather than what it contains. Publishing an objective once weights add up,
-// attaching evidence, and the submit/approve/reject cycle. Kept separate from
-// okrController so that file stays readable.
+// Governance controller: activate/close, evidence, and the submit/approve/reject cycle.
 
 const WEIGHT_TOLERANCE = 0.01;
 
@@ -21,8 +18,7 @@ function sumWeights(keyResults) {
   return keyResults.reduce((total, kr) => total + Number(kr.weight || 0), 0);
 }
 
-// Load the objective and confirm the caller may act on it. Returns null and
-// sends the response when access is refused, so callers just return.
+// Loads the objective and checks the caller can edit it, sends the response itself on failure.
 async function loadEditable(req, res) {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -42,10 +38,6 @@ async function loadEditable(req, res) {
 // @desc    Publish a draft objective once its key result weights total 100
 // @route   POST /api/okr/objectives/:id/activate
 // @access  Owner, manager or admin
-//
-// This is where the client's "weights must equal 100%" rule is enforced. While
-// an objective is a draft the weights can be anything, because you have to be
-// able to add the first key result. Publishing is the gate.
 const activateObjective = asyncHandler(async (req, res) => {
   const objective = await loadEditable(req, res);
   if (!objective) return;
@@ -121,9 +113,6 @@ const closeObjective = asyncHandler(async (req, res) => {
 // @desc    Readiness check: can this objective be activated yet?
 // @route   GET /api/okr/objectives/:id/readiness
 // @access  Any signed-in user who can see the objective
-//
-// Lets the frontend show "80% of 100 allocated, 20% left" and keep the publish
-// button disabled, instead of letting someone hit an error.
 const getReadiness = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -179,8 +168,7 @@ const addEvidence = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: "Key result not found" });
   }
 
-  // Calendar evidence has to point at something real, otherwise the audit trail
-  // is worthless.
+  // Calendar evidence has to point at something real.
   if (kind === "calendar") {
     const exists = ref ? await CalendarEntry.exists({ _id: ref }) : null;
     if (!exists) {
@@ -220,12 +208,9 @@ const addEvidence = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, keyResult });
 });
 
-// @desc    Submit a key result for approval
+// @desc    Submit a key result for approval, requires at least one piece of evidence
 // @route   POST /api/okr/key-results/:id/submit
 // @access  Anyone who can update the key result
-//
-// Evidence is required. That is the whole point of an evidence-backed OKR: you
-// cannot mark work complete on your word alone.
 const submitForApproval = asyncHandler(async (req, res) => {
   const keyResult = await OkrKeyResult.findById(req.params.id);
   if (!keyResult) {
@@ -304,7 +289,7 @@ const reviewKeyResult = asyncHandler(async (req, res) => {
     });
   }
 
-  // A rejection without a reason just creates another conversation.
+  // Reason required on rejection.
   if (decision === "rejected" && !note) {
     return res.status(400).json({
       success: false,
@@ -355,8 +340,6 @@ const getAuditTrail = asyncHandler(async (req, res) => {
 // @desc    Resilience status: circuit breaker, queued writes, repairs
 // @route   GET /api/okr/system/resilience
 // @access  Any signed-in user
-//
-// What an operator looks at when someone says "the numbers look stale".
 const getResilienceStatus = asyncHandler(async (req, res) => {
   res.status(200).json({
     calendar: maxbox.status(),

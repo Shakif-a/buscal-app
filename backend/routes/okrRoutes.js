@@ -49,13 +49,9 @@ const {
 } = require("../controllers/okrGovernanceController");
 const { selfHeal } = require("../middleware/okrSelfHealingMiddleware");
 
-// OKR routes, mounted at /api/okr in server.js. "ping" is public so the Dev
-// Playground can confirm the API is up without logging in. Everything else
-// needs a valid token (protect middleware).
+// OKR routes, mounted at /api/okr in server.js. Everything but "ping" needs a valid token.
 
-// Module-wide guards: strip NoSQL operator keys out of every request body and
-// keep request volume within sane bounds (generous enough for real use, tight
-// enough to blunt brute-force scripts).
+// Strips NoSQL operator keys and rate-limits every request in this module.
 router.use(sanitizeBody);
 router.use(
   rateLimit({
@@ -64,8 +60,7 @@ router.use(
   })
 );
 
-// Every route with an :id gets the format checked before any database work,
-// so malformed ids return a clean 400 instead of a CastError 500.
+// Checks id format for every route with an :id before any database work.
 router.param("id", (req, res, next, value) => validateObjectId("id")(req, res, next));
 
 // Public reachability check.
@@ -86,14 +81,10 @@ router
   .get(protect, getObjectives)
   .post(protect, requireOkrManager, createObjective);
 
-// The top-down strategy tree, and the list of group names already in use.
-// Both registered before "/objectives/:id" so the words are never mistaken
-// for an object id.
+// Registered before "/objectives/:id" so these words aren't read as an id.
 router.get("/objectives/tree", protect, getObjectiveTree);
 router.get("/objectives/groups", protect, getObjectiveGroups);
-// Reading one objective runs the self-healing pass first, so dead calendar
-// links and missing users are cleaned up before the data is served rather than
-// blowing up in the handler.
+// Runs the self-healing pass before serving one objective.
 router
   .route("/objectives/:id")
   .get(protect, selfHeal("id"), getObjective)
@@ -135,16 +126,14 @@ router.patch(
 router.post("/key-results/:id/check-in", protect, checkIn);
 router.get("/key-results/:id/history", protect, getKeyResultHistory);
 
-// Calendar links: tie a key result to calendar work so finishing that work
-// moves the objective automatically.
+// Calendar links: ties a key result to calendar work.
 router
   .route("/key-results/:id/calendar-links")
   .post(protect, requireOkrManager, linkCalendarEntries)
   .delete(protect, requireOkrManager, unlinkCalendarEntry);
 router.post("/key-results/:id/sync-calendar", protect, syncKeyResultCalendar);
 
-// Evidence and the approval cycle. Anyone doing the work can attach evidence
-// and submit; only a manager who did not submit it can review.
+// Evidence and the approval cycle.
 router.post("/key-results/:id/evidence", protect, addEvidence);
 router.post("/key-results/:id/submit", protect, submitForApproval);
 router.post("/key-results/:id/review", protect, requireOkrManager, reviewKeyResult);

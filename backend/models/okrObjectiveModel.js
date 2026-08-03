@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// Stores one OKR objective. Key Results are stored separately and linked to it.
+// One OKR objective. Key results are stored separately and link back to this.
 const okrObjectiveSchema = new mongoose.Schema(
   {
     owner: {
@@ -20,14 +20,14 @@ const okrObjectiveSchema = new mongoose.Schema(
       maxlength: 2000,
       default: "",
     },
-    // draft = still being prepared, active = being tracked, closed = finished
+    // draft, active, or closed.
     lifecycle: {
       type: String,
       enum: ["draft", "active", "closed"],
       default: "draft",
       index: true,
     },
-    // Used to build the OKR hierarchy, such as company > department > team.
+    // Parent objective, for the company > department > team hierarchy.
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "OkrObjective",
@@ -38,8 +38,7 @@ const okrObjectiveSchema = new mongoose.Schema(
       enum: ["company", "department", "team", "individual"],
       default: "company",
     },
-    // Which team/department this belongs to, e.g. "R&D". Separate from type
-    // above, which is the hierarchy level, not a department name.
+    // Team/department name, e.g. "R&D".
     group: {
       type: String,
       trim: true,
@@ -60,7 +59,7 @@ const okrObjectiveSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Due date is required"],
     },
-    // Cached value used by dashboards and reports.
+    // Rolled-up progress from the key results.
     progress: {
       type: Number,
       min: 0,
@@ -83,7 +82,7 @@ const okrObjectiveSchema = new mongoose.Schema(
   }
 );
 
-// Helps common dashboard and alert queries run faster.
+// Speeds up dashboard queries.
 okrObjectiveSchema.index({ owner: 1, dueDate: 1 });
 okrObjectiveSchema.index({ status: 1, dueDate: 1 });
 

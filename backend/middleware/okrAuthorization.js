@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 
 const OKR_MANAGER_ROLES = new Set(["admin", "qm", "manager"]);
 
+// Merges account roles and company roles into one lowercase list.
 function normaliseRoles(user) {
   if (!user) return [];
   const accountRoles = Array.isArray(user.roles) ? user.roles : [];
@@ -17,6 +18,7 @@ function isOkrManager(user) {
   return normaliseRoles(user).some((role) => OKR_MANAGER_ROLES.has(role));
 }
 
+// Blocks the route unless the user is a manager/admin.
 const requireOkrManager = asyncHandler(async (req, res, next) => {
   if (!isOkrManager(req.user)) {
     res.status(403);
@@ -25,24 +27,13 @@ const requireOkrManager = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// Four access tiers:
-// admin  - everything, including other people's objectives
-// manager - creates/edits objectives, approves key results
-// owner  - the person accountable for one objective, full control of just that one
-// staff  - any signed-in employee, reads what they can see and updates their own work
-//
-// Ownership is per record rather than a role, so the check takes the
-// document as well as the user.
-
 const ADMIN_ROLES = new Set(["admin"]);
 
 function isAdmin(user) {
   return normaliseRoles(user).some((role) => ADMIN_ROLES.has(role));
 }
 
-// Does this user own this objective?
-// objective.owner may be a raw id or a populated user document (if the
-// caller populated it to read the owner's name); handle both.
+// Handles both a raw owner id and a populated owner document.
 function isObjectiveOwner(objective, user) {
   if (!objective || !user) return false;
   const ownerId =
@@ -50,7 +41,7 @@ function isObjectiveOwner(objective, user) {
   return String(ownerId) === String(user.id || user._id);
 }
 
-// The tier to report back to the frontend so it can show the right controls.
+// admin, owner, manager, or staff.
 function accessTierFor(objective, user) {
   if (isAdmin(user)) return "admin";
   if (isObjectiveOwner(objective, user)) return "owner";
@@ -58,15 +49,12 @@ function accessTierFor(objective, user) {
   return "staff";
 }
 
-// Can this user change the objective itself (title, dates, weights, lifecycle)?
-// Owners and managers can. Staff cannot.
+// Owners and managers can edit an objective, staff cannot.
 function canEditObjective(objective, user) {
   return isAdmin(user) || isObjectiveOwner(objective, user) || isOkrManager(user);
 }
 
-// Approving your own work defeats the point of an approval step, so an owner
-// cannot sign off their own key result unless they are also an admin. This is
-// the one rule people push back on, and it is the one worth keeping.
+// Managers can approve, but never their own submission (unless admin).
 function canApprove(keyResult, objective, user) {
   if (isAdmin(user)) return true;
   if (!isOkrManager(user)) return false;
@@ -75,7 +63,7 @@ function canApprove(keyResult, objective, user) {
   return !submitterIsReviewer;
 }
 
-// Middleware form for routes that only admins may touch.
+// Blocks the route unless the user is an admin.
 const requireAdmin = asyncHandler(async (req, res, next) => {
   if (!isAdmin(req.user)) {
     res.status(403);

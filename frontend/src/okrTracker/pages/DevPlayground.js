@@ -7,25 +7,12 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 
-// ---------------------------------------------------------------------------
-// Dev Playground for the OKR backend.
-//
-// Real buttons that call the real API, so anyone can click through and see
-// for themselves that objective create/edit/delete and the calendar link
-// actually work, no separate tool (Postman, curl) required.
-//
-// Needs a manager-role account already logged in (the app's normal login),
-// since creating/editing/deleting an objective is manager-only by design.
-// ---------------------------------------------------------------------------
+// Dev Playground: real buttons that call the real OKR API. Log in as a manager first.
 
-// Uses the OKR-specific API URL (already set up in .env for this exact
-// purpose) rather than the general VITE_API_URL, which usually points at the
-// live Render deployment, not your local server.
+// OKR-specific API URL, not the general VITE_API_URL (that one points at Render).
 const API_BASE = import.meta.env.VITE_OKR_API_URL || "http://localhost:5000";
 
-// Remembers ids across an accidental page reload within the same tab
-// (sessionStorage survives a refresh, unlike plain useState), so a reload
-// never silently resets the chain without you noticing.
+// Keeps an id in sessionStorage too, so a page reload doesn't lose it.
 function usePersistedId(key) {
   const [value, setValue] = useState(() => sessionStorage.getItem(key) || null);
   const setAndStore = (next) => {
@@ -69,7 +56,7 @@ export default function DevPlayground() {
     setLog(`${label} FAILED\n\n${JSON.stringify(detail, null, 2)}`);
   };
 
-  // ---- Objective create / edit / delete ----
+  // Objective create/edit/delete.
 
   const createObjective = async () => {
     try {
@@ -122,7 +109,7 @@ export default function DevPlayground() {
     }
   };
 
-  // ---- Key result, needed before the calendar link can be tested ----
+  // Key result, needed before the calendar link can be tested.
 
   const createKeyResult = async () => {
     if (!objectiveId) {
@@ -144,7 +131,7 @@ export default function DevPlayground() {
     }
   };
 
-  // ---- Calendar entry + link, the "Objectives to Calendar" card ----
+  // Calendar entry and link.
 
   const createCalendarEntry = async () => {
     try {

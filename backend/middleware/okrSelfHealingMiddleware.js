@@ -4,24 +4,13 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const audit = require("../services/okrAuditService");
 
-// Self-healing layer. Data drifts over time: a calendar entry gets deleted
-// while a key result still points at it, a user is removed while still
-// assigned work, a parent id ends up pointing nowhere. None of that should
-// turn into a 500 for a customer.
-//
-// This runs before the read handlers for a single objective, finds
-// references that no longer resolve, detaches them, and writes a repair
-// entry to the audit log so nothing changes silently. If a repair itself
-// throws, we log it and let the request through anyway - a broken healer
-// shouldn't be worse than the problem it's fixing.
+// Fixes broken references (deleted calendar entries, deleted users, dead parent ids) before a read.
 
-// Strip calendar references that no longer exist from one key result.
-// Returns a description of what changed, or null when it was already clean.
+// Strips dead calendar links from one key result and logs the repair.
 async function healKeyResultCalendarLinks(keyResult) {
   const linked = keyResult.calendarEntries || [];
   if (linked.length === 0) return null;
 
-  // Which of those ids actually still resolve?
   const alive = await CalendarEntry.find({ _id: { $in: linked } }).select("_id");
   const aliveIds = new Set(alive.map((e) => String(e._id)));
   const orphans = linked.filter((id) => !aliveIds.has(String(id)));
@@ -31,9 +20,7 @@ async function healKeyResultCalendarLinks(keyResult) {
   const before = linked.map(String);
   keyResult.calendarEntries = linked.filter((id) => aliveIds.has(String(id)));
 
-  // If every link is gone the key result cannot be calendar-driven any more.
-  // Hand it back to manual updates and keep the last known progress rather than
-  // dropping someone's reported figure to zero.
+  // Falls back to manual progress instead of resetting it to zero.
   if (keyResult.calendarEntries.length === 0 && keyResult.progressSource === "calendar") {
     keyResult.progressSource = "manual";
   }
@@ -53,8 +40,7 @@ async function healKeyResultCalendarLinks(keyResult) {
   return { keyResultId: String(keyResult._id), detached: orphans.length };
 }
 
-// Clear a parent that points at an objective which no longer exists, so the
-// strategy tree does not lose the branch entirely.
+// Clears a parent id that points at a deleted objective.
 async function healObjectiveParent(objective) {
   if (!objective.parent) return null;
 
@@ -78,7 +64,7 @@ async function healObjectiveParent(objective) {
   return { objectiveId: String(objective._id), clearedParent: true };
 }
 
-// Clear assignees who no longer have an account.
+// Clears an assignee whose account no longer exists.
 async function healMissingAssignee(keyResult) {
   if (!keyResult.assignedTo) return null;
 
@@ -103,7 +89,7 @@ async function healMissingAssignee(keyResult) {
   return { keyResultId: String(keyResult._id), clearedAssignee: true };
 }
 
-// Run every repair for one objective and report what was fixed.
+// Runs every repair for one objective.
 async function healObjective(objectiveId) {
   const repairs = [];
 
@@ -125,9 +111,7 @@ async function healObjective(objectiveId) {
   return repairs;
 }
 
-// The Express middleware. Attach it to routes that read one objective by id.
-// It never blocks the request: any failure inside the healer is logged and the
-// handler runs regardless.
+// Middleware for routes that read one objective by id.
 function selfHeal(paramName = "id") {
   return async (req, res, next) => {
     const objectiveId = req.params[paramName];
@@ -139,8 +123,6 @@ function selfHeal(paramName = "id") {
     try {
       const repairs = await healObjective(objectiveId);
       if (repairs.length > 0) {
-        // Let the handler mention it in the response if it wants to, and tell
-        // the frontend something was cleaned up.
         req.okrRepairs = repairs;
         res.set("X-OKR-Repairs", String(repairs.length));
       }

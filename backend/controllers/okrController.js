@@ -6,10 +6,7 @@ const OkrActivity = require("../models/okrActivityModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const { isOkrManager } = require("../middleware/okrAuthorization");
 
-// Main OKR controller. Two rules matter most: key result weights under one
-// objective can never total more than 100%, and an objective's progress is
-// the weighted average of its key results. Also has a small "ping" route so
-// the Dev Playground can check the API is up.
+// Main OKR controller: objectives, key results, weights, and progress roll-up.
 
 // helpers
 
@@ -60,10 +57,8 @@ function respondWithInputError(res, error) {
   throw error;
 }
 
+// Handles both a raw owner id and a populated owner document.
 function ownsObjective(objective, user) {
-  // objective.owner may be a raw id or, if the caller populated it (e.g. to
-  // read the owner's name), a full user document. Handle both so populating
-  // for display never silently breaks the ownership check.
   const ownerId =
     objective.owner && objective.owner._id ? objective.owner._id : objective.owner;
   return String(ownerId) === String(user.id);
@@ -96,12 +91,12 @@ async function assertCanUpdateKeyResult(keyResult, req, res) {
   throw new Error("You can only update key results assigned to you");
 }
 
-// Add up the weights of a list of key results.
+// Adds up the weights of a list of key results.
 function sumWeights(keyResults) {
   return keyResults.reduce((sum, kr) => sum + Number(kr.weight || 0), 0);
 }
 
-// Weighted roll-up: each key result contributes (weight/100) * its progress.
+// Weighted average: each key result contributes (weight/100) * progress.
 function calcObjectiveProgress(keyResults) {
   if (!keyResults.length) return 0;
   const weighted = keyResults.reduce(
@@ -111,7 +106,7 @@ function calcObjectiveProgress(keyResults) {
   return Math.round(Math.max(0, Math.min(100, weighted)));
 }
 
-// Turn a progress number + due date into a status label for colour coding.
+// Turns progress + due date into a status label.
 function deriveStatus(progress, dueDate, startDate = null) {
   if (progress >= 100) return "completed";
   const now = new Date();
@@ -133,9 +128,7 @@ function deriveStatus(progress, dueDate, startDate = null) {
   return "on-track";
 }
 
-// Write one row to the activity feed. Deliberately fire-and-forget in spirit:
-// a failed log line should never break the actual request, so we swallow
-// errors here.
+// Writes one row to the activity feed, errors are just logged.
 async function logActivity(userId, action, objectiveId, message) {
   try {
     await OkrActivity.create({ user: userId, action, objective: objectiveId, message });
@@ -144,12 +137,7 @@ async function logActivity(userId, action, objectiveId, message) {
   }
 }
 
-// Calendar-driven progress: a key result can be tied to one or more calendar
-// entries, and its progress becomes the average completion of those entries,
-// which then rolls up into the objective as usual. A completed entry counts
-// as 100 even if nobody typed a progress number on it.
-
-// Work out a single calendar entry's contribution, 0 to 100.
+// Turns a single calendar entry's status into a 0-100 completion number.
 function entryCompletion(entry) {
   if (!entry) return 0;
   if (entry.completionStatus === "completed") return 100;
@@ -159,8 +147,7 @@ function entryCompletion(entry) {
   return Math.max(0, Math.min(100, raw));
 }
 
-// Average completion across a key result's linked calendar entries. Returns
-// null when nothing is linked, so callers can leave progress untouched.
+// Average completion across a key result's linked calendar entries.
 async function calendarProgressFor(keyResult) {
   const ids = keyResult.calendarEntries || [];
   if (ids.length === 0) return null;
@@ -174,8 +161,7 @@ async function calendarProgressFor(keyResult) {
   };
 }
 
-// Recalculate one key result from its calendar entries and save it. Used by the
-// sync endpoints. Returns a small summary, or null when nothing is linked.
+// Recalculates one key result's progress from its calendar entries.
 async function syncKeyResultFromCalendar(keyResult) {
   const result = await calendarProgressFor(keyResult);
   if (!result) return null;
@@ -186,7 +172,7 @@ async function syncKeyResultFromCalendar(keyResult) {
   return result;
 }
 
-// Reload an objective's key results, recompute its progress/status and save.
+// Reloads an objective's key results and recomputes progress/status.
 async function recalcObjective(objectiveId) {
   const objective = await OkrObjective.findById(objectiveId);
   if (!objective) return null;
@@ -207,8 +193,6 @@ async function recalcObjective(objectiveId) {
 // @route   GET /api/okr/ping
 // @access  Public
 const ping = asyncHandler(async (req, res) => {
-  // 1 means connected; anything else means the database is not usable, which
-  // an ops dashboard or the Maxbox monitoring agent needs to know about.
   const mongoose = require("mongoose");
   const dbConnected = mongoose.connection.readyState === 1;
 
@@ -221,9 +205,7 @@ const ping = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    List the distinct group names already used on objectives, so a
-//          frontend dropdown can offer real values instead of hard-coding a
-//          list. Empty until someone actually sets a group on an objective.
+// @desc    List distinct group names already used on objectives
 // @route   GET /api/okr/objectives/groups
 // @access  Private
 const getObjectiveGroups = asyncHandler(async (req, res) => {
@@ -231,12 +213,7 @@ const getObjectiveGroups = asyncHandler(async (req, res) => {
   res.status(200).json(groups.sort());
 });
 
-// @desc    List the logged-in user's objectives
-// @route   GET /api/okr/objectives
-// @access  Private
-// Adds a plain `manager` string (the owner's name) alongside the existing
-// `owner` reference, so a frontend can show a name without doing its own
-// lookup. The underlying data still only stores the real user reference.
+// Adds a plain `manager` name string next to the `owner` reference.
 function withManagerName(objective) {
   const plain = objective.toObject ? objective.toObject() : objective;
   const owner = plain.owner;
@@ -247,6 +224,9 @@ function withManagerName(objective) {
   return { ...plain, manager };
 }
 
+// @desc    List the logged-in user's objectives
+// @route   GET /api/okr/objectives
+// @access  Private
 const getObjectives = asyncHandler(async (req, res) => {
   const teamScope = req.query.scope === "team" && isOkrManager(req.user);
   const filter = teamScope ? {} : { owner: req.user.id };
@@ -304,9 +284,7 @@ const createObjective = asyncHandler(async (req, res) => {
       });
     }
 
-    // A parent makes this objective part of a top-down cascade. It has to be an
-    // objective the caller can actually see, so nobody can attach their goal
-    // under someone else's strategy.
+    // Parent must be an objective the caller can already see.
     let safeParent = null;
     if (parent) {
       const parentObjective = await OkrObjective.findById(parent);
@@ -395,7 +373,7 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result due date cannot be after the objective due date");
   }
 
-  // RULE 1: the new total weight must not exceed 100.
+  // Total weight must not exceed 100.
   const existing = await OkrKeyResult.find({ objective: objective.id });
   const newTotal = sumWeights(existing) + safeWeight;
   if (newTotal > 100.01) {
@@ -415,7 +393,6 @@ const createKeyResult = asyncHandler(async (req, res) => {
     dueDate: safeDueDate,
   });
 
-  // RULE 2: refresh the objective roll-up.
   await recalcObjective(objective.id);
 
   await logActivity(
@@ -519,26 +496,20 @@ const checkWeights = asyncHandler(async (req, res) => {
 // @desc    Dashboard summary of the logged-in user's OKRs
 // @route   GET /api/okr/summary
 // @access  Private
-// Gives the dashboard everything it needs in one call: how many objectives
-// there are, how they break down by status, the average progress, and a short
-// list of the objectives that need attention (overdue or at-risk).
 const getSummary = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id });
   const ids = objectives.map((o) => o._id);
   const keyResults = await OkrKeyResult.find({ objective: { $in: ids } });
 
-  // Count objectives by status.
   const statusCounts = { "on-track": 0, "at-risk": 0, overdue: 0, completed: 0 };
   objectives.forEach((o) => {
     if (statusCounts[o.status] !== undefined) statusCounts[o.status] += 1;
   });
 
-  // Average progress across all objectives (0 when there are none).
   const averageProgress = objectives.length
     ? Math.round(objectives.reduce((sum, o) => sum + o.progress, 0) / objectives.length)
     : 0;
 
-  // The objectives a manager would want to look at first.
   const needsAttention = objectives
     .filter((o) => o.status === "overdue" || o.status === "at-risk")
     .map((o) => ({
@@ -562,8 +533,6 @@ const getSummary = asyncHandler(async (req, res) => {
 // @desc    Key results assigned to the logged-in user
 // @route   GET /api/okr/my-key-results
 // @access  Private
-// A personal "what am I responsible for" view. Each item carries its parent
-// objective's title and due date so the frontend can show context.
 const getMyKeyResults = asyncHandler(async (req, res) => {
   const keyResults = await OkrKeyResult.find({ assignedTo: req.user.id })
     .populate("objective", "title dueDate")
@@ -574,10 +543,6 @@ const getMyKeyResults = asyncHandler(async (req, res) => {
 // @desc    Record a progress check-in on a key result
 // @route   POST /api/okr/key-results/:id/check-in
 // @access  Private
-// This is the preferred way to move progress. It stores a dated history row
-// (with an optional note), updates the key result, re-rolls the objective and
-// drops a line in the activity feed. The history is what powers the trend
-// chart and the forecast.
 const checkIn = asyncHandler(async (req, res) => {
   const { progress, note } = req.body;
   let safeProgress;
@@ -645,9 +610,6 @@ const getKeyResultHistory = asyncHandler(async (req, res) => {
 // @desc    Forecast for an objective: will it land on time at the current pace?
 // @route   GET /api/okr/objectives/:id/forecast
 // @access  Private
-// Simple velocity model: work out progress-per-day since the objective
-// started, project it forward, and compare against the due date. Also
-// returns the weekly pace needed to land exactly on time.
 const getForecast = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -661,25 +623,20 @@ const getForecast = asyncHandler(async (req, res) => {
   const due = new Date(objective.dueDate);
   const msPerDay = 24 * 60 * 60 * 1000;
 
-  const daysElapsed = Math.max((now - start) / msPerDay, 0.5); // avoid divide-by-zero on day one
+  const daysElapsed = Math.max((now - start) / msPerDay, 0.5);
   const daysRemaining = Math.max((due - now) / msPerDay, 0);
   const remainingProgress = 100 - objective.progress;
 
-  // How fast has it actually moved, in percent per day?
   const velocityPerDay = objective.progress / daysElapsed;
 
-  // Project the finish date at the current pace. If nothing has moved yet the
-  // velocity is zero and there is no meaningful projection.
   let projectedFinish = null;
   if (velocityPerDay > 0 && remainingProgress > 0) {
     projectedFinish = new Date(now.getTime() + (remainingProgress / velocityPerDay) * msPerDay);
   }
 
-  // The pace needed from today to land exactly on the due date.
   const requiredPerWeek =
     daysRemaining > 0 ? Math.round((remainingProgress / daysRemaining) * 7 * 10) / 10 : null;
 
-  // Verdict: done, overdue, no-data, on-pace, or behind.
   let verdict;
   if (objective.progress >= 100) {
     verdict = "completed";
@@ -709,9 +666,6 @@ const getForecast = asyncHandler(async (req, res) => {
 // @desc    Plain-English insights across the logged-in user's OKRs
 // @route   GET /api/okr/insights
 // @access  Private
-// Scans everything and writes short findings with a severity, so the
-// frontend can colour them: stale key results, bad weight setups, overdue
-// and behind-pace objectives, and finished work waiting on approval.
 const getInsights = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id });
   const ids = objectives.map((o) => o._id);
@@ -724,8 +678,6 @@ const getInsights = asyncHandler(async (req, res) => {
     const krs = keyResults.filter((kr) => String(kr.objective) === String(o._id));
     const totalWeight = sumWeights(krs);
 
-    // Setup problems first: an objective whose weights do not reach 100 can
-    // never hit 100% progress, which usually surprises people.
     if (krs.length === 0) {
       insights.push({
         severity: "warning",
@@ -740,7 +692,6 @@ const getInsights = asyncHandler(async (req, res) => {
       });
     }
 
-    // Deadline problems.
     if (o.status === "overdue") {
       insights.push({
         severity: "critical",
@@ -748,7 +699,6 @@ const getInsights = asyncHandler(async (req, res) => {
         text: `"${o.title}" is past its due date at ${o.progress}% complete.`,
       });
     } else if (o.progress < 100 && o.dueDate > now) {
-      // Behind pace? Reuse the forecast maths inline.
       const start = o.startDate ? new Date(o.startDate) : new Date(o.createdAt);
       const daysElapsed = Math.max((now - start) / msPerDay, 0.5);
       const daysRemaining = (new Date(o.dueDate) - now) / msPerDay;
@@ -765,9 +715,7 @@ const getInsights = asyncHandler(async (req, res) => {
     }
   }
 
-  // Key-result level findings.
   for (const kr of keyResults) {
-    // Finished but waiting for a manager.
     if (kr.progress >= 100 && !kr.approved) {
       insights.push({
         severity: "info",
@@ -776,7 +724,6 @@ const getInsights = asyncHandler(async (req, res) => {
       });
     }
 
-    // Stale: no check-in for over a week on an unfinished key result.
     if (kr.progress < 100) {
       const lastCheckin = await OkrCheckin.findOne({ keyResult: kr._id }).sort({ createdAt: -1 });
       const lastTouch = lastCheckin ? lastCheckin.createdAt : kr.createdAt;
@@ -791,7 +738,7 @@ const getInsights = asyncHandler(async (req, res) => {
     }
   }
 
-  // Most serious first, so the top of the list is always the priority.
+  // Most serious first.
   const order = { critical: 0, warning: 1, info: 2 };
   insights.sort((a, b) => order[a.severity] - order[b.severity]);
 
@@ -820,8 +767,6 @@ const getActivity = asyncHandler(async (req, res) => {
 // @desc    Update an objective's editable fields
 // @route   PUT /api/okr/objectives/:id
 // @access  Private (managers)
-// Progress and status stay read-only here because they are calculated from
-// the key results; letting clients set them would break the roll-up contract.
 const updateObjective = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -846,7 +791,6 @@ const updateObjective = asyncHandler(async (req, res) => {
   }
   await objective.save();
 
-  // Due date changes can flip the status, so refresh the roll-up.
   await recalcObjective(objective.id);
   await logActivity(req.user.id, "objective.updated", objective.id, `Updated objective "${objective.title}"`);
 
@@ -856,8 +800,6 @@ const updateObjective = asyncHandler(async (req, res) => {
 // @desc    Update a key result (title, weight, assignee, due date)
 // @route   PUT /api/okr/key-results/:id
 // @access  Private (managers)
-// Re-runs the 100% weight ceiling when the weight changes: the other key
-// results' weights plus the new value may not pass 100.
 const updateKeyResult = asyncHandler(async (req, res) => {
   const keyResult = await OkrKeyResult.findById(req.params.id);
   if (!keyResult) {
@@ -920,8 +862,6 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
 // @route   POST /api/okr/key-results/:id/calendar-links
 // @access  Private (managers)
 // Body: { entryIds: ["<calendarEntryId>", ...] }
-// Once linked, the key result's progress is driven by how much of that calendar
-// work is done. Linking immediately syncs, so the dashboard updates on the spot.
 const linkCalendarEntries = asyncHandler(async (req, res) => {
   const { entryIds } = req.body;
   if (!Array.isArray(entryIds) || entryIds.length === 0) {
@@ -941,14 +881,12 @@ const linkCalendarEntries = asyncHandler(async (req, res) => {
   }
   await assertCanViewObjective(objective, req, res);
 
-  // Only link entries that actually exist, so a typo cannot poison the maths.
   const found = await CalendarEntry.find({ _id: { $in: entryIds } }).select("_id");
   if (found.length === 0) {
     res.status(404);
     throw new Error("None of those calendar entries exist");
   }
 
-  // Merge without duplicates.
   const existing = new Set((keyResult.calendarEntries || []).map(String));
   found.forEach((e) => existing.add(String(e._id)));
   keyResult.calendarEntries = Array.from(existing);
@@ -969,8 +907,6 @@ const linkCalendarEntries = asyncHandler(async (req, res) => {
 // @route   DELETE /api/okr/key-results/:id/calendar-links
 // @access  Private (managers)
 // Body: { entryId }
-// If the last entry is removed the key result goes back to manual progress and
-// keeps whatever number it had, rather than silently dropping to zero.
 const unlinkCalendarEntry = asyncHandler(async (req, res) => {
   const { entryId } = req.body;
   if (!entryId) {
@@ -1029,8 +965,6 @@ const syncKeyResultCalendar = asyncHandler(async (req, res) => {
 // @desc    Recalculate every calendar-linked key result under an objective
 // @route   POST /api/okr/objectives/:id/sync-calendar
 // @access  Private
-// The endpoint a scheduled job (or a Refresh button) calls to pull the latest
-// calendar completion through into objective progress.
 const syncObjectiveCalendar = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -1066,12 +1000,9 @@ const syncObjectiveCalendar = asyncHandler(async (req, res) => {
 // @desc    Top-down objective tree
 // @route   GET /api/okr/objectives/tree
 // @access  Private
-// Returns the caller's objectives nested by parent, so the UI can show the
-// plan cascading from company level down to individual level.
 const getObjectiveTree = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id }).sort({ dueDate: 1 });
 
-  // Build a lookup, then hang each objective off its parent.
   const nodes = new Map();
   objectives.forEach((o) => {
     nodes.set(String(o._id), {
@@ -1091,7 +1022,6 @@ const getObjectiveTree = asyncHandler(async (req, res) => {
     if (node.parent && nodes.has(node.parent)) {
       nodes.get(node.parent).children.push(node);
     } else {
-      // No parent, or a parent the caller cannot see: treat as a top-level goal.
       roots.push(node);
     }
   });
@@ -1102,8 +1032,6 @@ const getObjectiveTree = asyncHandler(async (req, res) => {
 // @desc    Chart-ready progress trend for an objective
 // @route   GET /api/okr/objectives/:id/trend
 // @access  Private
-// Replays the check-in history in date order and recomputes weighted progress
-// at each step, so the frontend gets a {date, progress} series to chart.
 const getTrend = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -1115,8 +1043,6 @@ const getTrend = asyncHandler(async (req, res) => {
   const keyResults = await OkrKeyResult.find({ objective: objective.id });
   const checkins = await OkrCheckin.find({ objective: objective.id }).sort({ createdAt: 1 });
 
-  // Start every key result at zero, then replay each check-in and record the
-  // weighted total as it stood at that moment.
   const progressByKr = {};
   keyResults.forEach((kr) => {
     progressByKr[String(kr._id)] = 0;
@@ -1148,8 +1074,6 @@ const getTrend = asyncHandler(async (req, res) => {
 // @desc    Contributor leaderboard across the caller's objectives
 // @route   GET /api/okr/leaderboard
 // @access  Private
-// Ranks people by key results assigned to them: approved ones count double,
-// average progress breaks ties. Scoped to the caller's own objectives.
 const getLeaderboard = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id }).select("_id");
   const ids = objectives.map((o) => o._id);
@@ -1158,7 +1082,6 @@ const getLeaderboard = asyncHandler(async (req, res) => {
     assignedTo: { $ne: null },
   }).populate("assignedTo", "firstName lastName");
 
-  // Group by assignee and tally.
   const byUser = new Map();
   for (const kr of keyResults) {
     if (!kr.assignedTo) continue;
@@ -1180,7 +1103,6 @@ const getLeaderboard = asyncHandler(async (req, res) => {
     .map((e) => ({
       ...e,
       averageProgress: Math.round(e.totalProgress / e.keyResults),
-      // Approved work counts double; steady progress fills in the rest.
       score: e.approved * 200 + Math.round(e.totalProgress / e.keyResults),
     }))
     .sort((a, b) => b.score - a.score)

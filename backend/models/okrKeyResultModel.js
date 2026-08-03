@@ -1,70 +1,54 @@
 const mongoose = require("mongoose");
 
-// Stores one key result under an objective. Weight is its share of the
-// objective (0-100), and all weights under one objective must add up to 100.
+// One key result under an objective. Weights of all key results under one objective must add up to 100.
 const okrKeyResultSchema = new mongoose.Schema(
   {
-    // The objective this key result belongs to.
     objective: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "OkrObjective",
     },
-
-    // What the key result measures.
     title: {
       type: String,
       required: [true, "Please add a key result title"],
       trim: true,
       maxlength: 180,
     },
-
-    // Share of the objective, 0-100. Controller checks all weights under one
-    // objective never go over 100.
+    // Share of the objective, 0-100.
     weight: {
       type: Number,
       required: [true, "Please add a weight"],
       min: 0,
       max: 100,
     },
-
-    // How far along this key result is, 0-100.
     progress: {
       type: Number,
       default: 0,
       min: 0,
       max: 100,
     },
-
     status: {
       type: String,
       enum: ["on-track", "at-risk", "overdue", "completed"],
       default: "on-track",
     },
-
-    // Who's responsible for delivering this key result.
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-
     dueDate: {
       type: Date,
       required: [true, "Please add a due date"],
     },
-
-    // Short note explaining why it's complete, filled in during manager review.
+    // Note added on manager review.
     completionJustification: {
       type: String,
       default: "",
       trim: true,
       maxlength: 1000,
     },
-
-    // Proof the key result is actually done. Most evidence lives in the
-    // calendar backend (a completed entry, a file), so we just keep a
-    // reference to it instead of copying it over.
+    // Proof it's actually done.
     evidence: [
       {
         kind: {
@@ -72,12 +56,10 @@ const okrKeyResultSchema = new mongoose.Schema(
           enum: ["calendar", "file", "link", "note"],
           required: true,
         },
-        // Id of the calendar entry or file, when the evidence lives elsewhere.
         ref: {
           type: mongoose.Schema.Types.ObjectId,
           default: null,
         },
-        // URL for "link", free text for "note".
         value: {
           type: String,
           default: "",
@@ -101,24 +83,18 @@ const okrKeyResultSchema = new mongoose.Schema(
         },
       },
     ],
-
-    // Owner submits, manager decides. Four states so "never submitted" is
-    // different from "submitted and waiting":
-    // draft = not submitted yet, pending = waiting on a manager,
-    // approved = signed off, rejected = sent back with a reason.
+    // draft, pending, approved, or rejected.
     approvalState: {
       type: String,
       enum: ["draft", "pending", "approved", "rejected"],
       default: "draft",
       index: true,
     },
-
-    // Mirrors approvalState so anything still reading this boolean keeps working.
+    // Mirrors approvalState for older code that reads this boolean.
     approved: {
       type: Boolean,
       default: false,
     },
-
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -128,8 +104,6 @@ const okrKeyResultSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-
-    // Who approved/rejected this, and when.
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -139,35 +113,27 @@ const okrKeyResultSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-
-    // Why it got rejected. Required on rejection, since "no" with no reason
-    // just means another meeting.
+    // Reason for rejection.
     reviewNote: {
       type: String,
       default: "",
       trim: true,
       maxlength: 1000,
     },
-
-    // Calendar entries whose completion drives this key result's progress.
-    // Finishing the calendar work moves the key result, which rolls up into
-    // the objective. Only used when progressSource is "calendar".
+    // Linked calendar entries that drive this key result's progress.
     calendarEntries: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "CalendarEntry",
       },
     ],
-
-    // manual = someone types a number or checks in (default)
-    // calendar = calculated from the linked calendar entries
+    // manual or calendar.
     progressSource: {
       type: String,
       enum: ["manual", "calendar"],
       default: "manual",
     },
-
-    // Old single-task reference, kept so older records still load.
+    // Old single-task reference, kept for older records.
     calendarTaskId: {
       type: String,
       default: null,

@@ -1,9 +1,7 @@
 const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
-// connectDB logs a colored line using the "colors" package, which only works
-// once something has loaded it. server.js does that at startup, but this
-// script runs standalone, so it needs its own require here too.
+// connectDB needs the "colors" package loaded, server.js does this normally but this script runs standalone.
 require("colors");
 const connectDB = require("../config/db");
 const User = require("../models/userModel");
@@ -37,9 +35,7 @@ async function seedOkrDemo() {
 
   await connectDB();
 
-  // This script touches only one explicitly reserved demo identity, plus one
-  // demo calendar entry owned by it. It never clears the users collection,
-  // the calendar collection at large, or any customer data.
+  // Only touches this one reserved demo account and its calendar entry, nothing else.
   await User.deleteOne({ email });
   const hashedPassword = await bcrypt.hash(password, 12);
   const demoUser = await User.create({
@@ -52,9 +48,7 @@ async function seedOkrDemo() {
     supervisor: null,
   });
 
-  // Also seed one demo calendar entry so the "link calendar to key result"
-  // flow (Dev Playground button 5, and the matching Trello card) has
-  // something real to link to right away, no manual setup needed first.
+  // Also seed one demo calendar entry so the calendar-link button has something to link to.
   await CalendarEntry.deleteMany({ title: "OKR demo calendar entry", userOwner: demoUser._id });
   const start = new Date();
   const end = new Date();
