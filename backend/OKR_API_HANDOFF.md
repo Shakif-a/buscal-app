@@ -62,11 +62,12 @@ independently, so a determined user cannot get around the UI.
 | GET | `/insights` | any user | Plain-English findings, sorted by severity |
 | GET | `/activity` | any user | Recent activity feed. `?limit=` 1 to 100, default 20. Managers may add `?scope=team` |
 | GET | `/leaderboard` | any user | Ranked contributors across the caller's objectives |
-| GET | `/objectives` | any user | The caller's objectives |
-| POST | `/objectives` | manager | Create an objective. Accepts `parent` to nest it |
+| GET | `/objectives` | any user | The caller's objectives, each with a `manager` name |
+| POST | `/objectives` | manager | Create an objective. Accepts `group`, `commitmentType` and `parent` |
 | GET | `/objectives/tree` | any user | The strategy cascade, objectives nested by parent |
+| GET | `/objectives/groups` | any user | The group names already in use, for a dropdown |
 | GET | `/objectives/:id` | any user | One objective plus its key results |
-| PUT | `/objectives/:id` | manager | Edit title, description, type, dates, approval state |
+| PUT | `/objectives/:id` | manager | Edit title, description, type, group, commitment type, dates, approval state |
 | DELETE | `/objectives/:id` | manager | Delete the objective, its key results and their history |
 | GET | `/objectives/:id/weight-check` | any user | Weight allocated, remaining, and whether it is exactly 100 |
 | GET | `/objectives/:id/forecast` | any user | Pace, projected finish date and a verdict |
@@ -221,11 +222,28 @@ strategy.
 its id, title, type, progress, status, due date and `children`. Render it as an
 expandable tree or an org-chart style view.
 
+## Fields for the objectives page
+
+An objective stores a `group` (the team or department name, such as "R&D") and a
+`commitmentType`, which is either `committed` or `aspirational`. Both are saved
+with the objective, so send them when creating or editing one.
+
+Watch the naming here. `type` is the level in the hierarchy, so `company`,
+`department`, `team` or `individual`. The Committed or Aspirational choice is
+`commitmentType`, a separate field.
+
+For the dropdowns, `GET /objectives/groups` returns the group names already in
+use, and `GET /api/users/user` (outside the OKR prefix) lists the users for the
+owner picker. Every objective in `GET /objectives` also comes back with a
+`manager` field holding the owner's full name, so the list can show a name
+without a second lookup.
+
 ## Notes and known gaps
 
-Filtering by group or department is not available yet, because the shared group
-model has not been agreed with the client. Owner and type filtering work today,
-and the parent hierarchy covers most of what grouping was needed for.
+Filtering the objectives list by group is not built yet. The group name is
+stored on every objective and `GET /objectives/groups` gives you the values, so
+the frontend can filter the returned list for now. A proper server-side filter
+can be added if it is needed.
 
 Evidence files attach to calendar entries rather than to key results, following
 the client's design that the calendar stays the system of record for the work
