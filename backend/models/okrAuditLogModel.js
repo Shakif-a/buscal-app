@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 // Stores a record of every change made to an objective or key result.
-// Entries are write-once so the history can be trusted later.
 const okrAuditLogSchema = new mongoose.Schema(
   {
     // The user who made the change, or null when a background repair made it.

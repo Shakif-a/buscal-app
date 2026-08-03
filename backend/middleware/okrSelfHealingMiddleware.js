@@ -3,9 +3,7 @@ const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const audit = require("../services/okrAuditService");
-// Clears references to records that no longer exist, so a deleted calendar entry
-// or user does not break the page. Every repair is written to the audit log.
-// Removes calendar links pointing at entries that have been deleted.
+// Removes calendar links pointing at entries that no longer exist.
 async function healKeyResultCalendarLinks(keyResult) {
   const linked = keyResult.calendarEntries || [];
   if (linked.length === 0) return null;
@@ -86,8 +84,7 @@ async function healObjective(objectiveId) {
   }
   return repairs;
 }
-// Middleware for routes that read one objective by id.
-// A failure here is logged and ignored so the request still goes through.
+// Runs before routes that read one objective, and never blocks the request.
 function selfHeal(paramName = "id") {
   return async (req, res, next) => {
     const objectiveId = req.params[paramName];

@@ -8,7 +8,6 @@ import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 
 // Test page for the OKR API. Log in as a manager before using the buttons.
-// Uses the OKR API url, not VITE_API_URL, which points at the deployed site.
 const API_BASE = import.meta.env.VITE_OKR_API_URL || "http://localhost:5000";
 
 // Keeps an id in sessionStorage so a page reload does not lose it.

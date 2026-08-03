@@ -151,7 +151,6 @@ const getReadiness = asyncHandler(async (req, res) => {
 // @desc    Attach evidence to a key result
 // @route   POST /api/okr/key-results/:id/evidence
 // @access  Anyone who can update the key result
-// Body: { kind, ref, value, label }
 const addEvidence = asyncHandler(async (req, res) => {
   const { kind, ref, value, label } = req.body;
 
@@ -252,7 +251,6 @@ const submitForApproval = asyncHandler(async (req, res) => {
 // @desc    Approve or reject a submitted key result
 // @route   POST /api/okr/key-results/:id/review
 // @access  Manager or admin, and never the person who submitted it
-// Body: { decision: "approved" | "rejected", note }
 const reviewKeyResult = asyncHandler(async (req, res) => {
   const { decision, note } = req.body;
 

@@ -6,8 +6,7 @@ const OkrActivity = require("../models/okrActivityModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const { isOkrManager } = require("../middleware/okrAuthorization");
 
-// Handles objectives, key results, weights and the progress roll-up.
-// Helper functions used by the handlers below.
+// Handles objectives, key results, weights and progress.
 const OBJECTIVE_TYPES = new Set([
   "company",
   "department",
@@ -857,7 +856,6 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
 // @desc    Link calendar entries to a key result
 // @route   POST /api/okr/key-results/:id/calendar-links
 // @access  Private (managers)
-// Body: { entryIds: ["<calendarEntryId>", ...] }
 const linkCalendarEntries = asyncHandler(async (req, res) => {
   const { entryIds } = req.body;
   if (!Array.isArray(entryIds) || entryIds.length === 0) {
@@ -902,7 +900,6 @@ const linkCalendarEntries = asyncHandler(async (req, res) => {
 // @desc    Unlink a calendar entry from a key result
 // @route   DELETE /api/okr/key-results/:id/calendar-links
 // @access  Private (managers)
-// Body: { entryId }
 const unlinkCalendarEntry = asyncHandler(async (req, res) => {
   const { entryId } = req.body;
   if (!entryId) {

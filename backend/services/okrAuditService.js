@@ -1,7 +1,6 @@
 const OkrAuditLog = require("../models/okrAuditLogModel");
 
-// Writes audit rows in one place so every entry comes out the same shape.
-// A failed audit write is logged and ignored, so it never blocks a user's request.
+// Writes an audit row. A failure here is logged and never blocks the request.
 async function record({
   actor = null,
   action,

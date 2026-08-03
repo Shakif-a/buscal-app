@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
-// Basic request guards for the OKR routes.
-// Returns a clean 400 for a badly formed id instead of a database CastError.
+// Returns a 400 for a badly formed id instead of a database error.
 function validateObjectId(paramName) {
   return (req, res, next) => {
     const value = req.params[paramName];

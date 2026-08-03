@@ -1,6 +1,4 @@
 // Stops the app hanging on a service that is not responding.
-// After enough failures the breaker opens and calls fail straight away,
-// then after a cool-off one request is let through to see if it recovered.
 const STATES = {
   CLOSED: "closed", // healthy, calls go through
   OPEN: "open", // failing, calls are rejected immediately

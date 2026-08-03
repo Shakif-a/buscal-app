@@ -49,7 +49,6 @@ const {
 } = require("../controllers/okrGovernanceController");
 const { selfHeal } = require("../middleware/okrSelfHealingMiddleware");
 
-// OKR routes, mounted at /api/okr in server.js. Everything except "ping" needs a valid token.
 // Cleans and rate-limits every request handled by this router.
 router.use(sanitizeBody);
 router.use(

@@ -2,11 +2,7 @@ const { CircuitBreaker } = require("./circuitBreaker");
 const CalendarEntry = require("../models/calendarEntryModel");
 const audit = require("./okrAuditService");
 
-// The only place that talks to the Maxbox calendar appliance.
-// Reads go through a circuit breaker and fall back to the local copy when the
-// box is unreachable. Failed writes are queued and retried by flushQueue.
-// Without MAXBOX_CALENDAR_URL set it reads the local collection, which is how
-// development and the tests run.
+// Talks to the Maxbox calendar, falling back to the local copy when it is down.
 const breaker = new CircuitBreaker({
   name: "maxbox-calendar",
   failureThreshold: Number(process.env.MAXBOX_FAILURE_THRESHOLD || 3),
