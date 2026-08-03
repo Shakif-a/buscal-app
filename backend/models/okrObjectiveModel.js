@@ -1,98 +1,77 @@
 const mongoose = require("mongoose");
 
-// ---------------------------------------------------------------------------
-// OKR Objective model.
-// An objective is a high-level business goal (e.g. "Grow Q3 revenue"). It owns
-// a set of key results that live in their own collection and link back by
-// objectiveId. We cache the rolled-up progress and status here so the dashboard
-// can read them without recalculating every time.
-// ---------------------------------------------------------------------------
-
-const okrObjectiveSchema = mongoose.Schema(
+// Stores one OKR objective. Key Results are stored separately and linked to it.
+const okrObjectiveSchema = new mongoose.Schema(
   {
-    // The user who created / owns the objective.
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: "User",
+      required: true,
     },
-
-    // Short title of the goal.
     title: {
       type: String,
-      required: [true, "Please add an objective title"],
+      required: [true, "Objective title is required"],
       trim: true,
       maxlength: 140,
     },
-
-    // Longer description / context.
     description: {
       type: String,
-      default: "",
       trim: true,
       maxlength: 2000,
+      default: "",
     },
-
-    // Where the objective is in its life.
-    //   draft  - still being built. Weights may be partial while the owner
-    //            adds key results one at a time.
-    //   active - published and being tracked. Getting here requires the key
-    //            result weights to total exactly 100, which is the client's
-    //            rule. Once active, edits that would break the total are
-    //            refused.
-    //   closed - finished or abandoned, kept for the record.
-    //
-    // Splitting this out is what lets us honour "weights must equal 100%"
-    // without making it impossible to save the first key result.
+    // draft = still being prepared, active = being tracked, closed = finished
     lifecycle: {
       type: String,
       enum: ["draft", "active", "closed"],
       default: "draft",
       index: true,
     },
-
-    // The objective this one sits under, which is what makes the plan
-    // top-down: a company goal is the parent of department goals, which parent
-    // team goals, and so on. Null means this is a top-level strategic goal.
+    // Used to build the OKR hierarchy, such as company > department > team.
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "OkrObjective",
       default: null,
     },
-
-    // The "level" of the objective in the OKR model.
     type: {
       type: String,
       enum: ["company", "department", "team", "individual"],
       default: "company",
     },
-
-    // When work started (used to estimate expected pace) and the deadline.
+    // Which team/department this belongs to, e.g. "R&D". Separate from type
+    // above, which is the hierarchy level, not a department name.
+    group: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
+    },
+    // Committed = must hit it, aspirational = stretch goal.
+    commitmentType: {
+      type: String,
+      enum: ["committed", "aspirational"],
+      default: "committed",
+    },
     startDate: {
       type: Date,
       default: Date.now,
     },
     dueDate: {
       type: Date,
-      required: [true, "Please add a due date"],
+      required: [true, "Due date is required"],
     },
-
-    // Cached progress 0-100, recalculated from the key results.
+    // Cached value used by dashboards and reports.
     progress: {
       type: Number,
-      default: 0,
       min: 0,
       max: 100,
+      default: 0,
     },
-
-    // Cached status label matching the progress.
     status: {
       type: String,
       enum: ["on-track", "at-risk", "overdue", "completed"],
       default: "on-track",
     },
-
-    // Approval workflow state for the objective as a whole.
     approvalState: {
       type: String,
       enum: ["draft", "pending", "approved", "changes-requested"],
@@ -104,6 +83,7 @@ const okrObjectiveSchema = mongoose.Schema(
   }
 );
 
+// Helps common dashboard and alert queries run faster.
 okrObjectiveSchema.index({ owner: 1, dueDate: 1 });
 okrObjectiveSchema.index({ status: 1, dueDate: 1 });
 

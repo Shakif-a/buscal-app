@@ -6,16 +6,12 @@ const OkrActivity = require("../models/okrActivityModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const { isOkrManager } = require("../middleware/okrAuthorization");
 
-// ---------------------------------------------------------------------------
-// OKR controller.
-// Holds the two headline business rules Micromax asked for:
-//   1. Key result weights under one objective must never total more than 100%.
-//   2. An objective's progress is the WEIGHTED average of its key results.
-// Plus a small "ping" so the Dev Playground can confirm the API is reachable.
-// Follows the team style: express-async-handler + res.status().json + throw.
-// ---------------------------------------------------------------------------
+// Main OKR controller. Two rules matter most: key result weights under one
+// objective can never total more than 100%, and an objective's progress is
+// the weighted average of its key results. Also has a small "ping" route so
+// the Dev Playground can check the API is up.
 
-// --- helpers ---------------------------------------------------------------
+// helpers
 
 const OBJECTIVE_TYPES = new Set([
   "company",
@@ -65,7 +61,12 @@ function respondWithInputError(res, error) {
 }
 
 function ownsObjective(objective, user) {
-  return String(objective.owner) === String(user.id);
+  // objective.owner may be a raw id or, if the caller populated it (e.g. to
+  // read the owner's name), a full user document. Handle both so populating
+  // for display never silently breaks the ownership check.
+  const ownerId =
+    objective.owner && objective.owner._id ? objective.owner._id : objective.owner;
+  return String(ownerId) === String(user.id);
 }
 
 async function canViewObjective(objective, user) {
@@ -143,15 +144,10 @@ async function logActivity(userId, action, objectiveId, message) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Calendar-driven progress.
-// This is the link the client asked for: "completion of calendar items
-// contributes to progress towards objectives". A key result can be tied to one
-// or more calendar entries. Its progress then becomes the average completion
-// of those entries, which rolls up into the objective through the usual
-// weighted calculation. A completed entry counts as 100 even if nobody typed a
-// progress number on it.
-// ---------------------------------------------------------------------------
+// Calendar-driven progress: a key result can be tied to one or more calendar
+// entries, and its progress becomes the average completion of those entries,
+// which then rolls up into the objective as usual. A completed entry counts
+// as 100 even if nobody typed a progress number on it.
 
 // Work out a single calendar entry's contribution, 0 to 100.
 function entryCompletion(entry) {
@@ -205,7 +201,7 @@ async function recalcObjective(objectiveId) {
   return objective;
 }
 
-// --- controllers -----------------------------------------------------------
+// controllers
 
 // @desc    Simple reachability check for the Dev Playground
 // @route   GET /api/okr/ping
@@ -225,43 +221,78 @@ const ping = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    List the distinct group names already used on objectives, so a
+//          frontend dropdown can offer real values instead of hard-coding a
+//          list. Empty until someone actually sets a group on an objective.
+// @route   GET /api/okr/objectives/groups
+// @access  Private
+const getObjectiveGroups = asyncHandler(async (req, res) => {
+  const groups = await OkrObjective.distinct("group", { group: { $ne: "" } });
+  res.status(200).json(groups.sort());
+});
+
 // @desc    List the logged-in user's objectives
 // @route   GET /api/okr/objectives
 // @access  Private
+// Adds a plain `manager` string (the owner's name) alongside the existing
+// `owner` reference, so a frontend can show a name without doing its own
+// lookup. The underlying data still only stores the real user reference.
+function withManagerName(objective) {
+  const plain = objective.toObject ? objective.toObject() : objective;
+  const owner = plain.owner;
+  const manager =
+    owner && typeof owner === "object" && (owner.firstName || owner.lastName)
+      ? [owner.firstName, owner.lastName].filter(Boolean).join(" ")
+      : "";
+  return { ...plain, manager };
+}
+
 const getObjectives = asyncHandler(async (req, res) => {
   const teamScope = req.query.scope === "team" && isOkrManager(req.user);
   const filter = teamScope ? {} : { owner: req.user.id };
   const objectives = await OkrObjective.find(filter)
     .populate("owner", "firstName lastName email")
     .sort({ dueDate: 1 });
-  res.status(200).json(objectives);
+  res.status(200).json(objectives.map(withManagerName));
 });
 
 // @desc    Get one objective with its key results attached
 // @route   GET /api/okr/objectives/:id
 // @access  Private
 const getObjective = asyncHandler(async (req, res) => {
-  const objective = await OkrObjective.findById(req.params.id);
+  const objective = await OkrObjective.findById(req.params.id).populate(
+    "owner",
+    "firstName lastName email"
+  );
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
   }
   await assertCanViewObjective(objective, req, res);
   const keyResults = await OkrKeyResult.find({ objective: objective.id });
-  res.status(200).json({ objective, keyResults });
+  res.status(200).json({ objective: withManagerName(objective), keyResults });
 });
 
 // @desc    Create an objective
 // @route   POST /api/okr/objectives
 // @access  Private
+const COMMITMENT_TYPES = new Set(["committed", "aspirational"]);
+
 const createObjective = asyncHandler(async (req, res) => {
-  const { title, description, type, startDate, dueDate, parent } = req.body;
+  const { title, description, type, group, commitmentType, startDate, dueDate, parent } = req.body;
   try {
     const safeTitle = cleanText(title, "Title", 140, true);
     const safeDescription = cleanText(description, "Description", 2000);
     const safeType = type || "company";
     if (!OBJECTIVE_TYPES.has(safeType)) {
       throw Object.assign(new Error("Type must be company, department, team, or individual"), {
+        statusCode: 400,
+      });
+    }
+    const safeGroup = cleanText(group, "Group", 100);
+    const safeCommitmentType = commitmentType || "committed";
+    if (!COMMITMENT_TYPES.has(safeCommitmentType)) {
+      throw Object.assign(new Error("Commitment type must be committed or aspirational"), {
         statusCode: 400,
       });
     }
@@ -290,6 +321,8 @@ const createObjective = asyncHandler(async (req, res) => {
       title: safeTitle,
       description: safeDescription,
       type: safeType,
+      group: safeGroup,
+      commitmentType: safeCommitmentType,
       parent: safeParent,
       startDate: safeStartDate,
       dueDate: safeDueDate,
@@ -612,11 +645,9 @@ const getKeyResultHistory = asyncHandler(async (req, res) => {
 // @desc    Forecast for an objective: will it land on time at the current pace?
 // @route   GET /api/okr/objectives/:id/forecast
 // @access  Private
-// Simple linear velocity model. We look at how much progress has been made per
-// day since the objective started, project that forward, and compare the
-// projected finish date with the due date. We also report the weekly pace that
-// WOULD be needed to land exactly on time, which is an easy number for a
-// manager to act on.
+// Simple velocity model: work out progress-per-day since the objective
+// started, project it forward, and compare against the due date. Also
+// returns the weekly pace needed to land exactly on time.
 const getForecast = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -678,10 +709,9 @@ const getForecast = asyncHandler(async (req, res) => {
 // @desc    Plain-English insights across the logged-in user's OKRs
 // @route   GET /api/okr/insights
 // @access  Private
-// Scans everything and writes short human-readable findings, each with a
-// severity so the frontend can colour them. This is the "so what" layer on top
-// of the raw numbers: stale key results, invalid weight setups, overdue and
-// behind-pace objectives, and completed work waiting on approval.
+// Scans everything and writes short findings with a severity, so the
+// frontend can colour them: stale key results, bad weight setups, overdue
+// and behind-pace objectives, and finished work waiting on approval.
 const getInsights = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id });
   const ids = objectives.map((o) => o._id);
@@ -804,6 +834,8 @@ const updateObjective = asyncHandler(async (req, res) => {
     "title",
     "description",
     "type",
+    "group",
+    "commitmentType",
     "parent",
     "startDate",
     "dueDate",
@@ -1035,8 +1067,7 @@ const syncObjectiveCalendar = asyncHandler(async (req, res) => {
 // @route   GET /api/okr/objectives/tree
 // @access  Private
 // Returns the caller's objectives nested by parent, so the UI can show the
-// strategic plan cascading from company level down to individual level. This is
-// the "group objectives and long-term strategy" part of the brief.
+// plan cascading from company level down to individual level.
 const getObjectiveTree = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id }).sort({ dueDate: 1 });
 
@@ -1071,10 +1102,8 @@ const getObjectiveTree = asyncHandler(async (req, res) => {
 // @desc    Chart-ready progress trend for an objective
 // @route   GET /api/okr/objectives/:id/trend
 // @access  Private
-// Replays the check-in history in date order and recomputes the weighted
-// objective progress at each step. The result is a series of {date, progress}
-// points a line chart can render directly: the objective's story over time,
-// not just where it is today.
+// Replays the check-in history in date order and recomputes weighted progress
+// at each step, so the frontend gets a {date, progress} series to chart.
 const getTrend = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -1119,9 +1148,8 @@ const getTrend = asyncHandler(async (req, res) => {
 // @desc    Contributor leaderboard across the caller's objectives
 // @route   GET /api/okr/leaderboard
 // @access  Private
-// Ranks the people assigned to key results under the caller's objectives:
-// approved key results count double, average progress breaks ties. Scoped to
-// the caller's own objectives so no one sees across team boundaries.
+// Ranks people by key results assigned to them: approved ones count double,
+// average progress breaks ties. Scoped to the caller's own objectives.
 const getLeaderboard = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find({ owner: req.user.id }).select("_id");
   const ids = objectives.map((o) => o._id);
@@ -1165,6 +1193,7 @@ module.exports = {
   ping,
   getObjectives,
   getObjective,
+  getObjectiveGroups,
   createObjective,
   deleteObjective,
   createKeyResult,

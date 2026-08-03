@@ -10,14 +10,10 @@ const {
   canApprove,
 } = require("../middleware/okrAuthorization");
 
-// ---------------------------------------------------------------------------
-// Governance controller.
-//
-// The parts of the OKR module that decide whether something is allowed rather
-// than what it contains: publishing an objective once its weights add up,
-// attaching evidence, and the submit / approve / reject cycle. Kept apart from
-// okrController so the day-to-day CRUD file stays readable.
-// ---------------------------------------------------------------------------
+// Governance controller: the parts that decide whether something is allowed
+// rather than what it contains. Publishing an objective once weights add up,
+// attaching evidence, and the submit/approve/reject cycle. Kept separate from
+// okrController so that file stays readable.
 
 const WEIGHT_TOLERANCE = 0.01;
 

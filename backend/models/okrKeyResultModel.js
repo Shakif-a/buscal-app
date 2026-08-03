@@ -1,15 +1,8 @@
 const mongoose = require("mongoose");
 
-// ---------------------------------------------------------------------------
-// OKR Key Result model.
-// A key result is a measurable outcome under an objective (e.g. "Sign 20 new
-// customers"). Each carries a weight (its share of the objective; all weights
-// under one objective must total 100%) and its own progress. It also holds the
-// approval fields a manager sets, and a link to a calendar task in the Micromax
-// calendar backend (mocked for now).
-// ---------------------------------------------------------------------------
-
-const okrKeyResultSchema = mongoose.Schema(
+// Stores one key result under an objective. Weight is its share of the
+// objective (0-100), and all weights under one objective must add up to 100.
+const okrKeyResultSchema = new mongoose.Schema(
   {
     // The objective this key result belongs to.
     objective: {
@@ -26,8 +19,8 @@ const okrKeyResultSchema = mongoose.Schema(
       maxlength: 180,
     },
 
-    // Weight as a percentage of its objective (0-100). The controller enforces
-    // that all weights under an objective never exceed 100.
+    // Share of the objective, 0-100. Controller checks all weights under one
+    // objective never go over 100.
     weight: {
       type: Number,
       required: [true, "Please add a weight"],
@@ -43,27 +36,25 @@ const okrKeyResultSchema = mongoose.Schema(
       max: 100,
     },
 
-    // Simple status label for this individual key result.
     status: {
       type: String,
       enum: ["on-track", "at-risk", "overdue", "completed"],
       default: "on-track",
     },
 
-    // The user responsible for delivering this key result.
+    // Who's responsible for delivering this key result.
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
 
-    // The deadline for this key result.
     dueDate: {
       type: Date,
       required: [true, "Please add a due date"],
     },
 
-    // A short note explaining why the key result is complete (manager review).
+    // Short note explaining why it's complete, filled in during manager review.
     completionJustification: {
       type: String,
       default: "",
@@ -71,33 +62,28 @@ const okrKeyResultSchema = mongoose.Schema(
       maxlength: 1000,
     },
 
-    // ---- Evidence ----
-    // Micromax will not accept "it's done because I said so". Before a key
-    // result can go for approval it needs something to point at. Most evidence
-    // lives in the calendar backend (a completed entry, an uploaded file), so
-    // we store a reference rather than copying the artefact.
+    // Proof the key result is actually done. Most evidence lives in the
+    // calendar backend (a completed entry, a file), so we just keep a
+    // reference to it instead of copying it over.
     evidence: [
       {
-        // What kind of proof this is.
         kind: {
           type: String,
           enum: ["calendar", "file", "link", "note"],
           required: true,
         },
-        // The id of the calendar entry or file, when the evidence lives in
-        // another collection.
+        // Id of the calendar entry or file, when the evidence lives elsewhere.
         ref: {
           type: mongoose.Schema.Types.ObjectId,
           default: null,
         },
-        // A URL for "link", or free text for "note".
+        // URL for "link", free text for "note".
         value: {
           type: String,
           default: "",
           trim: true,
           maxlength: 1000,
         },
-        // What to show in the list.
         label: {
           type: String,
           default: "",
@@ -116,13 +102,10 @@ const okrKeyResultSchema = mongoose.Schema(
       },
     ],
 
-    // ---- Approval workflow ----
-    // The owner submits, a manager decides. Four states rather than three, so
-    // "never submitted" is distinguishable from "submitted and waiting".
-    //   draft    - being worked on, not submitted
-    //   pending  - submitted, waiting on a manager
-    //   approved - signed off
-    //   rejected - sent back with a reason, owner can revise and resubmit
+    // Owner submits, manager decides. Four states so "never submitted" is
+    // different from "submitted and waiting":
+    // draft = not submitted yet, pending = waiting on a manager,
+    // approved = signed off, rejected = sent back with a reason.
     approvalState: {
       type: String,
       enum: ["draft", "pending", "approved", "rejected"],
@@ -130,8 +113,7 @@ const okrKeyResultSchema = mongoose.Schema(
       index: true,
     },
 
-    // Kept in step with approvalState so older code and any frontend already
-    // reading this boolean keeps working.
+    // Mirrors approvalState so anything still reading this boolean keeps working.
     approved: {
       type: Boolean,
       default: false,
@@ -147,7 +129,7 @@ const okrKeyResultSchema = mongoose.Schema(
       default: null,
     },
 
-    // The manager who approved or rejected, and when.
+    // Who approved/rejected this, and when.
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -158,8 +140,8 @@ const okrKeyResultSchema = mongoose.Schema(
       default: null,
     },
 
-    // Why it was rejected. Required by the controller on rejection, because
-    // "no" without a reason just generates another meeting.
+    // Why it got rejected. Required on rejection, since "no" with no reason
+    // just means another meeting.
     reviewNote: {
       type: String,
       default: "",
@@ -167,11 +149,9 @@ const okrKeyResultSchema = mongoose.Schema(
       maxlength: 1000,
     },
 
-    // Link to the calendar task in the Micromax calendar backend (mocked).
     // Calendar entries whose completion drives this key result's progress.
-    // This is the link the client brief asks for: finishing calendar work
-    // moves the key result, which rolls up into the objective. Progress is
-    // computed from these entries whenever progressSource is "calendar".
+    // Finishing the calendar work moves the key result, which rolls up into
+    // the objective. Only used when progressSource is "calendar".
     calendarEntries: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -179,16 +159,15 @@ const okrKeyResultSchema = mongoose.Schema(
       },
     ],
 
-    // Where this key result's progress comes from.
-    //   "manual"   - someone types a number or checks in (default)
-    //   "calendar" - calculated from the linked calendar entries
+    // manual = someone types a number or checks in (default)
+    // calendar = calculated from the linked calendar entries
     progressSource: {
       type: String,
       enum: ["manual", "calendar"],
       default: "manual",
     },
 
-    // Legacy single-task reference kept so older records still load.
+    // Old single-task reference, kept so older records still load.
     calendarTaskId: {
       type: String,
       default: null,

@@ -1,14 +1,10 @@
 const mongoose = require("mongoose");
 
-// ---------------------------------------------------------------------------
-// OKR Check-in model.
-// A check-in is a dated progress update on a key result, with an optional note
-// like "signed 3 more customers this week". Storing every check-in (instead of
-// only the latest number) gives us a history we can chart, and the raw data the
-// forecasting engine uses to work out how fast a key result is moving.
-// ---------------------------------------------------------------------------
-
-const okrCheckinSchema = mongoose.Schema(
+// A dated progress update on a key result, with an optional note like
+// "signed 3 more customers this week". We keep every check-in instead of
+// just the latest number, so we have a history to chart and real data for
+// the forecasting engine to work out how fast a key result is moving.
+const okrCheckinSchema = new mongoose.Schema(
   {
     // The key result this check-in belongs to.
     keyResult: {
@@ -17,8 +13,8 @@ const okrCheckinSchema = mongoose.Schema(
       ref: "OkrKeyResult",
     },
 
-    // Denormalised copy of the parent objective id so we can pull a whole
-    // objective's history in one query without joins.
+    // Copy of the parent objective id, so we can pull a whole objective's
+    // history in one query without joins.
     objective: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,

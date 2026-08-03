@@ -25,19 +25,14 @@ const requireOkrManager = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// ---------------------------------------------------------------------------
-// Four-tier access model.
+// Four access tiers:
+// admin  - everything, including other people's objectives
+// manager - creates/edits objectives, approves key results
+// owner  - the person accountable for one objective, full control of just that one
+// staff  - any signed-in employee, reads what they can see and updates their own work
 //
-// Admin           everything, including other people's objectives
-// Manager         creates and edits objectives, approves key results
-// Objective owner the person accountable for one objective. Full control of
-//                 that objective and its key results, nothing beyond it.
-// Staff           any signed-in employee. Reads what they can see, updates
-//                 progress and submits evidence on work assigned to them.
-//
-// Ownership is per record rather than a role you carry around, so the check
-// takes the document as well as the user.
-// ---------------------------------------------------------------------------
+// Ownership is per record rather than a role, so the check takes the
+// document as well as the user.
 
 const ADMIN_ROLES = new Set(["admin"]);
 
@@ -46,9 +41,13 @@ function isAdmin(user) {
 }
 
 // Does this user own this objective?
+// objective.owner may be a raw id or a populated user document (if the
+// caller populated it to read the owner's name); handle both.
 function isObjectiveOwner(objective, user) {
   if (!objective || !user) return false;
-  return String(objective.owner) === String(user.id || user._id);
+  const ownerId =
+    objective.owner && objective.owner._id ? objective.owner._id : objective.owner;
+  return String(ownerId) === String(user.id || user._id);
 }
 
 // The tier to report back to the frontend so it can show the right controls.

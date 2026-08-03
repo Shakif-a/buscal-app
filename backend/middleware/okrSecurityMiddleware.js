@@ -1,17 +1,12 @@
 const mongoose = require("mongoose");
 
-// ---------------------------------------------------------------------------
-// Security middleware for the OKR module.
-// Three small, dependency-free guards that bring the API up to commercial
-// grade. Hand-rolled on purpose: the product ships on customer hardware
-// (Maxbox), so every avoided third-party package is one less supply-chain
-// risk and one less thing to patch.
-// ---------------------------------------------------------------------------
+// Three small guards for the OKR module, written by hand instead of pulling
+// in a package, since this ships on customer hardware (Maxbox) and fewer
+// third-party deps means less to patch.
 
-// ---- 1. ObjectId validation ------------------------------------------------
-// Without this, a request like GET /objectives/abc crashes Mongoose with a
-// CastError and the client gets a confusing 500. With it, bad ids get a clean
-// 400 before any database work happens.
+// 1. ObjectId validation.
+// Without this, GET /objectives/abc crashes Mongoose with a CastError and
+// the client gets a confusing 500. With it, bad ids get a clean 400 first.
 function validateObjectId(paramName) {
   return (req, res, next) => {
     const value = req.params[paramName];
@@ -25,11 +20,10 @@ function validateObjectId(paramName) {
   };
 }
 
-// ---- 2. NoSQL-injection sanitiser ------------------------------------------
-// MongoDB operators start with "$" (like $where or $gt). If user input
-// containing those keys reaches a query, an attacker can change what the query
-// does. This walks the request body and strips any key that starts with "$"
-// or contains a ".", which removes the whole class of attack.
+// 2. NoSQL-injection sanitiser.
+// MongoDB operators start with "$" (like $where or $gt). If user input with
+// those keys reaches a query, an attacker can change what the query does.
+// This strips any key that starts with "$" or contains a ".".
 function stripDangerousKeys(value) {
   if (Array.isArray(value)) {
     return value.map(stripDangerousKeys);
@@ -52,11 +46,10 @@ function sanitizeBody(req, res, next) {
   next();
 }
 
-// ---- 3. Rate limiter -------------------------------------------------------
-// A small in-memory limiter, keyed by client IP. It will not survive a server
-// restart and does not share state between instances, which is fine for a
-// single-box deployment like the Maxbox. The limits are generous; the point is
-// to stop runaway scripts and brute-force loops, not to bother real users.
+// 3. Rate limiter.
+// Small in-memory limiter keyed by client IP. Doesn't survive a restart or
+// share state between instances, which is fine for a single-box deployment
+// like the Maxbox. Limits are generous, just there to stop runaway scripts.
 function rateLimit({ windowMs = 60 * 1000, max = 300 } = {}) {
   const hits = new Map();
 

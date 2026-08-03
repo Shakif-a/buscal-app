@@ -11,6 +11,7 @@ const {
   ping,
   getObjectives,
   getObjective,
+  getObjectiveGroups,
   createObjective,
   deleteObjective,
   createKeyResult,
@@ -48,11 +49,9 @@ const {
 } = require("../controllers/okrGovernanceController");
 const { selfHeal } = require("../middleware/okrSelfHealingMiddleware");
 
-// ---------------------------------------------------------------------------
-// OKR routes, mounted at /api/okr in server.js.
-// "ping" is public so the Dev Playground can confirm the API is up without a
-// login. Everything else requires a valid token (protect middleware).
-// ---------------------------------------------------------------------------
+// OKR routes, mounted at /api/okr in server.js. "ping" is public so the Dev
+// Playground can confirm the API is up without logging in. Everything else
+// needs a valid token (protect middleware).
 
 // Module-wide guards: strip NoSQL operator keys out of every request body and
 // keep request volume within sane bounds (generous enough for real use, tight
@@ -87,9 +86,11 @@ router
   .get(protect, getObjectives)
   .post(protect, requireOkrManager, createObjective);
 
-// The top-down strategy tree. Registered before "/objectives/:id" so the word
-// "tree" is never mistaken for an object id.
+// The top-down strategy tree, and the list of group names already in use.
+// Both registered before "/objectives/:id" so the words are never mistaken
+// for an object id.
 router.get("/objectives/tree", protect, getObjectiveTree);
+router.get("/objectives/groups", protect, getObjectiveGroups);
 // Reading one objective runs the self-healing pass first, so dead calendar
 // links and missing users are cleaned up before the data is served rather than
 // blowing up in the handler.
