@@ -49,9 +49,8 @@ const {
 } = require("../controllers/okrGovernanceController");
 const { selfHeal } = require("../middleware/okrSelfHealingMiddleware");
 
-// OKR routes, mounted at /api/okr in server.js. Everything but "ping" needs a valid token.
-
-// Strips NoSQL operator keys and rate-limits every request in this module.
+// OKR routes, mounted at /api/okr in server.js. Everything except "ping" needs a valid token.
+// Cleans and rate-limits every request handled by this router.
 router.use(sanitizeBody);
 router.use(
   rateLimit({
@@ -60,17 +59,17 @@ router.use(
   })
 );
 
-// Checks id format for every route with an :id before any database work.
+// Checks the id format on every :id route before touching the database.
 router.param("id", (req, res, next, value) => validateObjectId("id")(req, res, next));
 
-// Public reachability check.
+// Public check used by the Dev Playground to confirm the API is up.
 router.get("/ping", ping);
 
-// Personal / dashboard views.
+// Dashboard and personal views.
 router.get("/summary", protect, getSummary);
 router.get("/my-key-results", protect, getMyKeyResults);
 
-// Smart features: insights, activity feed and the contributor leaderboard.
+// Insights, activity feed and contributor leaderboard.
 router.get("/insights", protect, getInsights);
 router.get("/activity", protect, getActivity);
 router.get("/leaderboard", protect, getLeaderboard);
@@ -81,10 +80,10 @@ router
   .get(protect, getObjectives)
   .post(protect, requireOkrManager, createObjective);
 
-// Registered before "/objectives/:id" so these words aren't read as an id.
+// Registered before "/objectives/:id" so these words are not read as an id.
 router.get("/objectives/tree", protect, getObjectiveTree);
 router.get("/objectives/groups", protect, getObjectiveGroups);
-// Runs the self-healing pass before serving one objective.
+// Runs the self-healing pass before returning one objective.
 router
   .route("/objectives/:id")
   .get(protect, selfHeal("id"), getObjective)
@@ -98,19 +97,19 @@ router.post(
   createKeyResult
 );
 
-// Forecasting and the chart-ready progress trend for one objective.
+// Forecast and progress trend for one objective.
 router.get("/objectives/:id/forecast", protect, getForecast);
 router.get("/objectives/:id/trend", protect, getTrend);
 
-// Pull the latest calendar completion through into this objective's progress.
+// Updates this objective's progress from the latest calendar completion.
 router.post("/objectives/:id/sync-calendar", protect, selfHeal("id"), syncObjectiveCalendar);
 
-// Lifecycle: publishing requires weights to total exactly 100.
+// Lifecycle. Activating requires the weights to total exactly 100.
 router.get("/objectives/:id/readiness", protect, getReadiness);
 router.post("/objectives/:id/activate", protect, activateObjective);
 router.post("/objectives/:id/close", protect, closeObjective);
 
-// The audit trail for one objective.
+// Audit trail for one objective.
 router.get("/objectives/:id/audit", protect, getAuditTrail);
 
 // Key results.
@@ -126,19 +125,19 @@ router.patch(
 router.post("/key-results/:id/check-in", protect, checkIn);
 router.get("/key-results/:id/history", protect, getKeyResultHistory);
 
-// Calendar links: ties a key result to calendar work.
+// Calendar links, which tie a key result to calendar work.
 router
   .route("/key-results/:id/calendar-links")
   .post(protect, requireOkrManager, linkCalendarEntries)
   .delete(protect, requireOkrManager, unlinkCalendarEntry);
 router.post("/key-results/:id/sync-calendar", protect, syncKeyResultCalendar);
 
-// Evidence and the approval cycle.
+// Evidence and the approval workflow.
 router.post("/key-results/:id/evidence", protect, addEvidence);
 router.post("/key-results/:id/submit", protect, submitForApproval);
 router.post("/key-results/:id/review", protect, requireOkrManager, reviewKeyResult);
 
-// Operational visibility for the resilience layer.
+// Status and manual retry for the calendar connection.
 router.get("/system/resilience", protect, getResilienceStatus);
 router.post("/system/flush-calendar-queue", protect, requireOkrManager, flushCalendarQueue);
 

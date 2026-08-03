@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
-
-// One OKR objective. Key results are stored separately and link back to this.
+// Stores one OKR objective. Key Results are stored separately and linked to it.
 const okrObjectiveSchema = new mongoose.Schema(
   {
     owner: {
@@ -20,14 +19,14 @@ const okrObjectiveSchema = new mongoose.Schema(
       maxlength: 2000,
       default: "",
     },
-    // draft, active, or closed.
+    // draft = still being prepared, active = being tracked, closed = finished
     lifecycle: {
       type: String,
       enum: ["draft", "active", "closed"],
       default: "draft",
       index: true,
     },
-    // Parent objective, for the company > department > team hierarchy.
+    // Used to build the OKR hierarchy, such as company > department > team.
     parent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "OkrObjective",
@@ -38,14 +37,14 @@ const okrObjectiveSchema = new mongoose.Schema(
       enum: ["company", "department", "team", "individual"],
       default: "company",
     },
-    // Team/department name, e.g. "R&D".
+    // Which team or department the objective belongs to, such as "R&D".
     group: {
       type: String,
       trim: true,
       maxlength: 100,
       default: "",
     },
-    // Committed = must hit it, aspirational = stretch goal.
+    // committed = must be achieved, aspirational = stretch goal
     commitmentType: {
       type: String,
       enum: ["committed", "aspirational"],
@@ -59,7 +58,7 @@ const okrObjectiveSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Due date is required"],
     },
-    // Rolled-up progress from the key results.
+    // Cached value used by dashboards and reports.
     progress: {
       type: Number,
       min: 0,
@@ -81,9 +80,7 @@ const okrObjectiveSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-// Speeds up dashboard queries.
+// Helps common dashboard and alert queries run faster.
 okrObjectiveSchema.index({ owner: 1, dueDate: 1 });
 okrObjectiveSchema.index({ status: 1, dueDate: 1 });
-
 module.exports = mongoose.model("OkrObjective", okrObjectiveSchema);

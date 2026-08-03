@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
-
-// One row per meaningful action, for the recent activity feed.
+// Stores activity shown in the OKR recent activity feed.
 const okrActivitySchema = new mongoose.Schema(
   {
     user: {
@@ -8,28 +7,30 @@ const okrActivitySchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
-    // e.g. "objective.created".
+    // Machine-readable action name, such as "objective.created".
     action: {
       type: String,
       required: true,
+      trim: true,
+      maxlength: 80,
     },
-    // Null for module-wide events.
+    // The related objective, if the activity belongs to one.
     objective: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "OkrObjective",
       default: null,
     },
-    // Human-readable line for the feed.
+    // Text displayed to users in the activity feed.
     message: {
       type: String,
       required: true,
+      trim: true,
     },
   },
   {
     timestamps: true,
   }
 );
-
+// Shows newest activities first.
 okrActivitySchema.index({ createdAt: -1 });
-
 module.exports = mongoose.model("OkrActivity", okrActivitySchema);

@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
-
-// One key result under an objective. Weights of all key results under one objective must add up to 100.
+// Stores one Key Result belonging to an objective.
 const okrKeyResultSchema = new mongoose.Schema(
   {
     objective: {
@@ -14,7 +13,7 @@ const okrKeyResultSchema = new mongoose.Schema(
       trim: true,
       maxlength: 180,
     },
-    // Share of the objective, 0-100.
+    // Share of the objective as a percentage. All weights under one objective must total 100.
     weight: {
       type: Number,
       required: [true, "Please add a weight"],
@@ -32,6 +31,7 @@ const okrKeyResultSchema = new mongoose.Schema(
       enum: ["on-track", "at-risk", "overdue", "completed"],
       default: "on-track",
     },
+    // The user responsible for delivering this key result.
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -41,14 +41,14 @@ const okrKeyResultSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Please add a due date"],
     },
-    // Note added on manager review.
+    // Note added by the manager explaining why the work is complete.
     completionJustification: {
       type: String,
       default: "",
       trim: true,
       maxlength: 1000,
     },
-    // Proof it's actually done.
+    // Proof the work was done, usually pointing at a calendar entry or file.
     evidence: [
       {
         kind: {
@@ -56,10 +56,12 @@ const okrKeyResultSchema = new mongoose.Schema(
           enum: ["calendar", "file", "link", "note"],
           required: true,
         },
+        // Id of the calendar entry or file the evidence points at.
         ref: {
           type: mongoose.Schema.Types.ObjectId,
           default: null,
         },
+        // A URL for "link", or free text for "note".
         value: {
           type: String,
           default: "",
@@ -83,14 +85,14 @@ const okrKeyResultSchema = new mongoose.Schema(
         },
       },
     ],
-    // draft, pending, approved, or rejected.
+    // draft = not submitted, pending = waiting on a manager, approved = signed off, rejected = sent back
     approvalState: {
       type: String,
       enum: ["draft", "pending", "approved", "rejected"],
       default: "draft",
       index: true,
     },
-    // Mirrors approvalState for older code that reads this boolean.
+    // Kept in step with approvalState for older code that reads this boolean.
     approved: {
       type: Boolean,
       default: false,
@@ -113,27 +115,27 @@ const okrKeyResultSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // Reason for rejection.
+    // Reason given when a key result is rejected.
     reviewNote: {
       type: String,
       default: "",
       trim: true,
       maxlength: 1000,
     },
-    // Linked calendar entries that drive this key result's progress.
+    // Calendar entries whose completion drives this key result's progress.
     calendarEntries: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "CalendarEntry",
       },
     ],
-    // manual or calendar.
+    // manual = someone enters the number, calendar = worked out from the linked entries
     progressSource: {
       type: String,
       enum: ["manual", "calendar"],
       default: "manual",
     },
-    // Old single-task reference, kept for older records.
+    // Older single-task reference, kept so existing records still load.
     calendarTaskId: {
       type: String,
       default: null,
@@ -143,8 +145,7 @@ const okrKeyResultSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
+// Helps the dashboard and "my key results" queries run faster.
 okrKeyResultSchema.index({ objective: 1, dueDate: 1 });
 okrKeyResultSchema.index({ assignedTo: 1, status: 1 });
-
 module.exports = mongoose.model("OkrKeyResult", okrKeyResultSchema);

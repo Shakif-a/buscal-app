@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-
-// Rejects a bad id with a clean 400 instead of a Mongoose CastError 500.
+// Basic request guards for the OKR routes.
+// Returns a clean 400 for a badly formed id instead of a database CastError.
 function validateObjectId(paramName) {
   return (req, res, next) => {
     const value = req.params[paramName];
@@ -13,8 +13,7 @@ function validateObjectId(paramName) {
     next();
   };
 }
-
-// Strips any key starting with "$" or containing "." to block NoSQL injection.
+// Removes keys starting with "$" or containing ".", which are used for NoSQL injection.
 function stripDangerousKeys(value) {
   if (Array.isArray(value)) {
     return value.map(stripDangerousKeys);
@@ -29,31 +28,26 @@ function stripDangerousKeys(value) {
   }
   return value;
 }
-
 function sanitizeBody(req, res, next) {
   if (req.body && typeof req.body === "object") {
     req.body = stripDangerousKeys(req.body);
   }
   next();
 }
-
-// Small in-memory rate limiter, keyed by IP.
+// Limits how many requests one IP can make in a time window.
 function rateLimit({ windowMs = 60 * 1000, max = 300 } = {}) {
   const hits = new Map();
-
-  // Clears old entries so the map doesn't grow forever.
+  // Clears old windows so the map does not grow forever.
   setInterval(() => {
     const cutoff = Date.now() - windowMs;
     for (const [key, entry] of hits) {
       if (entry.start < cutoff) hits.delete(key);
     }
   }, windowMs).unref();
-
   return (req, res, next) => {
     const key = req.ip || req.connection?.remoteAddress || "unknown";
     const now = Date.now();
     const entry = hits.get(key);
-
     if (!entry || now - entry.start > windowMs) {
       hits.set(key, { start: now, count: 1 });
       res.set("RateLimit-Limit", String(max));
@@ -61,7 +55,6 @@ function rateLimit({ windowMs = 60 * 1000, max = 300 } = {}) {
       res.set("RateLimit-Reset", String(Math.ceil((now + windowMs) / 1000)));
       return next();
     }
-
     entry.count += 1;
     res.set("RateLimit-Limit", String(max));
     res.set("RateLimit-Remaining", String(Math.max(0, max - entry.count)));
@@ -79,5 +72,4 @@ function rateLimit({ windowMs = 60 * 1000, max = 300 } = {}) {
     next();
   };
 }
-
 module.exports = { validateObjectId, sanitizeBody, rateLimit };

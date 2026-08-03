@@ -2,27 +2,11 @@ const { CircuitBreaker } = require("./circuitBreaker");
 const CalendarEntry = require("../models/calendarEntryModel");
 const audit = require("./okrAuditService");
 
-// ---------------------------------------------------------------------------
-// Maxbox calendar client.
-//
-// Micromax's calendar runs on a box in the customer's office. This module is
-// the only place that talks to it, so if the contract changes we edit one file.
-//
-// Two things make it safe to depend on:
-//
-//   1. Every call goes through a circuit breaker. When the box stops answering
-//      we stop hammering it and serve the last known state from MongoDB
-//      instead. The response says whether the data is live or cached so the UI
-//      can label it honestly rather than quietly showing stale numbers.
-//
-//   2. Writes that fail are queued rather than lost. When the box comes back,
-//      flushQueue drains them in order. Progress a user recorded during an
-//      outage still lands.
-//
-// When MAXBOX_CALENDAR_URL is not set we read the local CalendarEntry
-// collection directly, which is how development and the test suite run.
-// ---------------------------------------------------------------------------
-
+// The only place that talks to the Maxbox calendar appliance.
+// Reads go through a circuit breaker and fall back to the local copy when the
+// box is unreachable. Failed writes are queued and retried by flushQueue.
+// Without MAXBOX_CALENDAR_URL set it reads the local collection, which is how
+// development and the tests run.
 const breaker = new CircuitBreaker({
   name: "maxbox-calendar",
   failureThreshold: Number(process.env.MAXBOX_FAILURE_THRESHOLD || 3),
@@ -30,9 +14,7 @@ const breaker = new CircuitBreaker({
   timeoutMs: Number(process.env.MAXBOX_TIMEOUT_MS || 5000),
 });
 
-// Writes waiting for the Maxbox to come back. In memory on purpose: a single
-// appliance, and anything critical is already in MongoDB. If Micromax later
-// wants these to survive a restart, promote this array to a collection.
+// Writes waiting for the Maxbox to come back. Held in memory only.
 const pendingWrites = [];
 
 function baseUrl() {
@@ -43,9 +25,7 @@ function isRemoteConfigured() {
   return baseUrl().length > 0;
 }
 
-// ---- Reads ----------------------------------------------------------------
-
-// Fetch entries from the Maxbox. Only called when a remote URL is configured.
+// Fetches entries from the Maxbox, only called when a remote URL is configured.
 async function fetchRemoteEntries(ids) {
   const url = `${baseUrl().replace(/\/$/, "")}/api/entries?ids=${ids.join(",")}`;
   const response = await fetch(url, {
@@ -59,13 +39,12 @@ async function fetchRemoteEntries(ids) {
   return response.json();
 }
 
-// The fallback: whatever we last stored locally.
+// Reads the local copy, used as the fallback when the Maxbox is unreachable.
 async function readLocalEntries(ids) {
   return CalendarEntry.find({ _id: { $in: ids } });
 }
 
-// Keep the local copy in step with what the Maxbox just told us, so the next
-// outage has fresh data to fall back on.
+// Updates the local copy with what the Maxbox returned, ready for the next outage.
 async function cacheEntries(entries) {
   for (const entry of entries) {
     if (!entry || !entry._id) continue;
@@ -86,14 +65,12 @@ async function cacheEntries(entries) {
   }
 }
 
-// Get calendar entries by id. Always returns something usable.
-// Shape: { entries, source: "live" | "cache" | "local", degraded: boolean }
+// Gets calendar entries by id, returning { entries, source, degraded }.
 async function getEntries(ids = []) {
   if (ids.length === 0) {
     return { entries: [], source: "local", degraded: false };
   }
-
-  // No Maxbox configured: the local collection is the source of truth.
+  // With no Maxbox configured the local collection is the source of truth.
   if (!isRemoteConfigured()) {
     return { entries: await readLocalEntries(ids), source: "local", degraded: false };
   }
@@ -108,7 +85,7 @@ async function getEntries(ids = []) {
     return { entries: result.data, source: "live", degraded: false };
   }
 
-  // Serving from cache means the box is unreachable. Say so.
+  // Serving from cache means the box is unreachable, so flag it as degraded.
   return {
     entries: result.data || [],
     source: "cache",
@@ -117,10 +94,7 @@ async function getEntries(ids = []) {
   };
 }
 
-// ---- Writes ---------------------------------------------------------------
-
-// Push a progress update back to the Maxbox. If it cannot be delivered the
-// update is queued and the caller is told it is pending rather than failed.
+// Sends a progress update to the Maxbox, queueing it if the box is unreachable.
 async function pushProgress(entryId, progress) {
   if (!isRemoteConfigured()) {
     return { delivered: true, queued: false, source: "local" };
@@ -158,7 +132,7 @@ async function pushProgress(entryId, progress) {
   return { delivered: false, queued: true, source: "queue", reason: result.reason };
 }
 
-// Drain the queue. Safe to call repeatedly; anything that fails goes back on.
+// Retries the queued writes. Safe to call repeatedly, failures go back on the queue.
 async function flushQueue() {
   if (pendingWrites.length === 0) {
     return { flushed: 0, remaining: 0 };
@@ -172,13 +146,13 @@ async function flushQueue() {
     if (outcome.delivered) {
       flushed += 1;
     }
-    // pushProgress re-queues anything that failed, so nothing is dropped.
+    // pushProgress puts anything that failed back on the queue.
   }
 
   return { flushed, remaining: pendingWrites.length };
 }
 
-// What the health endpoint and the admin screen show.
+// Current state, shown by the health endpoint and the admin screen.
 function status() {
   return {
     configured: isRemoteConfigured(),

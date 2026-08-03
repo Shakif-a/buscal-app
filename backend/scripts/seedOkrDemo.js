@@ -1,14 +1,13 @@
 const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
-// connectDB needs the "colors" package loaded, server.js does this normally but this script runs standalone.
+// Loaded because connectDB uses it and this script runs on its own, without server.js.
 require("colors");
 const connectDB = require("../config/db");
 const User = require("../models/userModel");
 const CalendarEntry = require("../models/calendarEntryModel");
-
 dotenv.config();
-
+// Creates the demo admin account used for testing the OKR pages.
 async function seedOkrDemo() {
   if (
     process.env.NODE_ENV === "production" ||
@@ -35,7 +34,7 @@ async function seedOkrDemo() {
 
   await connectDB();
 
-  // Only touches this one reserved demo account and its calendar entry, nothing else.
+  // Only the reserved demo account is removed, no other user data is touched.
   await User.deleteOne({ email });
   const hashedPassword = await bcrypt.hash(password, 12);
   const demoUser = await User.create({
@@ -48,7 +47,7 @@ async function seedOkrDemo() {
     supervisor: null,
   });
 
-  // Also seed one demo calendar entry so the calendar-link button has something to link to.
+  // A demo calendar entry, so the calendar link can be tested straight away.
   await CalendarEntry.deleteMany({ title: "OKR demo calendar entry", userOwner: demoUser._id });
   const start = new Date();
   const end = new Date();

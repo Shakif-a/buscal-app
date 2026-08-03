@@ -1,15 +1,7 @@
 const OkrAuditLog = require("../models/okrAuditLogModel");
 
-// ---------------------------------------------------------------------------
-// Audit service.
-//
-// One place that writes audit rows, so controllers stay readable and every
-// entry comes out the same shape. Writing an audit row must never be the reason
-// a user's request fails, so failures are logged to the console and swallowed.
-// If the audit collection is down we would rather lose a log line than block
-// someone from updating their progress.
-// ---------------------------------------------------------------------------
-
+// Writes audit rows in one place so every entry comes out the same shape.
+// A failed audit write is logged and ignored, so it never blocks a user's request.
 async function record({
   actor = null,
   action,
@@ -39,8 +31,7 @@ async function record({
   }
 }
 
-// Convenience wrapper for the self-healing layer, which always writes the same
-// severity and rarely has a user attached.
+// Wrapper for the self-healing layer, which always writes severity "repair".
 async function recordRepair({ action, entityType, entityId, objective, before, after, message }) {
   return record({
     actor: null,
@@ -55,7 +46,7 @@ async function recordRepair({ action, entityType, entityId, objective, before, a
   });
 }
 
-// Read the trail for one objective, newest first.
+// Reads the audit trail for one objective, newest first.
 async function forObjective(objectiveId, limit = 50) {
   return OkrAuditLog.find({ objective: objectiveId })
     .populate("actor", "firstName lastName")

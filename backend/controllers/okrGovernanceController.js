@@ -10,15 +10,14 @@ const {
   canApprove,
 } = require("../middleware/okrAuthorization");
 
-// Governance controller: activate/close, evidence, and the submit/approve/reject cycle.
-
+// Handles the objective lifecycle, evidence and the approval workflow.
 const WEIGHT_TOLERANCE = 0.01;
 
 function sumWeights(keyResults) {
   return keyResults.reduce((total, kr) => total + Number(kr.weight || 0), 0);
 }
 
-// Loads the objective and checks the caller can edit it, sends the response itself on failure.
+// Loads the objective and checks the user can edit it, replying itself if not.
 async function loadEditable(req, res) {
   const objective = await OkrObjective.findById(req.params.id);
   if (!objective) {
@@ -168,7 +167,7 @@ const addEvidence = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: "Key result not found" });
   }
 
-  // Calendar evidence has to point at something real.
+  // Calendar evidence has to point at an entry that exists.
   if (kind === "calendar") {
     const exists = ref ? await CalendarEntry.exists({ _id: ref }) : null;
     if (!exists) {
@@ -289,7 +288,7 @@ const reviewKeyResult = asyncHandler(async (req, res) => {
     });
   }
 
-  // Reason required on rejection.
+  // A reason has to be given when rejecting.
   if (decision === "rejected" && !note) {
     return res.status(400).json({
       success: false,

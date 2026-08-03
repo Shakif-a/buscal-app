@@ -6,10 +6,8 @@ const OkrActivity = require("../models/okrActivityModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const { isOkrManager } = require("../middleware/okrAuthorization");
 
-// Main OKR controller: objectives, key results, weights, and progress roll-up.
-
-// helpers
-
+// Handles objectives, key results, weights and the progress roll-up.
+// Helper functions used by the handlers below.
 const OBJECTIVE_TYPES = new Set([
   "company",
   "department",
@@ -57,7 +55,7 @@ function respondWithInputError(res, error) {
   throw error;
 }
 
-// Handles both a raw owner id and a populated owner document.
+// Owner may be stored as a plain id or already populated, so handle both.
 function ownsObjective(objective, user) {
   const ownerId =
     objective.owner && objective.owner._id ? objective.owner._id : objective.owner;
@@ -96,7 +94,7 @@ function sumWeights(keyResults) {
   return keyResults.reduce((sum, kr) => sum + Number(kr.weight || 0), 0);
 }
 
-// Weighted average: each key result contributes (weight/100) * progress.
+// Works out objective progress as the weighted average of its key results.
 function calcObjectiveProgress(keyResults) {
   if (!keyResults.length) return 0;
   const weighted = keyResults.reduce(
@@ -106,7 +104,7 @@ function calcObjectiveProgress(keyResults) {
   return Math.round(Math.max(0, Math.min(100, weighted)));
 }
 
-// Turns progress + due date into a status label.
+// Works out the status label from the progress and the due date.
 function deriveStatus(progress, dueDate, startDate = null) {
   if (progress >= 100) return "completed";
   const now = new Date();
@@ -128,7 +126,7 @@ function deriveStatus(progress, dueDate, startDate = null) {
   return "on-track";
 }
 
-// Writes one row to the activity feed, errors are just logged.
+// Writes one row to the activity feed. A failure here is logged and ignored.
 async function logActivity(userId, action, objectiveId, message) {
   try {
     await OkrActivity.create({ user: userId, action, objective: objectiveId, message });
@@ -137,7 +135,7 @@ async function logActivity(userId, action, objectiveId, message) {
   }
 }
 
-// Turns a single calendar entry's status into a 0-100 completion number.
+// Turns one calendar entry into a completion figure from 0 to 100.
 function entryCompletion(entry) {
   if (!entry) return 0;
   if (entry.completionStatus === "completed") return 100;
@@ -147,7 +145,7 @@ function entryCompletion(entry) {
   return Math.max(0, Math.min(100, raw));
 }
 
-// Average completion across a key result's linked calendar entries.
+// Averages the completion of a key result's linked calendar entries.
 async function calendarProgressFor(keyResult) {
   const ids = keyResult.calendarEntries || [];
   if (ids.length === 0) return null;
@@ -161,7 +159,7 @@ async function calendarProgressFor(keyResult) {
   };
 }
 
-// Recalculates one key result's progress from its calendar entries.
+// Updates one key result's progress from its linked calendar entries.
 async function syncKeyResultFromCalendar(keyResult) {
   const result = await calendarProgressFor(keyResult);
   if (!result) return null;
@@ -172,7 +170,7 @@ async function syncKeyResultFromCalendar(keyResult) {
   return result;
 }
 
-// Reloads an objective's key results and recomputes progress/status.
+// Reloads an objective's key results and updates its progress and status.
 async function recalcObjective(objectiveId) {
   const objective = await OkrObjective.findById(objectiveId);
   if (!objective) return null;
@@ -186,8 +184,6 @@ async function recalcObjective(objectiveId) {
   await objective.save();
   return objective;
 }
-
-// controllers
 
 // @desc    Simple reachability check for the Dev Playground
 // @route   GET /api/okr/ping
@@ -213,7 +209,7 @@ const getObjectiveGroups = asyncHandler(async (req, res) => {
   res.status(200).json(groups.sort());
 });
 
-// Adds a plain `manager` name string next to the `owner` reference.
+// Adds the owner's name as a plain "manager" field for the frontend.
 function withManagerName(objective) {
   const plain = objective.toObject ? objective.toObject() : objective;
   const owner = plain.owner;
@@ -284,7 +280,7 @@ const createObjective = asyncHandler(async (req, res) => {
       });
     }
 
-    // Parent must be an objective the caller can already see.
+    // The parent has to be an objective the user can already see.
     let safeParent = null;
     if (parent) {
       const parentObjective = await OkrObjective.findById(parent);
@@ -373,7 +369,7 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result due date cannot be after the objective due date");
   }
 
-  // Total weight must not exceed 100.
+  // Weights under one objective must never add up to more than 100.
   const existing = await OkrKeyResult.find({ objective: objective.id });
   const newTotal = sumWeights(existing) + safeWeight;
   if (newTotal > 100.01) {
@@ -738,7 +734,7 @@ const getInsights = asyncHandler(async (req, res) => {
     }
   }
 
-  // Most serious first.
+  // Shows the most serious findings first.
   const order = { critical: 0, warning: 1, info: 2 };
   insights.sort((a, b) => order[a.severity] - order[b.severity]);
 

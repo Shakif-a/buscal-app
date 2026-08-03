@@ -1,18 +1,17 @@
 import React, { useState } from "react";
 import axios from "axios";
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
+import Stack from "@mui/material/Stack";
+import Button from "@mui/material/Button";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 
-// Dev Playground: real buttons that call the real OKR API. Log in as a manager first.
-
-// OKR-specific API URL, not the general VITE_API_URL (that one points at Render).
+// Test page for the OKR API. Log in as a manager before using the buttons.
+// Uses the OKR API url, not VITE_API_URL, which points at the deployed site.
 const API_BASE = import.meta.env.VITE_OKR_API_URL || "http://localhost:5000";
 
-// Keeps an id in sessionStorage too, so a page reload doesn't lose it.
+// Keeps an id in sessionStorage so a page reload does not lose it.
 function usePersistedId(key) {
   const [value, setValue] = useState(() => sessionStorage.getItem(key) || null);
   const setAndStore = (next) => {
@@ -56,8 +55,7 @@ export default function DevPlayground() {
     setLog(`${label} FAILED\n\n${JSON.stringify(detail, null, 2)}`);
   };
 
-  // Objective create/edit/delete.
-
+  // Objective create, edit and delete.
   const createObjective = async () => {
     try {
       const dueDate = new Date();
@@ -109,8 +107,7 @@ export default function DevPlayground() {
     }
   };
 
-  // Key result, needed before the calendar link can be tested.
-
+  // A key result, needed before the calendar link can be tested.
   const createKeyResult = async () => {
     if (!objectiveId) {
       setLog("Create an objective first, a key result needs one to belong to.");
@@ -131,15 +128,14 @@ export default function DevPlayground() {
     }
   };
 
-  // Calendar entry and link.
-
+  // Calendar entry, then linking it to the key result.
   const createCalendarEntry = async () => {
     try {
       const start = new Date();
       const end = new Date();
       end.setHours(end.getHours() + 1);
       const config = authHeaders();
-      // userAssigned expects a user id; reuse whoever is logged in.
+      // userAssigned needs a user id, so use the logged-in user.
       const meResponse = await axios.get(`${API_BASE}/api/users/me`, config);
       const response = await axios.post(
         `${API_BASE}/api/calendar/entries`,

@@ -1,21 +1,6 @@
-// ---------------------------------------------------------------------------
-// Circuit breaker.
-//
-// The Maxbox sits on a customer's premises. It gets rebooted, unplugged, and
-// put behind flaky office wifi. Without protection, every OKR page load would
-// sit waiting on a box that is not answering, and one dead appliance would take
-// the whole dashboard down with it.
-//
-// The breaker watches failures. After enough of them it opens, and further
-// calls fail instantly instead of hanging, which is what lets the caller fall
-// back to cached data quickly. After a cool-off it lets a single request
-// through to test the water. If that works the breaker closes and normal
-// service resumes.
-//
-// Written by hand rather than pulled from npm: this ships on customer hardware,
-// so every dependency is one more thing to patch, and the logic is forty lines.
-// ---------------------------------------------------------------------------
-
+// Stops the app hanging on a service that is not responding.
+// After enough failures the breaker opens and calls fail straight away,
+// then after a cool-off one request is let through to see if it recovered.
 const STATES = {
   CLOSED: "closed", // healthy, calls go through
   OPEN: "open", // failing, calls are rejected immediately
@@ -38,11 +23,10 @@ class CircuitBreaker {
     this.failures = 0;
     this.openedAt = null;
     this.lastError = null;
-    // Counters, purely so the health endpoint can show what has been happening.
+    // Counters shown by the health endpoint.
     this.stats = { calls: 0, failures: 0, rejections: 0, fallbacks: 0 };
   }
-
-  // Wrap a promise so a hung request cannot wait forever.
+  // Wraps a promise so a hung request cannot wait forever.
   withTimeout(promise) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
@@ -62,7 +46,7 @@ class CircuitBreaker {
     });
   }
 
-  // Has the cool-off passed, so we can try one probe request?
+  // True once the cool-off has passed and one test request can go through.
   readyToRetry() {
     return this.openedAt !== null && Date.now() - this.openedAt >= this.cooldownMs;
   }
@@ -85,9 +69,7 @@ class CircuitBreaker {
     }
   }
 
-  // Run the operation through the breaker. If it cannot run, or it fails, and a
-  // fallback was supplied, the fallback result is returned instead of throwing.
-  // The caller gets told which path was taken so it can label stale data.
+  // Runs the operation, falling back to cached data instead of throwing when it fails.
   async run(operation, fallback = null) {
     this.stats.calls += 1;
 
@@ -119,7 +101,7 @@ class CircuitBreaker {
     return { ok: true, source: "cache", data, reason };
   }
 
-  // What the health endpoint reports.
+  // Current state, reported by the health endpoint.
   snapshot() {
     return {
       name: this.name,
@@ -131,7 +113,7 @@ class CircuitBreaker {
     };
   }
 
-  // Used by tests and by an admin "try again now" button.
+  // Clears the breaker, used by tests and the admin retry button.
   reset() {
     this.state = STATES.CLOSED;
     this.failures = 0;
