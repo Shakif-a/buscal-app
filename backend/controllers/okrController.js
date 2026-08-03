@@ -244,7 +244,11 @@ const getObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
   await assertCanViewObjective(objective, req, res);
-  const keyResults = await OkrKeyResult.find({ objective: objective.id });
+  // Assignee is populated so the table can show a name instead of an id.
+  const keyResults = await OkrKeyResult.find({ objective: objective.id }).populate(
+    "assignedTo",
+    "firstName lastName"
+  );
   res.status(200).json({ objective: withManagerName(objective), keyResults });
 });
 
