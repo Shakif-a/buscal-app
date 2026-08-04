@@ -29,8 +29,8 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
-import GroupManagement from "./pages/admin/GroupManagement";
-import RoleManagement from "./pages/admin/RoleManagement";
+import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
+import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
 import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
 
 // Shell
@@ -151,6 +151,16 @@ function App() {
               path="dashboard/okrtracker/objectives"
               element={<ObjectivesPage />}
             />
+
+            <Route
+            path="/dashboard/okrtracker/admin/groups"
+            element={<Nav main={[<GroupManagement />]} />}
+            />
+
+            <Route
+              path="/dashboard/okrtracker/admin/roles"
+              element={<Nav main={[<RoleManagement />]} />}
+            />
           </Route>
 
           {/* ---------------- ADMIN ONLY ---------------- */}
@@ -172,14 +182,6 @@ function App() {
               element={<Nav main={[<DevPlayground />]} />}
             />
                       
-          <Route
-            path="/dashboard/admin/groups"
-            element={<Nav main={[<GroupManagement />]} />}
-          />
-          <Route
-            path="/dashboard/admin/roles"
-            element={<Nav main={[<RoleManagement />]} />}
-          />
           </Route>
 
           {/* Catch-all */}
