@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const keyResultSchema = mongoose.Schema(
+const keyResultSchema = new mongoose.Schema(
   {
     objective: {
       type: mongoose.Schema.Types.ObjectId,
