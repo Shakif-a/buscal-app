@@ -31,7 +31,7 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 import DevPlayground from "./okrTracker/pages/DevPlayground";
 
     // Objectives page-Erika
-import ObjectivesPage from "./pages/objectives/ObjectivesPage";
+import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
@@ -63,12 +63,6 @@ function App() {
           <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
           <Route path="/logout" element={<Logout />} />
 
-          // Erika 
-{/* Objectives page */}
-<Route
-  path="/objectives"
-  element={<ObjectivesPage />}
-/>
 
           {/* ---------------- AUTH: ALL ROLES ---------------- */}
           <Route
@@ -138,6 +132,25 @@ function App() {
               path="/dashboard/settings/details"
               element={<Nav main={[<AccountDetails />]} />} 
               />
+          </Route>
+
+          {/* ---------------- OKR TRACKER (EMPLOYEE+QM+ADMIN) ---------------- */}
+          <Route
+            element={
+              <RequireAuth
+                allowedRoles={[
+                  ROLES.employee,
+                  ROLES.qm,
+                  ROLES.admin,
+                  ROLES.salesTeam,
+                ]}
+              />
+            }
+          >
+            <Route
+              path="dashboard/okrtracker/objectives"
+              element={<ObjectivesPage />}
+            />
           </Route>
 
           {/* ---------------- ADMIN ONLY ---------------- */}
