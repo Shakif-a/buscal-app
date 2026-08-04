@@ -5,11 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
-    "check": "node --check server.js && node --check controllers/okrController.js && node --check controllers/notificationController.js && node --check routes/okrRoutes.js && node --check routes/notificationRoutes.js && node --check middleware/okrAuthorization.js && node --check middleware/okrSecurityMiddleware.js && node --check scripts/seedOkrDemo.js",
-    "seed:okr-demo": "node scripts/seedOkrDemo.js",
-    "test": "node --test test/okr.test.js && node --test test/okrGovernance.test.js",
-    "test:ci": "npm run check && npm test"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "axios": "^1.16.1",

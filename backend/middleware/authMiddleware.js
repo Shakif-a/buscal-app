@@ -3,60 +3,41 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
 
 const protect = asyncHandler(async (req, res, next) => {
-  const authorization = String(req.headers.authorization || "");
-  const match = authorization.match(/^Bearer\s+(\S+)$/i);
+  let token;
 
-  if (!match) {
-    res.status(401);
-    throw new Error("Not authorized, no token");
-  }
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      // Get token from header
+      token = req.headers.authorization.split(" ")[1];
 
-  const token = match[1];
-  if (token.length > 4096 || !process.env.JWT_SECRET) {
-    res.status(401);
-    throw new Error("Not authorized");
-  }
+      // console.log("token: ", token);
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  // Belt and suspenders: check the declared algorithm ourselves before
-  // handing the token to jsonwebtoken. The library's own `algorithms` option
-  // below should already refuse anything but HS256, but a token's header is
-  // attacker-controlled data, so we don't rely on a single layer for
-  // something as easy to check as this.
-  const headerSegment = token.split(".")[0];
-  let declaredAlgorithm;
-  try {
-    declaredAlgorithm = JSON.parse(
-      Buffer.from(headerSegment, "base64url").toString("utf8")
-    ).alg;
-  } catch (_decodeError) {
-    res.status(401);
-    throw new Error("Not authorized");
-  }
-  if (declaredAlgorithm !== "HS256") {
-    res.status(401);
-    throw new Error("Not authorized");
-  }
+      // Get user from the token
+      req.user = await User.findById(decoded.id).select("-password");
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      algorithms: ["HS256"],
-    });
+      if (!req.user) {
+        console.log("NO USER FOUND");
+        throw new Error("User not found");
+      }
 
-    req.user = await User.findById(decoded.id).select(
-      "-password -resetPasswordToken -resetPasswordExpires"
-    );
-
-    if (!req.user) {
+      // console.log("req.user: ", req.user);
+      next();
+    } catch (error) {
+      console.log("Error in authMiddleware.js:");
+      console.log(error);
       res.status(401);
       throw new Error("Not authorized");
     }
+  }
 
-    return next();
-  } catch (_error) {
-    // Authentication failures are intentionally generic and never log the
-    // token or the decoded payload.
+  if (!token) {
     res.status(401);
-    throw new Error("Not authorized");
+    throw new Error("Not authorized, no token");
   }
 });
 
