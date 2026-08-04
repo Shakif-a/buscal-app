@@ -29,10 +29,9 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
-
-// Admin Pages
 import GroupManagement from "./pages/admin/GroupManagement";
 import RoleManagement from "./pages/admin/RoleManagement";
+import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
@@ -63,6 +62,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
           <Route path="/logout" element={<Logout />} />
+
 
           {/* ---------------- AUTH: ALL ROLES ---------------- */}
           <Route
@@ -132,6 +132,25 @@ function App() {
               path="/dashboard/settings/details"
               element={<Nav main={[<AccountDetails />]} />} 
               />
+          </Route>
+
+          {/* ---------------- OKR TRACKER (EMPLOYEE+QM+ADMIN) ---------------- */}
+          <Route
+            element={
+              <RequireAuth
+                allowedRoles={[
+                  ROLES.employee,
+                  ROLES.qm,
+                  ROLES.admin,
+                  ROLES.salesTeam,
+                ]}
+              />
+            }
+          >
+            <Route
+              path="dashboard/okrtracker/objectives"
+              element={<ObjectivesPage />}
+            />
           </Route>
 
           {/* ---------------- ADMIN ONLY ---------------- */}

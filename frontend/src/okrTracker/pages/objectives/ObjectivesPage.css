@@ -1,0 +1,289 @@
+.objectives-page {
+  padding: 20px 24px;
+  color: #20203f;
+}
+
+/* ---------------- Top Search ---------------- */
+
+.objectives-top-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.objectives-search {
+  width: 260px;
+  padding: 10px 14px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  background-color: #f3f6fa;
+  font-size: 15px;
+}
+
+/* ---------------- Banner ---------------- */
+
+.objectives-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border: 1px solid #d9dfea;
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+
+.objectives-banner h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #20203f;
+}
+
+.banner-arrow {
+  font-size: 30px;
+  font-weight: 700;
+  color: #20203f;
+}
+
+/* ---------------- Filters ---------------- */
+
+.objective-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.objective-filters select {
+  width: 160px;
+  padding: 10px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  background-color: white;
+  cursor: pointer;
+}
+
+/* ---------------- Objective Card ---------------- */
+
+.objective-card {
+  border: 1px solid #d9dfea;
+  border-radius: 12px;
+  padding: 55px 18px 18px;
+  margin-bottom: 18px;
+  min-height: 200px;
+}
+
+.objective-details {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.objective-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.objective-title {
+  margin: 0;
+  padding-right: 20px;
+  border-right: 1px solid #d9dfea;
+  font-size: 18px;
+  color: #20203f;
+  white-space: nowrap;
+}
+
+.objective-details p {
+  margin: 0;
+  font-size: 13px;
+  color: #6c7284;
+  white-space: nowrap;
+}
+
+.objective-details strong {
+  color: #20203f;
+}
+
+.objective-due-date {
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.objective-card hr {
+  border: none;
+  border-top: 1px solid #d9dfea;
+  margin: 55px 0 18px;
+}
+/* ---------------- Progress ---------------- */
+
+.progress-section {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.progress-button {
+  width: 130px;
+  height: 50px;
+  padding: 8px 12px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  background-color: white;
+  color: #20203f;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.progress-button:hover {
+  background-color: #f3f6fa;
+}
+
+.progress-area {
+  flex: 1;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #687084;
+}
+
+.progress-track {
+  position: relative;
+  height: 7px;
+  background-color: #e4e8ef;
+  border-radius: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #232043;
+  border-radius: 10px;
+}
+
+.progress-circle {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background-color: #67c8f3;
+  border: 3px solid white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ---------------- Footer ---------------- */
+
+.objectives-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.page-button {
+  border: none;
+  background: none;
+  color: #005da8;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.page-button:hover {
+  text-decoration: underline;
+}
+
+.page-count {
+  color: #20203f;
+  font-size: 15px;
+  font-weight: 500;
+}
+/* ---------------- Key Results ---------------- */
+
+.key-results-section {
+  margin-top: 35px;
+}
+
+.key-results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.key-results-table th {
+  padding: 16px 8px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6c7284;
+  border-bottom: 1px solid #d9dfea;
+}
+
+.key-results-table td {
+  padding: 18px 8px;
+  font-size: 14px;
+  color: #20203f;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.key-results-table select {
+  width: 170px;
+  padding: 10px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  background: white;
+}
+
+.key-results-table a {
+  color: #005da8;
+  text-decoration: none;
+}
+
+.key-results-table a:hover {
+  text-decoration: underline;
+}
+
+.key-results-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 28px;
+}
+
+.add-key-result {
+  background: none;
+  border: none;
+  color: #005da8;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.footer-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.cancel-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  background: #eef2f7;
+  cursor: pointer;
+}
+
+.save-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  background: #72cdf4;
+  color: #20203f;
+  font-weight: 600;
+  cursor: pointer;
+}
