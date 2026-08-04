@@ -17,8 +17,6 @@ const router = express.Router();
 router.use(sanitizeBody);
 router.use(rateLimit({ windowMs: 60 * 1000, max: 300 }));
 
-// The controller already existed but had no HTTP boundary in this stripped
-// repository. These routes expose only the safe web-notification operations.
 router.get("/", protect, getUserNotifications);
 router.patch(
   "/:id/read",
