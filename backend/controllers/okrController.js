@@ -20,21 +20,19 @@ const formatKeyResult = (keyResult) => {
 };
 
 const calculateProgress = (keyResults) => {
-  const totalWeight = keyResults.reduce(
-    (total, keyResult) => total + keyResult.weight,
-    0
-  );
+  let totalWeight = 0;
+  let totalProgress = 0;
+
+  for (const keyResult of keyResults) {
+    totalWeight += keyResult.weight;
+    totalProgress += keyResult.progress * keyResult.weight;
+  }
 
   if (totalWeight === 0) {
     return 0;
   }
 
-  const weightedProgress = keyResults.reduce(
-    (total, keyResult) => total + keyResult.progress * keyResult.weight,
-    0
-  );
-
-  return Math.round(weightedProgress / totalWeight);
+  return Math.round(totalProgress / totalWeight);
 };
 
 const formatObjective = (objective, keyResults = []) => {
@@ -50,38 +48,34 @@ const formatObjective = (objective, keyResults = []) => {
   return data;
 };
 
+const getKeyResults = async (objectiveId) => {
+  const keyResults = await OkrKeyResult.find({ objective: objectiveId })
+    .populate("assignedTo", "firstName lastName")
+    .sort({ createdAt: 1 });
+
+  const result = [];
+
+  for (const keyResult of keyResults) {
+    result.push(formatKeyResult(keyResult));
+  }
+
+  return result;
+};
+
 const getObjectives = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find()
     .populate("owner", "firstName lastName")
     .sort({ dueDate: 1 });
 
-  const keyResults = await OkrKeyResult.find({
-    objective: { $in: objectives.map((objective) => objective._id) },
-  })
-    .populate("assignedTo", "firstName lastName")
-    .sort({ createdAt: 1 });
+  const result = [];
 
-  const keyResultsByObjective = {};
+  for (const objective of objectives) {
+    const keyResults = await getKeyResults(objective._id);
+    const objectiveData = formatObjective(objective, keyResults);
 
-  keyResults.forEach((keyResult) => {
-    const objectiveId = keyResult.objective.toString();
-
-    if (!keyResultsByObjective[objectiveId]) {
-      keyResultsByObjective[objectiveId] = [];
-    }
-
-    keyResultsByObjective[objectiveId].push(formatKeyResult(keyResult));
-  });
-
-  const result = objectives.map((objective) => {
-    const objectiveKeyResults =
-      keyResultsByObjective[objective._id.toString()] || [];
-
-    return {
-      ...formatObjective(objective, objectiveKeyResults),
-      keyResults: objectiveKeyResults,
-    };
-  });
+    objectiveData.keyResults = keyResults;
+    result.push(objectiveData);
+  }
 
   res.status(200).json(result);
 });
@@ -103,15 +97,11 @@ const getObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  const keyResults = await OkrKeyResult.find({ objective: objective._id })
-    .populate("assignedTo", "firstName lastName")
-    .sort({ createdAt: 1 });
-
-  const formattedKeyResults = keyResults.map(formatKeyResult);
+  const keyResults = await getKeyResults(objective._id);
 
   res.status(200).json({
-    objective: formatObjective(objective, formattedKeyResults),
-    keyResults: formattedKeyResults,
+    objective: formatObjective(objective, keyResults),
+    keyResults,
   });
 });
 
