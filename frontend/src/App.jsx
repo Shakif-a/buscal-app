@@ -32,6 +32,7 @@ import DevPlayground from "./okrTracker/pages/DevPlayground";
 import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
 import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
 import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
+import CreateObjectives from "./okrTracker/pages/objectives/CreateObjectives";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
@@ -148,8 +149,12 @@ function App() {
             }
           >
             <Route
-              path="dashboard/okrtracker/objectives"
+              path="/dashboard/okrtracker/objectives"
               element={<ObjectivesPage />}
+            />
+            <Route
+              path="/dashboard/okrtracker/objectives/create"
+              element={<Nav main={[<CreateObjectives />]} />}
             />
 
             <Route
