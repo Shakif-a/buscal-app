@@ -1,16 +1,4 @@
-// ---------------------------------------------------------------------------
-// Tests for the governance and resilience layer:
-//   - weights must total exactly 100 before an objective can be activated
-//   - evidence is required before a key result can be submitted
-//   - approve and reject, including the block on reviewing your own submission
-//   - the audit log is append-only
-//   - the circuit breaker opens, falls back, and recovers
-//   - the self-healing pass detaches dead references instead of crashing
-//
-// Same style as okr.test.js: build a small Express app around the real routes,
-// talk to it over HTTP, and use a real MongoDB from MONGO_URI.
-// ---------------------------------------------------------------------------
-
+// Tests for activation, evidence, approvals, the audit log and the self-healing pass.
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
 const express = require("express");

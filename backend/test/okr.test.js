@@ -1,12 +1,4 @@
-// ---------------------------------------------------------------------------
-// Automated tests for the OKR module.
-// Uses Node's built-in test runner (node --test) so there are no extra
-// dependencies to install. We build a small Express app with just the OKR
-// routes, connect to a MongoDB given by the MONGO_URI env var (a service
-// container in CI, or a local instance), create a real user + token, and then
-// exercise the endpoints over HTTP using the built-in fetch.
-// ---------------------------------------------------------------------------
-
+// Tests for the OKR module, run with node --test against a MongoDB from MONGO_URI.
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
 const express = require("express");
@@ -311,9 +303,7 @@ test("check-ins store a history and move the roll-up", async () => {
 });
 
 test("forecast reports pace and a verdict", async () => {
-  // Backdate the start so there is measurable velocity: 10 days in, 50% done,
-  // 20 days left. Velocity 5%/day finishes the remaining 50% in 10 days,
-  // comfortably before the due date, so the verdict is on-pace.
+  // Backdated so there is real velocity: 10 days in, 50% done, 20 days left.
   const start = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
   const due = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString();
   let res = await post("/api/okr/objectives", { title: "Forecast objective", type: "team", startDate: start, dueDate: due });
@@ -449,8 +439,7 @@ test("objectives and key results can be edited and key results deleted", async (
   assert.equal(res.status, 200);
   assert.equal((await res.json()).title, "Edited title");
 
-  // Editing a key result weight beyond the ceiling is refused (60 stays, so
-  // the second cannot become 50).
+  // Editing a weight past the ceiling is refused, 60 stays so this cannot become 50.
   res = await fetch(`${baseUrl}/api/okr/key-results/${krToDelete._id}`, {
     method: "PUT",
     headers: authHeaders(),
@@ -466,8 +455,7 @@ test("objectives and key results can be edited and key results deleted", async (
   });
   assert.equal(res.status, 200);
 
-  // Delete it; the objective re-rolls to just the 60% key result at 50%,
-  // which contributes 30.
+  // Deleting it leaves the 60% key result at 50%, which comes to 30.
   res = await fetch(`${baseUrl}/api/okr/key-results/${krToDelete._id}`, {
     method: "DELETE",
     headers: authHeaders(),
@@ -527,8 +515,7 @@ test("completing calendar items drives key result and objective progress", async
   notDone.progress = 100;
   await notDone.save();
 
-  // Syncing pulls that completion through to the objective without anyone
-  // touching the OKR screens.
+  // Syncing brings that completion through to the objective.
   res = await fetch(`${baseUrl}/api/okr/objectives/${oid}/sync-calendar`, {
     method: "POST",
     headers: authHeaders(),
