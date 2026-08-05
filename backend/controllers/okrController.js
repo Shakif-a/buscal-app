@@ -3,64 +3,70 @@ const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 
 function getName(user) {
-  if (!user) {
-    return "";
+  let name = "";
+
+  if (user && user.firstName) {
+    name = user.firstName;
   }
 
-  const firstName = user.firstName || "";
-  const lastName = user.lastName || "";
-  return (firstName + " " + lastName).trim();
+  if (user && user.lastName) {
+    name = name + " " + user.lastName;
+  }
+
+  return name.trim();
 }
 
-async function getKeyResults(objectiveId) {
-  const keyResults = await OkrKeyResult.find({ objective: objectiveId })
+async function loadObjective(objective) {
+  const keyResultDocuments = await OkrKeyResult.find({
+    objective: objective._id,
+  })
     .populate("assignedTo", "firstName lastName")
     .sort({ createdAt: 1 });
 
-  const result = [];
-
-  for (let i = 0; i < keyResults.length; i++) {
-    const keyResult = keyResults[i].toObject();
-    keyResult.id = keyResult._id.toString();
-    keyResult.assigned = getName(keyResult.assignedTo);
-
-    if (!keyResult.assigned) {
-      keyResult.assigned = "Unassigned";
-    }
-
-    result.push(keyResult);
-  }
-
-  return result;
-}
-
-function getObjectiveData(objective, keyResults) {
-  const data = objective.toObject();
+  const keyResults = [];
   let totalWeight = 0;
   let totalProgress = 0;
 
-  for (let i = 0; i < keyResults.length; i++) {
-    totalWeight += keyResults[i].weight;
-    totalProgress += keyResults[i].progress * keyResults[i].weight;
+  for (let i = 0; i < keyResultDocuments.length; i++) {
+    const keyResult = keyResultDocuments[i].toObject();
+
+    keyResult.id = keyResult._id.toString();
+
+    if (keyResult.assignedTo) {
+      keyResult.assigned = getName(keyResult.assignedTo);
+    } else {
+      keyResult.assigned = "Unassigned";
+    }
+
+    totalWeight = totalWeight + keyResult.weight;
+    totalProgress = totalProgress + keyResult.progress * keyResult.weight;
+    keyResults.push(keyResult);
   }
 
-  data.id = data._id.toString();
-  data.manager = getName(data.owner);
+  const objectiveData = objective.toObject();
+  objectiveData.id = objectiveData._id.toString();
+  objectiveData.manager = getName(objectiveData.owner);
 
-  if (!data.commitmentType) {
-    data.commitmentType = "committed";
+  if (!objectiveData.commitmentType) {
+    objectiveData.commitmentType = "committed";
   }
 
-  data.type =
-    data.commitmentType.charAt(0).toUpperCase() +
-    data.commitmentType.slice(1);
-  data.progress = 0;
+  if (objectiveData.commitmentType === "aspirational") {
+    objectiveData.type = "Aspirational";
+  } else {
+    objectiveData.type = "Committed";
+  }
+
+  objectiveData.progress = 0;
 
   if (totalWeight > 0) {
-    data.progress = Math.round(totalProgress / totalWeight);
+    objectiveData.progress = Math.round(totalProgress / totalWeight);
   }
 
-  return data;
+  return {
+    objective: objectiveData,
+    keyResults: keyResults,
+  };
 }
 
 const getObjectives = asyncHandler(async (req, res) => {
@@ -71,11 +77,10 @@ const getObjectives = asyncHandler(async (req, res) => {
   const result = [];
 
   for (let i = 0; i < objectives.length; i++) {
-    const keyResults = await getKeyResults(objectives[i]._id);
-    const objectiveData = getObjectiveData(objectives[i], keyResults);
+    const data = await loadObjective(objectives[i]);
 
-    objectiveData.keyResults = keyResults;
-    result.push(objectiveData);
+    data.objective.keyResults = data.keyResults;
+    result.push(data.objective);
   }
 
   res.status(200).json(result);
@@ -98,12 +103,8 @@ const getObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  const keyResults = await getKeyResults(objective._id);
-
-  res.status(200).json({
-    objective: getObjectiveData(objective, keyResults),
-    keyResults,
-  });
+  const data = await loadObjective(objective);
+  res.status(200).json(data);
 });
 
 module.exports = { getObjectives, getObjectiveGroups, getObjective };
