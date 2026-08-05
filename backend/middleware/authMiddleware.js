@@ -3,24 +3,22 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
 
 const protect = asyncHandler(async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  const header = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!header || !header.startsWith("Bearer ")) {
     res.status(401);
     throw new Error("Not authorized, no token");
   }
 
   try {
-    const token = authHeader.split(" ")[1];
+    const token = header.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password");
+    req.user = await User.findById(decoded.id).select("-password");
 
-    if (!user) {
+    if (!req.user) {
       throw new Error("User not found");
     }
-
-    req.user = user;
-  } catch {
+  } catch (error) {
     res.status(401);
     throw new Error("Not authorized");
   }
