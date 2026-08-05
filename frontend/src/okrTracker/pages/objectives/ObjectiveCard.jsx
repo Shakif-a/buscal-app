@@ -1,4 +1,8 @@
+import { useState } from "react";
+
 function ObjectiveCard({ objective }) {
+  const [showKeyResults, setShowKeyResults] = useState(false);
+
   return (
     <div className="objective-card">
       {/* Objective information */}
@@ -28,8 +32,12 @@ function ObjectiveCard({ objective }) {
 
       {/* Progress section */}
       <div className="progress-section">
-        <button className="progress-button">
-          View Key Results
+        <button
+          type="button"
+          className="progress-button"
+          onClick={() => setShowKeyResults(!showKeyResults)}
+        >
+          {showKeyResults ? "Hide Key Results" : "View Key Results"}
         </button>
 
         <div className="progress-area">
@@ -55,128 +63,138 @@ function ObjectiveCard({ objective }) {
       </div>
 
       {/* Key Results Table */}
-      <div className="key-results-section">
-        <table className="key-results-table">
-          <thead>
-            <tr>
-              <th>KEY REQUIREMENTS</th>
-              <th>WEIGHT</th>
-              <th>ASSIGNED</th>
-              <th>PROGRESS</th>
-              <th>DUE DATE</th>
-              <th>STATUS</th>
-              <th>EVIDENCE</th>
-              <th>APPROVAL</th>
-            </tr>
-          </thead>
+      {showKeyResults && (
+        <div className="key-results-section">
+          <table className="key-results-table">
+            <thead>
+              <tr>
+                <th>KEY REQUIREMENTS</th>
+                <th>WEIGHT</th>
+                <th>ASSIGNED</th>
+                <th>PROGRESS</th>
+                <th>DUE DATE</th>
+                <th>STATUS</th>
+                <th>EVIDENCE</th>
+                <th>APPROVAL</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            <tr>
-              <td>KR#1</td>
-              <td>30%</td>
-              <td>J. Smith</td>
-              <td>90%</td>
-              <td>30/10/26</td>
+            <tbody>
+              <tr>
+                <td>KR#1</td>
+                <td>30%</td>
+                <td>J. Smith</td>
+                <td>90%</td>
+                <td>30/10/26</td>
 
-              <td>
-                <select>
-                  <option>Completed</option>
-                </select>
-              </td>
+                <td>
+                  <select>
+                    <option>Completed</option>
+                  </select>
+                </td>
 
-              <td>
-                <a href="/">View</a> | <a href="/">Edit</a> | <a href="/">Delete</a>
-              </td>
+                <td>
+                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
+                  <a href="/">Delete</a>
+                </td>
 
-              <td>
-                <input type="checkbox" defaultChecked />
-              </td>
-            </tr>
+                <td>
+                  <input type="checkbox" defaultChecked />
+                </td>
+              </tr>
 
-            <tr>
-              <td>KR#2</td>
-              <td>25%</td>
-              <td>A. Lee</td>
-              <td>40%</td>
-              <td>12/11/26</td>
+              <tr>
+                <td>KR#2</td>
+                <td>25%</td>
+                <td>A. Lee</td>
+                <td>40%</td>
+                <td>12/11/26</td>
 
-              <td>
-                <select>
-                  <option>At Risk</option>
-                </select>
-              </td>
+                <td>
+                  <select>
+                    <option>At Risk</option>
+                  </select>
+                </td>
 
-              <td>
-                <a href="/">View</a> | <a href="/">Edit</a> | <a href="/">Delete</a>
-              </td>
+                <td>
+                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
+                  <a href="/">Delete</a>
+                </td>
 
-              <td>
-                <input type="checkbox" />
-              </td>
-            </tr>
+                <td>
+                  <input type="checkbox" />
+                </td>
+              </tr>
 
-            <tr>
-              <td>KR#3</td>
-              <td>25%</td>
-              <td>R. Kaur</td>
-              <td>60%</td>
-              <td>20/11/26</td>
+              <tr>
+                <td>KR#3</td>
+                <td>25%</td>
+                <td>R. Kaur</td>
+                <td>60%</td>
+                <td>20/11/26</td>
 
-              <td>
-                <select>
-                  <option>On Track</option>
-                </select>
-              </td>
+                <td>
+                  <select>
+                    <option>On Track</option>
+                  </select>
+                </td>
 
-              <td>
-                <a href="/">View</a> | <a href="/">Edit</a> | <a href="/">Delete</a>
-              </td>
+                <td>
+                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
+                  <a href="/">Delete</a>
+                </td>
 
-              <td>
-                <input type="checkbox" />
-              </td>
-            </tr>
+                <td>
+                  <input type="checkbox" />
+                </td>
+              </tr>
 
-            <tr>
-              <td>KR#4</td>
-              <td>20%</td>
-              <td>M. Chan</td>
-              <td>15%</td>
-              <td>30/11/26</td>
+              <tr>
+                <td>KR#4</td>
+                <td>20%</td>
+                <td>M. Chan</td>
+                <td>15%</td>
+                <td>30/11/26</td>
 
-              <td>
-                <select>
-                  <option>Choose Progress</option>
-                </select>
-              </td>
+                <td>
+                  <select>
+                    <option>Choose Progress</option>
+                  </select>
+                </td>
 
-              <td>
-                <a href="/">View</a> | <a href="/">Edit</a> | <a href="/">Delete</a>
-              </td>
+                <td>
+                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
+                  <a href="/">Delete</a>
+                </td>
 
-              <td>
-                <input type="checkbox" />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <td>
+                  <input type="checkbox" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-        <div className="key-results-footer">
-          <button className="add-key-result">
-            + Add Key Result
-          </button>
-
-          <div className="footer-buttons">
-            <button className="cancel-button">
-              Cancel
+          <div className="key-results-footer">
+            <button type="button" className="add-key-result">
+              + Add Key Result
             </button>
 
-            <button className="save-button">
-              Edit Key Results
-            </button>
+            <div className="footer-buttons">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={() => setShowKeyResults(false)}
+              >
+                Cancel
+              </button>
+
+              <button type="button" className="save-button">
+                Edit Key Results
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
