@@ -3,12 +3,12 @@ import authReducer from "../features/auth/authSlice";
 import calendarReducer from "../businessCalendar/features/calendar/calendarSlice";
 
 // Add your own slices here as you build new modules (e.g. OKR)
-// import okrReducer from "../features/okr/okrSlice";
+import okrReducer from "../okrTracker/features/objectives/objectiveSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     calendar: calendarReducer,
-    // okr: okrReducer,
+    okr: okrReducer,
   },
 });

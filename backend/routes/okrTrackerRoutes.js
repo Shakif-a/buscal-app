@@ -1,11 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const {
-  createObjective
+  createObjective,
+  getObjectives,
 } = require("../controllers/calendarController");
 
 const { protect } = require("../middleware/authMiddleware");
 
+router.get("/objectives", protect, getObjectives);
 // router.post("/objectives", protect, createObjective);
 
 // Default route
