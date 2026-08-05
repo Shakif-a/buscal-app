@@ -19,6 +19,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import BreadcrumbsActiveLast from "../../components/Navigation/Breadcrumbs/BreadcrumbsActiveLast";
 
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/manage-api-keys`;
 const ApiManagement = () => {
   const { user } = useSelector((state) => state.auth);
   const [keys, setKeys] = useState([]);
@@ -39,7 +40,7 @@ const ApiManagement = () => {
 
   const fetchKeys = async () => {
     try {
-      const res = await axios.get("/api/manage-api-keys", config);
+      const res = await axios.get(API_URL, config);
       setKeys(res.data);
     } catch {
       toast.error("Failed to load API keys.");
@@ -48,7 +49,7 @@ const ApiManagement = () => {
 
   const fetchPermissions = async () => {
     try {
-      const res = await axios.get("/api/manage-api-keys/permissions", config);
+      const res = await axios.get(`${API_URL}/permissions`, config);
       setPermissionsConfig(res.data);
     } catch {
       toast.error("Failed to load permissions.");
@@ -112,7 +113,7 @@ const ApiManagement = () => {
     setLoading(true);
     try {
       const res = await axios.post(
-        "/api/manage-api-keys",
+        API_URL,
         { name: newKeyName.trim(), permissions: selectedEndpoints },
         config,
       );
@@ -130,7 +131,7 @@ const ApiManagement = () => {
 
   const handleRevoke = async (id) => {
     try {
-      await axios.delete(`/api/manage-api-keys/${id}`, config);
+      await axios.delete(`${API_URL}/${id}`, config);
       setKeys((prev) => prev.filter((k) => k._id !== id));
       toast.success("API key revoked.");
     } catch {

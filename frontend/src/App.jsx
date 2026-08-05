@@ -29,6 +29,12 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
 // OKR
 import OkrDashboard from "./pages/OkrDashboard";
+// OKR Tracker
+import DevPlayground from "./okrTracker/pages/DevPlayground";
+import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
+import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
+import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
+import CreateObjectives from "./okrTracker/pages/objectives/CreateObjectives";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
@@ -59,6 +65,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
           <Route path="/logout" element={<Logout />} />
+
 
           {/* ---------------- AUTH: ALL ROLES ---------------- */}
           <Route
@@ -132,6 +139,40 @@ function App() {
           <Route path="/" element={<OkrDashboard />}/>
           <Route path="/okrdashboard" element={<OkrDashboard />} />
 
+          {/* ---------------- OKR TRACKER (EMPLOYEE+QM+ADMIN) ---------------- */}
+          <Route
+            element={
+              <RequireAuth
+                allowedRoles={[
+                  ROLES.employee,
+                  ROLES.qm,
+                  ROLES.admin,
+                  ROLES.salesTeam,
+                ]}
+              />
+            }
+          >
+            <Route
+              path="/dashboard/okrtracker/objectives"
+              element={<ObjectivesPage />}
+            />
+
+            <Route
+              path="/dashboard/okrtracker/objectives/create"
+              element={<Nav main={[<CreateObjectives />]} />}
+            />
+
+            <Route
+              path="/dashboard/okrtracker/admin/groups"
+              element={<Nav main={[<GroupManagement />]} />}
+            />
+
+            <Route
+              path="/dashboard/okrtracker/admin/roles"
+              element={<Nav main={[<RoleManagement />]} />}
+            />
+          </Route>
+
           {/* ---------------- ADMIN ONLY ---------------- */}
           <Route
             element={<RequireAuth allowedRoles={[ROLES.admin]} />}
@@ -145,6 +186,12 @@ function App() {
               path="/dashboard/settings/qm"
               element={<Nav main={[<QMAccountHeader />]} />}
             />
+
+            <Route
+              path="/dashboard/dev-playground"
+              element={<Nav main={[<DevPlayground />]} />}
+            />
+                      
           </Route>
 
           {/* Catch-all */}
