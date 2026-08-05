@@ -6,7 +6,7 @@ const {
 
 const { protect } = require("../middleware/authMiddleware");
 
-router.post("/objectives", protect, createObjective);
+// router.post("/objectives", protect, createObjective);
 
 // Default route
 router.get("/", (req, res) => {
