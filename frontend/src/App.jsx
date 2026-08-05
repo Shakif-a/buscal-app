@@ -29,9 +29,9 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
-
-    // Objectives page-Erika
-import ObjectivesPage from "./pages/objectives/ObjectivesPage";
+import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
+import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
+import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
@@ -63,12 +63,6 @@ function App() {
           <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
           <Route path="/logout" element={<Logout />} />
 
-          // Erika 
-{/* Objectives page */}
-<Route
-  path="/objectives"
-  element={<ObjectivesPage />}
-/>
 
           {/* ---------------- AUTH: ALL ROLES ---------------- */}
           <Route
@@ -140,6 +134,35 @@ function App() {
               />
           </Route>
 
+          {/* ---------------- OKR TRACKER (EMPLOYEE+QM+ADMIN) ---------------- */}
+          <Route
+            element={
+              <RequireAuth
+                allowedRoles={[
+                  ROLES.employee,
+                  ROLES.qm,
+                  ROLES.admin,
+                  ROLES.salesTeam,
+                ]}
+              />
+            }
+          >
+            <Route
+              path="dashboard/okrtracker/objectives"
+              element={<ObjectivesPage />}
+            />
+
+            <Route
+            path="/dashboard/okrtracker/admin/groups"
+            element={<Nav main={[<GroupManagement />]} />}
+            />
+
+            <Route
+              path="/dashboard/okrtracker/admin/roles"
+              element={<Nav main={[<RoleManagement />]} />}
+            />
+          </Route>
+
           {/* ---------------- ADMIN ONLY ---------------- */}
           <Route
             element={<RequireAuth allowedRoles={[ROLES.admin]} />}
@@ -158,6 +181,7 @@ function App() {
               path="/dashboard/dev-playground"
               element={<Nav main={[<DevPlayground />]} />}
             />
+                      
           </Route>
 
           {/* Catch-all */}

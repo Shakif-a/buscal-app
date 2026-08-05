@@ -34,7 +34,7 @@ app.use("/api/calendar", require("./routes/calendarRoutes"));
 app.use("/api/users", require("./routes/userRoutes")); // Auth + account settings
 
 // ── Add new module routes below this line ────────────────────────────────────
-// app.use("/api/okr", require("./routes/okrRoutes"));
+app.use("/api/okrTracker", require("./routes/okrTrackerRoutes"));
 
 // ── Serve frontend build in production ───────────────────────────────────
 if (process.env.NODE_ENV === "production") {
