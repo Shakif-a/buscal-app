@@ -150,7 +150,7 @@ function App() {
           >
             <Route
               path="/dashboard/okrtracker/objectives"
-              element={<ObjectivesPage />}
+              element={<Nav main={[<ObjectivesPage />]} />}
             />
 
             <Route
