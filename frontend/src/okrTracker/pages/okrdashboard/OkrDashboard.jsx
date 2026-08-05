@@ -8,7 +8,7 @@ function OkrDashboard(){
   //const {summary, objectives, upcomingDeadlines} = mockOkrDashboardData;
 
   return (
-    <div className="dashboard">
+    <div className="okrdashboard">
       
       <div className="dashboard-header">
           <div className="dashboard-title">
