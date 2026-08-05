@@ -1,5 +1,7 @@
 import React from "react";
+
 import { mockOkrDashboardData } from "../data/mockOkrDashboardData";
+import OkrDashboardSummary from "../components/okrdashboard/OkrDashboardSummary";
 
 function OkrDashboard(){
   const {summary, objectives, upcomingDeadlines} = mockOkrDashboardData;

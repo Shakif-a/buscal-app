@@ -5,8 +5,9 @@ export const mockOkrDashboardData = {
         onTrackObjectives: 8,
         atRiskObjectives: 3,
         overdueObjectives: 2,
-        averageObjectives 61
-    }]
+        averageObjectives 61,
+    },
+],
 
     objectives:[
         {
