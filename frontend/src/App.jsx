@@ -27,6 +27,9 @@ import HistoryCalendar from "./businessCalendar/pages/HistoryCalendar";
 import CalendarView from "./businessCalendar/pages/CalendarView";
 import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
+// OKR
+import OkrDashboard from "./pages/OkrDashboard";
+
 // Shell
 import Nav from "./pages/navigation/Nav";
 import RequireAuth from "./components/Authenticate/RequireAuth";
@@ -126,6 +129,8 @@ function App() {
               element={<Nav main={[<AccountDetails />]} />} 
               />
           </Route>
+          <Route path="/" element={<OkrDashboard />}/>
+          <Route path="/okrdashboard" element={<OkrDashboard />} />
 
           {/* ---------------- ADMIN ONLY ---------------- */}
           <Route
