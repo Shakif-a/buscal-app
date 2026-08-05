@@ -28,9 +28,10 @@ import CalendarView from "./businessCalendar/pages/CalendarView";
 import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 
 // OKR
-import OkrDashboard from "./pages/OkrDashboard";
+
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
+import OkrDashboard from "./okrTracker/pages/okrdashboard/OkrDashboard";
 import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
 import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
 import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
@@ -136,8 +137,7 @@ function App() {
               element={<Nav main={[<AccountDetails />]} />} 
               />
           </Route>
-          <Route path="/" element={<OkrDashboard />}/>
-          <Route path="/okrdashboard" element={<OkrDashboard />} />
+          
 
           {/* ---------------- OKR TRACKER (EMPLOYEE+QM+ADMIN) ---------------- */}
           <Route
@@ -153,13 +153,23 @@ function App() {
             }
           >
             <Route
+              path="/dashboard/okrtracker/okrdashboard" 
+              element={<Nav main={[<OkrDashboard/>]} />}
+            />
+            
+            <Route
               path="/dashboard/okrtracker/objectives"
-              element={<ObjectivesPage />}
+              element={<Nav main={[<ObjectivesPage/>]} />}
             />
 
             <Route
               path="/dashboard/okrtracker/objectives/create"
               element={<Nav main={[<CreateObjectives />]} />}
+            />
+
+            <Route
+              path="/dashboard/okrtracker/report" 
+              element={<Nav main={[<Report/>]} />}
             />
 
             <Route

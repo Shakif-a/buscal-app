@@ -1,0 +1,117 @@
+.okrdashboard{
+    padding:40px;
+    background:#fafafa;
+}
+
+.dashboard-header{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 20px;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.dashboard-title{
+
+    display:flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.dashboard-title h1 {
+    margin: 0;
+    font-size: 40px;
+    color: #1f1e40
+}
+
+.logo {
+    width: 40px;
+    height: auto;
+}
+
+.statistics{
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.card{
+    flex:1;
+    background: white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding:25px;
+}
+
+.bottom-section{
+    display:flex;
+    gap:30px;
+}
+
+.completion-overview{
+    flex:1;
+    background:white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding:25px;
+}
+
+.progress-row{
+    display:flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.progress-row span:first-child{
+    width: 100px;
+}
+
+.progress-row progress{
+    flex: 1;
+    height: 20px;
+}
+
+.week-statistics{
+    flex:1;
+    background:white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding:25px;
+}
+
+.graph-container{
+    display:flex;
+    justify-content:space-around;
+    margin-top: 40px;
+}
+
+.circle{
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #ddd;
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.circlee{
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: #ddd;
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.texter {
+    font-size:12px;
+    text-align: center;
+}
