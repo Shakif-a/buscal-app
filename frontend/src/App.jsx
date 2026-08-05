@@ -152,14 +152,15 @@ function App() {
               path="/dashboard/okrtracker/objectives"
               element={<ObjectivesPage />}
             />
+
             <Route
               path="/dashboard/okrtracker/objectives/create"
               element={<Nav main={[<CreateObjectives />]} />}
             />
 
             <Route
-            path="/dashboard/okrtracker/admin/groups"
-            element={<Nav main={[<GroupManagement />]} />}
+              path="/dashboard/okrtracker/admin/groups"
+              element={<Nav main={[<GroupManagement />]} />}
             />
 
             <Route
