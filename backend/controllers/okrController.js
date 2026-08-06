@@ -107,4 +107,118 @@ const getObjective = asyncHandler(async (req, res) => {
   res.status(200).json(data);
 });
 
-module.exports = { getObjectives, getObjectiveGroups, getObjective };
+const createObjective = asyncHandler(async (req, res) => {
+  const { title, dueDate, group, commitmentType, owner } = req.body;
+
+  if (!title || !dueDate || !group || !owner) {
+    res.status(400);
+    throw new Error("Please fill in the title, group, owner and due date");
+  }
+
+  const objective = await OkrObjective.create({
+    title: title,
+    description: req.body.description || "",
+    dueDate: dueDate,
+    group: group,
+    commitmentType: commitmentType || "committed",
+    owner: owner,
+  });
+
+  res.status(201).json(objective);
+});
+
+const updateObjective = asyncHandler(async (req, res) => {
+  const objective = await OkrObjective.findById(req.params.id);
+
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
+  const fields = [
+    "title",
+    "description",
+    "group",
+    "commitmentType",
+    "owner",
+    "dueDate",
+  ];
+
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
+
+    if (req.body[field] !== undefined) {
+      objective[field] = req.body[field];
+    }
+  }
+
+  await objective.save();
+
+  res.status(200).json(objective);
+});
+
+const deleteObjective = asyncHandler(async (req, res) => {
+  const objective = await OkrObjective.findById(req.params.id);
+
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
+  await OkrKeyResult.deleteMany({ objective: objective._id });
+  await objective.deleteOne();
+
+  res.status(200).json({ id: req.params.id });
+});
+
+const createKeyResult = asyncHandler(async (req, res) => {
+  const { title, weight, assignedTo, dueDate } = req.body;
+
+  const objective = await OkrObjective.findById(req.params.id);
+
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
+  if (!title || !weight || !dueDate) {
+    res.status(400);
+    throw new Error("Please fill in the title, weight and due date");
+  }
+
+  const existing = await OkrKeyResult.find({ objective: objective._id });
+
+  let usedWeight = 0;
+
+  for (let i = 0; i < existing.length; i++) {
+    usedWeight = usedWeight + existing[i].weight;
+  }
+
+  if (usedWeight + Number(weight) > 100) {
+    res.status(400);
+    throw new Error(
+      "Weights cannot go over 100. Only " + (100 - usedWeight) + " is left."
+    );
+  }
+
+  const keyResult = await OkrKeyResult.create({
+    objective: objective._id,
+    title: title,
+    weight: weight,
+    assignedTo: assignedTo || null,
+    dueDate: dueDate,
+    progress: req.body.progress || 0,
+  });
+
+  res.status(201).json(keyResult);
+});
+
+module.exports = {
+  getObjectives,
+  getObjectiveGroups,
+  getObjective,
+  createObjective,
+  updateObjective,
+  deleteObjective,
+  createKeyResult,
+};
