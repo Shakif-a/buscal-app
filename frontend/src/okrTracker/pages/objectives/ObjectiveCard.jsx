@@ -2,6 +2,93 @@ import { useState } from "react";
 
 function ObjectiveCard({ objective }) {
   const [showKeyResults, setShowKeyResults] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  const [keyResults, setKeyResults] = useState([
+    {
+      id: 1,
+      name: "KR#1",
+      weight: 30,
+      assigned: "J. Smith",
+      progress: 90,
+      dueDate: "30/10/26",
+      status: "Completed",
+      approved: true,
+    },
+    {
+      id: 2,
+      name: "KR#2",
+      weight: 25,
+      assigned: "A. Lee",
+      progress: 40,
+      dueDate: "12/11/26",
+      status: "At Risk",
+      approved: false,
+    },
+    {
+      id: 3,
+      name: "KR#3",
+      weight: 25,
+      assigned: "R. Kaur",
+      progress: 60,
+      dueDate: "20/11/26",
+      status: "On Track",
+      approved: false,
+    },
+    {
+      id: 4,
+      name: "KR#4",
+      weight: 20,
+      assigned: "M. Chan",
+      progress: 15,
+      dueDate: "30/11/26",
+      status: "Choose Progress",
+      approved: false,
+    },
+  ]);
+
+  function addKeyResult() {
+    const newKeyResult = {
+      id: Date.now(),
+      name: `KR#${keyResults.length + 1}`,
+      weight: 0,
+      assigned: "",
+      progress: 0,
+      dueDate: "",
+      status: "Choose Progress",
+      approved: false,
+    };
+
+    setKeyResults([...keyResults, newKeyResult]);
+    setEditMode(true);
+  }
+
+  function updateKeyResult(id, field, value) {
+    const updatedKeyResults = keyResults.map((keyResult) => {
+      if (keyResult.id === id) {
+        return {
+          ...keyResult,
+          [field]: value,
+        };
+      }
+
+      return keyResult;
+    });
+
+    setKeyResults(updatedKeyResults);
+  }
+
+  function deleteKeyResult(id) {
+    const updatedKeyResults = keyResults.filter(
+      (keyResult) => keyResult.id !== id
+    );
+
+    setKeyResults(updatedKeyResults);
+  }
+
+  function handleEditButton() {
+    setEditMode(!editMode);
+  }
 
   return (
     <div className="objective-card">
@@ -68,7 +155,7 @@ function ObjectiveCard({ objective }) {
           <table className="key-results-table">
             <thead>
               <tr>
-                <th>KEY REQUIREMENTS</th>
+                <th>KEY RESULTS</th>
                 <th>WEIGHT</th>
                 <th>ASSIGNED</th>
                 <th>PROGRESS</th>
@@ -80,102 +167,162 @@ function ObjectiveCard({ objective }) {
             </thead>
 
             <tbody>
-              <tr>
-                <td>KR#1</td>
-                <td>30%</td>
-                <td>J. Smith</td>
-                <td>90%</td>
-                <td>30/10/26</td>
+              {keyResults.map((keyResult) => (
+                <tr key={keyResult.id}>
+                  <td>{keyResult.name}</td>
 
-                <td>
-                  <select>
-                    <option>Completed</option>
-                  </select>
-                </td>
+                  <td>
+                    {editMode ? (
+                      <input
+                        className="key-result-small-input"
+                        type="number"
+                        value={keyResult.weight}
+                        onChange={(event) =>
+                          updateKeyResult(
+                            keyResult.id,
+                            "weight",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      `${keyResult.weight}%`
+                    )}
+                  </td>
 
-                <td>
-                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
-                  <a href="/">Delete</a>
-                </td>
+                  <td>
+                    {editMode ? (
+                      <input
+                        className="key-result-input"
+                        type="text"
+                        value={keyResult.assigned}
+                        onChange={(event) =>
+                          updateKeyResult(
+                            keyResult.id,
+                            "assigned",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      keyResult.assigned
+                    )}
+                  </td>
 
-                <td>
-                  <input type="checkbox" defaultChecked />
-                </td>
-              </tr>
+                  <td>
+                    {editMode ? (
+                      <input
+                        className="key-result-small-input"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={keyResult.progress}
+                        onChange={(event) =>
+                          updateKeyResult(
+                            keyResult.id,
+                            "progress",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      `${keyResult.progress}%`
+                    )}
+                  </td>
 
-              <tr>
-                <td>KR#2</td>
-                <td>25%</td>
-                <td>A. Lee</td>
-                <td>40%</td>
-                <td>12/11/26</td>
+                  <td>
+                    {editMode ? (
+                      <input
+                        className="key-result-input"
+                        type="text"
+                        placeholder="DD/MM/YY"
+                        value={keyResult.dueDate}
+                        onChange={(event) =>
+                          updateKeyResult(
+                            keyResult.id,
+                            "dueDate",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      keyResult.dueDate
+                    )}
+                  </td>
 
-                <td>
-                  <select>
-                    <option>At Risk</option>
-                  </select>
-                </td>
+                  <td>
+                    <select
+                      value={keyResult.status}
+                      disabled={!editMode}
+                      onChange={(event) =>
+                        updateKeyResult(
+                          keyResult.id,
+                          "status",
+                          event.target.value
+                        )
+                      }
+                    >
+                      <option value="Choose Progress">
+                        Choose Progress
+                      </option>
+                      <option value="Not Started">Not Started</option>
+                      <option value="On Track">On Track</option>
+                      <option value="At Risk">At Risk</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </td>
 
-                <td>
-                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
-                  <a href="/">Delete</a>
-                </td>
+                  <td>
+                    <button type="button" className="action-link">
+                      View
+                    </button>
 
-                <td>
-                  <input type="checkbox" />
-                </td>
-              </tr>
+                    <span> | </span>
 
-              <tr>
-                <td>KR#3</td>
-                <td>25%</td>
-                <td>R. Kaur</td>
-                <td>60%</td>
-                <td>20/11/26</td>
+                    <button
+                      type="button"
+                      className="action-link"
+                      onClick={() => setEditMode(true)}
+                    >
+                      Edit
+                    </button>
 
-                <td>
-                  <select>
-                    <option>On Track</option>
-                  </select>
-                </td>
+                    <span> | </span>
 
-                <td>
-                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
-                  <a href="/">Delete</a>
-                </td>
+                    <button
+                      type="button"
+                      className="action-link"
+                      onClick={() => deleteKeyResult(keyResult.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
 
-                <td>
-                  <input type="checkbox" />
-                </td>
-              </tr>
-
-              <tr>
-                <td>KR#4</td>
-                <td>20%</td>
-                <td>M. Chan</td>
-                <td>15%</td>
-                <td>30/11/26</td>
-
-                <td>
-                  <select>
-                    <option>Choose Progress</option>
-                  </select>
-                </td>
-
-                <td>
-                  <a href="/">View</a> | <a href="/">Edit</a> |{" "}
-                  <a href="/">Delete</a>
-                </td>
-
-                <td>
-                  <input type="checkbox" />
-                </td>
-              </tr>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={keyResult.approved}
+                      disabled={!editMode}
+                      onChange={(event) =>
+                        updateKeyResult(
+                          keyResult.id,
+                          "approved",
+                          event.target.checked
+                        )
+                      }
+                    />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
           <div className="key-results-footer">
-            <button type="button" className="add-key-result">
+            <button
+              type="button"
+              className="add-key-result"
+              onClick={addKeyResult}
+            >
               + Add Key Result
             </button>
 
@@ -183,13 +330,20 @@ function ObjectiveCard({ objective }) {
               <button
                 type="button"
                 className="cancel-button"
-                onClick={() => setShowKeyResults(false)}
+                onClick={() => {
+                  setEditMode(false);
+                  setShowKeyResults(false);
+                }}
               >
                 Cancel
               </button>
 
-              <button type="button" className="save-button">
-                Edit Key Results
+              <button
+                type="button"
+                className="save-button"
+                onClick={handleEditButton}
+              >
+                {editMode ? "Save Key Results" : "Edit Key Results"}
               </button>
             </div>
           </div>
