@@ -291,21 +291,13 @@ function ObjectiveCard({ objective }) {
 
                     <span> | </span>
 
-                    <button
-                      type="button"
-                      className="action-link"
-                      onClick={() => setEditMode(true)}
-                    >
+                    <button type="button" className="action-link">
                       Edit
                     </button>
 
                     <span> | </span>
 
-                    <button
-                      type="button"
-                      className="action-link"
-                      onClick={() => deleteKeyResult(keyResult.id)}
-                    >
+                    <button type="button" className="action-link">
                       Delete
                     </button>
                   </td>
@@ -314,14 +306,15 @@ function ObjectiveCard({ objective }) {
                     <input
                       type="checkbox"
                       checked={keyResult.approved}
-                      disabled={!editMode}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        if (!editMode) return;
+
                         updateKeyResult(
                           keyResult.id,
                           "approved",
                           event.target.checked
-                        )
-                      }
+                        );
+                      }}
                     />
                   </td>
                 </tr>
