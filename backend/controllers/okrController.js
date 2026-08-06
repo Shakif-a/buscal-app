@@ -108,20 +108,39 @@ const getObjective = asyncHandler(async (req, res) => {
 });
 
 const createObjective = asyncHandler(async (req, res) => {
-  const { title, dueDate, group, commitmentType, owner } = req.body;
-
-  if (!title || !dueDate || !group || !owner) {
+  if (!req.body.title) {
     res.status(400);
-    throw new Error("Please fill in the title, group, owner and due date");
+    throw new Error("Please add a title");
+  }
+
+  if (!req.body.group) {
+    res.status(400);
+    throw new Error("Please add a group");
+  }
+
+  if (!req.body.owner) {
+    res.status(400);
+    throw new Error("Please add an owner");
+  }
+
+  if (!req.body.dueDate) {
+    res.status(400);
+    throw new Error("Please add a due date");
+  }
+
+  let commitmentType = req.body.commitmentType;
+
+  if (!commitmentType) {
+    commitmentType = "committed";
   }
 
   const objective = await OkrObjective.create({
-    title: title,
-    description: req.body.description || "",
-    dueDate: dueDate,
-    group: group,
-    commitmentType: commitmentType || "committed",
-    owner: owner,
+    title: req.body.title,
+    description: req.body.description,
+    group: req.body.group,
+    owner: req.body.owner,
+    dueDate: req.body.dueDate,
+    commitmentType: commitmentType,
   });
 
   res.status(201).json(objective);
@@ -135,21 +154,28 @@ const updateObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  const fields = [
-    "title",
-    "description",
-    "group",
-    "commitmentType",
-    "owner",
-    "dueDate",
-  ];
+  if (req.body.title) {
+    objective.title = req.body.title;
+  }
 
-  for (let i = 0; i < fields.length; i++) {
-    const field = fields[i];
+  if (req.body.description) {
+    objective.description = req.body.description;
+  }
 
-    if (req.body[field] !== undefined) {
-      objective[field] = req.body[field];
-    }
+  if (req.body.group) {
+    objective.group = req.body.group;
+  }
+
+  if (req.body.owner) {
+    objective.owner = req.body.owner;
+  }
+
+  if (req.body.dueDate) {
+    objective.dueDate = req.body.dueDate;
+  }
+
+  if (req.body.commitmentType) {
+    objective.commitmentType = req.body.commitmentType;
   }
 
   await objective.save();
@@ -172,8 +198,6 @@ const deleteObjective = asyncHandler(async (req, res) => {
 });
 
 const createKeyResult = asyncHandler(async (req, res) => {
-  const { title, weight, assignedTo, dueDate } = req.body;
-
   const objective = await OkrObjective.findById(req.params.id);
 
   if (!objective) {
@@ -181,33 +205,43 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  if (!title || !weight || !dueDate) {
+  if (!req.body.title) {
     res.status(400);
-    throw new Error("Please fill in the title, weight and due date");
+    throw new Error("Please add a title");
   }
 
-  const existing = await OkrKeyResult.find({ objective: objective._id });
+  if (!req.body.weight) {
+    res.status(400);
+    throw new Error("Please add a weight");
+  }
+
+  if (!req.body.dueDate) {
+    res.status(400);
+    throw new Error("Please add a due date");
+  }
+
+  const keyResults = await OkrKeyResult.find({ objective: objective._id });
 
   let usedWeight = 0;
 
-  for (let i = 0; i < existing.length; i++) {
-    usedWeight = usedWeight + existing[i].weight;
+  for (let i = 0; i < keyResults.length; i++) {
+    usedWeight = usedWeight + keyResults[i].weight;
   }
 
-  if (usedWeight + Number(weight) > 100) {
+  const newWeight = Number(req.body.weight);
+  const weightLeft = 100 - usedWeight;
+
+  if (newWeight > weightLeft) {
     res.status(400);
-    throw new Error(
-      "Weights cannot go over 100. Only " + (100 - usedWeight) + " is left."
-    );
+    throw new Error("Weights cannot go over 100. Only " + weightLeft + " is left.");
   }
 
   const keyResult = await OkrKeyResult.create({
     objective: objective._id,
-    title: title,
-    weight: weight,
-    assignedTo: assignedTo || null,
-    dueDate: dueDate,
-    progress: req.body.progress || 0,
+    title: req.body.title,
+    weight: newWeight,
+    assignedTo: req.body.assignedTo,
+    dueDate: req.body.dueDate,
   });
 
   res.status(201).json(keyResult);
