@@ -35,6 +35,7 @@ app.use("/api/users", require("./routes/userRoutes")); // Auth + account setting
 
 // ── Add new module routes below this line ────────────────────────────────────
 app.use("/api/okrTracker", require("./routes/okrTrackerRoutes"));
+app.use("/api/okrTracker", require("./routes/okrRoutes"));
 app.use("/api/okr", require("./routes/okrRoutes"));
 
 // ── Serve frontend build in production ───────────────────────────────────
