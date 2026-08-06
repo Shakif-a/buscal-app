@@ -169,7 +169,19 @@ function ObjectiveCard({ objective }) {
             <tbody>
               {keyResults.map((keyResult) => (
                 <tr key={keyResult.id}>
-                  <td>{keyResult.name}</td>
+                  <td>
+                    {editMode && (
+                      <button
+                        type="button"
+                        className="remove-key-result"
+                        onClick={() => deleteKeyResult(keyResult.id)}
+                      >
+                        −
+                      </button>
+                    )}
+
+                    <span>{keyResult.name}</span>
+                  </td>
 
                   <td>
                     {editMode ? (

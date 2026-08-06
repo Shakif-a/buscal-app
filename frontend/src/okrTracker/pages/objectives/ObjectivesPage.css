@@ -321,3 +321,17 @@
   opacity: 0.8;
   cursor: not-allowed;
 }
+
+.remove-key-result {
+  border: none;
+  background: none;
+  color: #d9534f;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.remove-key-result:hover {
+  color: #b52b27;
+}
