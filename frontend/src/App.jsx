@@ -13,6 +13,7 @@ import PageNotFound from "./components/Authenticate/PageNotFound";
 // Pages
 import HomePage from "./pages/home/HomePage";
 import NotificationsArchive from "./pages/NotificationsArchive";
+import NavigationTabs from "./pages/navigation/navigation";
 
 // Account
 import Account from "./pages/account/Account";
@@ -52,6 +53,15 @@ const ROLES = {
 
 function Layout() {
   return <Outlet />;
+}
+
+function OkrLayout({children}){
+  return (
+    <>
+    <NavigationTabs/>
+    {children}
+    </>
+  );
 }
 
 function App() {
@@ -153,35 +163,37 @@ function App() {
               />
             }
           >
+            {/* Okr Dashboard */}
             <Route
               path="/dashboard/okrtracker/okrdashboard" 
-              element={<Nav main={[<OkrDashboard/>]} />}
+              element={<Nav main={[<OkrLayout><OkrDashboard/></OkrLayout>,]} />}
             />
-            
+            {/* All Objectives */}
             <Route
               path="/dashboard/okrtracker/objectives"
-              element={<Nav main={[<ObjectivesPage />]} />}
+              element={<Nav main={[<OkrLayout><ObjectivesPage/></OkrLayout>]} />}
             />
-
+            {/* Create Objectives */}
             <Route
               path="/dashboard/okrtracker/objectives/create"
-              element={<Nav main={[<CreateObjectives />]} />}
+              element={<Nav main={[<OkrLayout><CreateObjectives/></OkrLayout>]} />}
             />
-
+            {/* Reports */}
             <Route
               path="/dashboard/okrtracker/reports" 
-              element={<Nav main={[<Reports/>]} />}
+              element={<Nav main={[<OkrLayout><Reports/></OkrLayout>]}/>}
             />
-
+            {/* Admin - Group Management */}
             <Route
               path="/dashboard/okrtracker/admin/groups"
-              element={<Nav main={[<GroupManagement />]} />}
+              element={<Nav main={[<OkrLayout><GroupManagement/></OkrLayout>]} />}
             />
-
+            {/* Admin - Role Management */}
             <Route
               path="/dashboard/okrtracker/admin/roles"
-              element={<Nav main={[<RoleManagement />]} />}
+              element={<Nav main={[<OkrLayout><RoleManagement/></OkrLayout>,]} />}
             />
+            
           </Route>
 
           {/* ---------------- ADMIN ONLY ---------------- */}
