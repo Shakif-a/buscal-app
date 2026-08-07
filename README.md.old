@@ -1,14 +1,27 @@
-# Micromax Dashboard (OKR Extension)
+# Micromax Dashboard (Business Calendar Module)
 
-This repository is a stripped-down extract of the **Micromax Dashboard**, currently containing only the **Business Calendar module**, along with the underlying support infrastructure.
+This repository is a stripped-down extract of the **Micromax Dashboard**, currently containing only the **Business Calendar module**, along with supporting infrastructure such as:
 
-The **OKR module has been created and installed to act as a seemless addition to the existing ecosystem**.
+- Account management
+- User roles and permissions
+- Notification system
+
+The **OKR module is intended to be built using this codebase as the foundation**.
 
 ---
 
 ## 🚀 Getting Started (Local Development Setup)
 
-### 1. Backend Setup
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Shakif-a/buscal-app.git
+cd {your local path}/buscal-app
+```
+
+---
+
+### 2. Backend Setup
 
 Navigate into the backend directory:
 
@@ -42,7 +55,7 @@ http://localhost:5000
 
 ---
 
-### 2. Frontend Setup
+### 3. Frontend Setup
 
 Open a new terminal window and navigate to the frontend:
 
@@ -73,6 +86,15 @@ http://localhost:3000
 - On first run, register a new user account.
 - The **first registered account is automatically assigned admin privileges**.
 - Any subsequent accounts require **admin approval** before full access is granted.
+
+---
+
+## 🧩 Notes for Developers
+
+- This codebase is intentionally modular and partially trimmed from a larger system.
+- Some UI elements may appear inconsistent due to export restructuring.
+- Developers are encouraged to freely modify and improve the aesthetics and structure of the application.
+- The OKR module should follow existing patterns used in the Business Calendar module.
 
 ---
 
