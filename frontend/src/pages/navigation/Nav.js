@@ -49,7 +49,7 @@ const NAVIGATION_ITEMS = [
   // Add OKR nav item here when ready:
   {
     name: "OKR",
-    route: "/dashboard/okrtracker/objectives",
+    route: "/dashboard/okrtracker/okrdashboard",
     icon: "material-symbols:target",
     roles: ["employee", "admin", "qm"],
     iconSize: "text-2xl",

@@ -1,0 +1,130 @@
+.reports{
+    padding:40px;
+    background:#fafafa;
+}
+
+.report-header{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 20px;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.report-title{
+
+    display:flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.report-title h1 {
+    margin: 0;
+    font-size: 40px;
+    color: #1f1e40
+}
+
+.logo {
+    width: 40px;
+    height: auto;
+}
+
+.statistics{
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.cards{
+    flex:1;
+    background: white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding:25px;
+}
+
+.bottom-section{
+    display:flex;
+    gap:30px;
+}
+
+.completion-overview{
+    flex:1;
+    background:white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding:25px;
+}
+
+.progress-row{
+    display:flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.progress-row span:first-child{
+    width: 100px;
+}
+
+.progress-row progress{
+    flex: 1;
+    height: 20px;
+}
+
+.week-statistics{
+    flex:1;
+    background:white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding:25px;
+}
+
+.graph-container{
+    display:flex;
+    justify-content:space-around;
+    margin-top: 40px;
+}
+
+.circle{
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #ddd;
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.circlee{
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: #ddd;
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.texter {
+    font-size:12px;
+    text-align: center;
+}
+
+.export-button{
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    background: #72cdf4;
+    color: #20203f;
+    font-weight: 600;
+    cursor: pointer;
+}
