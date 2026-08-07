@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const CalendarEntry = require("../models/calendarEntryModel");
 
 function getName(user) {
   let name = "";
@@ -137,6 +138,22 @@ const createObjective = asyncHandler(async (req, res) => {
     dueDate: req.body.dueDate,
     commitmentType: commitmentType,
   });
+
+  // Best effort to create a calander entry to match the objective
+  try {
+    await CalendarEntry.create({
+      title: objective.title,
+      description: objective.description,
+      userOwner: req.user.id,
+      userAssigned: [objective.owner],
+      endTime: objective.dueDate,
+      completionStatus: "not started",
+      category: "OKR Objective",
+      priority: "normal",
+    });
+  } catch (error) {
+    console.error("Could not create linked calendar entry for objective:", error);
+  }
 
   res.status(201).json(objective);
 });
