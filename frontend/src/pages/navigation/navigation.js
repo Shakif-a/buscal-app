@@ -144,10 +144,18 @@ function Navbar() {
       {/* Logo links back to the dashboard */}
       <Link to="/dashboard/okrtracker/okrdashboard" style={{ textDecoration: "none", marginRight: "12px" }}>
         <div>
-          <div style={{ fontWeight: "bold", fontSize: "24px" }}>
+          <div style={{ fontWeight: "bold", fontSize: "24px", display: "flex", alignItems: "center"}}>
             <span style={{ color: navy }}>micro</span>
             <span style={{ color: "#4a7c9e" }}>max</span>
-            <span style={{ color: "#2e7d5b" }}> ))</span>
+            <img
+              src="/images/okr/ArrowLogoRight.png"
+              alt="Arrow Logo R"
+              style={{
+                height: "28px",
+                marginLeft: "8px",
+                verticalAlign: "middle",
+              }}
+            />
           </div>
           <div style={{ fontSize: "10px", letterSpacing: "3px", color: navy }}>
             technology

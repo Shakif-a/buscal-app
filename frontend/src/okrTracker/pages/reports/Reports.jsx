@@ -25,19 +25,22 @@ function Reports(){
       </div>
 
       <div className="statistics">
-          <div className="cards">
+          <div className="cards cards-blue">
+            <div className="cards-line"></div>
             <p>Objectives On Track</p>
             <h2>14</h2>
 
           </div>
 
-          <div className="cards">
+          <div className="cards cards-green">
+            <div className="cards-line"></div>
             <p>Average Completed</p>
             <h2>65%</h2>
 
           </div>
 
-          <div className="cards">
+          <div className="cards cards-navy">
+            <div className="cards-line"></div>
             <p>Reports Exported</p>
             <h2>8</h2>
 
@@ -81,7 +84,7 @@ function Reports(){
 
       </div>
 
-      <div>
+      <div className="export-container">
         <button type="button" className="export-button">
                 Export Reports
               </button>

@@ -28,21 +28,24 @@ function OkrDashboard(){
       </div>
 
       <div className="statistics">
-          <div className="card">
+          <div className="card cards-blue">
+            <div className="cards-line"></div>
             <p>Total Objectives</p>
             <h2>24</h2>
             <span>Across 3 groups</span>
 
           </div>
 
-          <div className="card">
+          <div className="card cards-green">
+            <div className="cards-line"></div>
             <p>Completed</p>
             <h2>65%</h2>
             <span>16 of 24 objectives</span>
 
           </div>
 
-          <div className="card">
+          <div className="card cards-navy">
+            <div className="cards-line"></div>
             <p>At Risk Objectives</p>
             <h2>5</h2>
             <span>Need attention this week</span>
