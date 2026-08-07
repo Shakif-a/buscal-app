@@ -47,13 +47,13 @@ const NAVIGATION_ITEMS = [
   },
 
   // Add OKR nav item here when ready:
-  // {
-  //   name: "OKR",
-  //   route: "/dashboard/okr",
-  //   icon: "material-symbols:target",
-  //   roles: ["employee", "admin", "qm"],
-  //   iconSize: "text-2xl",
-  // },
+  {
+    name: "OKR",
+    route: "/dashboard/okrtracker/objectives",
+    icon: "material-symbols:target",
+    roles: ["employee", "admin", "qm"],
+    iconSize: "text-2xl",
+  },
 
   {
     name: "Settings",

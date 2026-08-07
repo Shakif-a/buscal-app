@@ -3,7 +3,6 @@
  *
  * Compact card layout. Cards are small and grouped, not full-screen.
  * OKR card included — links to /dashboard/okr when ready.
- * I don't like dentists, but I do like the idea of a dashboard that shows all modules in one place.
  */
 import React from "react";
 import { useSelector } from "react-redux";
@@ -18,7 +17,7 @@ const cardData = [
     accent: "#6366f1",
   },
   {
-    link: "/dashboard/okr",
+    link: "/dashboard/okrtracker/objectives",
     image: "/images/icons/roadmap.svg",
     title: "OKR",
     description:
