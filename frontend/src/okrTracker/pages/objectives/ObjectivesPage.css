@@ -246,15 +246,6 @@
   background: white;
 }
 
-.key-results-table a {
-  color: #005da8;
-  text-decoration: none;
-}
-
-.key-results-table a:hover {
-  text-decoration: underline;
-}
-
 .key-results-footer {
   display: flex;
   justify-content: space-between;
@@ -291,4 +282,56 @@
   color: #20203f;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* ---------------- Editable Key Results ---------------- */
+
+.key-result-input {
+  width: 110px;
+  padding: 8px;
+  border: 1px solid #d9dfea;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.key-result-small-input {
+  width: 65px;
+  padding: 8px;
+  border: 1px solid #d9dfea;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.action-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #005da8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+.key-results-table select:disabled {
+  color: #20203f;
+  background-color: white;
+  opacity: 1;
+  cursor: default;
+}
+
+.remove-key-result {
+  border: none;
+  background: none;
+  color: #d9534f;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.remove-key-result:hover {
+  color: #b52b27;
 }
