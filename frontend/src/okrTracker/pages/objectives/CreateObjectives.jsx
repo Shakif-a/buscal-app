@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { createObjective as createObjectiveThunk } from "../../features/objectives/objectiveSlice";
 import objectiveService from "../../features/objectives/objectiveService";
+import userService from "../../features/users/userService"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -25,7 +26,7 @@ function CreateObjectives() {
     async function loadOptions() {
       try {
         const [groupsData, usersData] = await Promise.all([
-          okrService.getObjectiveGroups(user.token),
+          objectiveService.getObjectiveGroups(user.token),
           userService.getUsers(user.token),
         ]);
  
