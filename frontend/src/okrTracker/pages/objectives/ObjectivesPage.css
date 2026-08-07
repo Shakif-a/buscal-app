@@ -39,6 +39,11 @@
   color: #20203f;
 }
 
+.logo {
+    width: 40px;
+    height: auto;
+}
+
 .banner-arrow {
   font-size: 30px;
   font-weight: 700;

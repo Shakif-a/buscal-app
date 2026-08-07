@@ -36,11 +36,19 @@ function ObjectivesPage() {
 
       {/* Objectives heading */}
       <div className="objectives-banner">
-        <span className="banner-arrow">»»</span>
+        {/*<span className="banner-arrow">»»</span>*/}
+        <img
+              src="/images/okr/ArrowLogoLeft.png"
+              alt = "Arrow Logo L"
+              className = "logo"/>
 
         <h2>All Objectives</h2>
 
-        <span className="banner-arrow">»»</span>
+        {/*<span className="banner-arrow">»»</span>*/}
+        <img
+              src="/images/okr/ArrowLogoRight.png"
+              alt = "Arrow Logo R"
+              className = "logo"/>
       </div>
 
       {/* Filters */}
