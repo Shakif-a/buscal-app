@@ -1,4 +1,4 @@
-function SummaryCard({ title, value, description }) {
+{/*function SummaryCard({ title, value, description }) {
     return (
         <article className="summary-card">
             <p className="summary-card__title">{title}</p>
@@ -13,4 +13,4 @@ function SummaryCard({ title, value, description }) {
     );
 }
 
-export default SummaryCard;
+export default SummaryCard;*/}

@@ -1,4 +1,4 @@
-import SummaryCard from "./SummaryCard";
+{/*import SummaryCard from "./SummaryCard";
 
 function DashboardSummary({ summary }) {
     return (
@@ -42,4 +42,4 @@ function DashboardSummary({ summary }) {
     );
 }
 
-export default DashboardSummary;
+export default DashboardSummary;*/}

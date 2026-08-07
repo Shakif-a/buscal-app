@@ -1,11 +1,11 @@
 import React from "react";
-import "./Report.css";
+import "./Reports.css";
 
 
-function Report(){
+function Reports(){
 
   return (
-    <div className="report">
+    <div className="reports">
       
       <div className="report-header">
           <div className="report-title">
@@ -24,7 +24,7 @@ function Report(){
               className = "logo"/>
       </div>
 
-      <div className="statistics">
+      {/*<div className="statistics">
           <div className="cards">
             <p>Total Objectives</p>
             <h2>24</h2>
@@ -105,11 +105,11 @@ function Report(){
           </div>
         </div>
 
-      </div>
+      </div>*/}
       
     </div>
 
   );
 
 }
-export default Report;
+export default Reports;

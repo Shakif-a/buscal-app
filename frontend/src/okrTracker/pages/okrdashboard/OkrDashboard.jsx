@@ -16,8 +16,8 @@ function OkrDashboard(){
               <img
               src="/images/okr/ArrowLogoLeft.png"
               alt = "Arrow Logo L"
-              className = "logo"
-              />
+              className = "logo"/>
+
               <h1>Dashboard</h1>
 
           </div>
@@ -27,7 +27,7 @@ function OkrDashboard(){
               className = "logo"/>
       </div>
 
-      <div className="statistics">
+      {/*<div className="statistics">
           <div className="card">
             <p>Total Objectives</p>
             <h2>24</h2>
@@ -48,9 +48,9 @@ function OkrDashboard(){
             <span>Need attention this week</span>
 
           </div>
-      </div>
+      </div>*/}
 
-      <div className="bottom-section">
+      {/*<div className="bottom-section">
           <div className="week-statistics">
             <h3>Current Week Statistics</h3>
 
@@ -84,14 +84,14 @@ function OkrDashboard(){
               <span>41%</span>
             </div>
           </div>
-
-      </div>
+          
+      </div>*/}
 
       <div>
         <p></p>
       </div>
 
-      <div className="completion-overview">
+      {/*<div className="completion-overview">
         <h3>Completion Overview</h3>
         <div className="graph-container">
           <div className="circle">
@@ -108,7 +108,7 @@ function OkrDashboard(){
           </div>
         </div>
 
-      </div>
+      </div>*/}
       
     </div>
 

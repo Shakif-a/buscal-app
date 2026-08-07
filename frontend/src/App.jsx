@@ -168,8 +168,8 @@ function App() {
             />
 
             <Route
-              path="/dashboard/okrtracker/report" 
-              element={<Nav main={[<Report/>]} />}
+              path="/dashboard/okrtracker/reports" 
+              element={<Nav main={[<Reports/>]} />}
             />
 
             <Route

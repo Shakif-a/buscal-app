@@ -1,12 +1,11 @@
-export const mockOkrDashboardData = {
+{/*export const mockOkrDashboardData = {
     summary: [{
         totalObjectives: 18,
         completeObjectives: 5,
         onTrackObjectives: 8,
         atRiskObjectives: 3,
         overdueObjectives: 2,
-        averageObjectives 61,
-    },
+        averageObjectives: 61,},
 ],
 
     objectives:[
@@ -40,3 +39,4 @@ export const mockOkrDashboardData = {
         }
     ]
 };
+*/}
