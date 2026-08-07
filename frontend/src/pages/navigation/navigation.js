@@ -1,263 +1,212 @@
 import React, { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { Link, useLocation } from "react-router-dom";
 
-function NavigationTabs() {
-  const [objectivesOpen, setObjectivesOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
 
-  const { user } = useSelector((state) => state.auth);
+function Navbar() {
+  const navy = "#1a2b4a";
+
+  const [openMenu, setOpenMenu] = useState(null);
+  const [hoverTab, setHoverTab] = useState(null);
+  const [hoverItem, setHoverItem] = useState(null);
   const location = useLocation();
-
-  const isAdmin = user?.roles?.includes("admin");
-
-  const objectivesActive =
-    location.pathname === "/objectives" ||
-    location.pathname === "/dashboard/objectives/create";
-
-  const adminActive =
-    location.pathname === "/dashboard/admin/groups" ||
-    location.pathname === "/dashboard/admin/roles";
-
-  const normalLink = {
-    textDecoration: "none",
-    color: "#1F1E40",
-    fontSize: "18px",
-    padding: "16px 22px",
-    borderRadius: "14px",
-    display: "block",
-  };
-
-  const activeLink = {
-    ...normalLink,
-    backgroundColor: "#CFE2F3",
-    fontWeight: "600",
-  };
-
-  function getLinkStyle({ isActive }) {
-    return isActive ? activeLink : normalLink;
+  function isActive(path) {
+    return location.pathname.startsWith(path);
+  }
+  function tabStyle(key, active) {
+    const highlighted = active || hoverTab === key;
+    return {
+      color: navy,
+      fontWeight: "600",
+      fontSize: "16px",
+      textDecoration: "none",
+      padding: "8px 16px",
+      borderRadius: "8px",
+      backgroundColor: highlighted ? "#e8f0fb" : "transparent",
+      cursor: "pointer",
+      transition: "background-color 0.15s ease",
+      display: "inline-block",
+    };
   }
 
-  function closeMenus() {
-    setObjectivesOpen(false);
-    setAdminOpen(false);
-  }
-
-  return (
-    <div>
+  function dropdown(name, label, basePath, items) {
+    const active = isActive(basePath);
+    const open = openMenu === name;
+    return (
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "18px 28px",
-          backgroundColor: "#ffffff",
-          borderBottom: "1px solid #CFE2F3",
-          fontFamily: '"Avenir", "Helvetica", sans-serif',
+        onMouseEnter={() => {
+          setOpenMenu(name);
+          setHoverTab(name);
         }}
+        onMouseLeave={() => {
+          setOpenMenu(null);
+          setHoverTab(null);
+        }}
+        style={{ position: "relative" }}
       >
-        <img
-          src="/images/logo.png"
-          alt="Micromax Technology"
-          style={{
-            width: "195px",
-            marginRight: "25px",
-          }}
-        />
+        <span style={tabStyle(name, active)}>
+          {label}
+          {/* A small arrow that flips up when the menu is open */}
+          <span
+            style={{
+              display: "inline-block",
+              marginLeft: "6px",
+              fontSize: "11px",
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.15s ease",
+            }}
+          >
+            &#9662;
+          </span>
+        </span>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <NavLink to="/okr-dashboard" style={getLinkStyle}>
-            Dashboard
-          </NavLink>
-
-          <div style={{ position: "relative" }}>
-            <button
-              type="button"
-              onClick={() => {
-                setObjectivesOpen(!objectivesOpen);
-                setAdminOpen(false);
-              }}
+        {open && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              paddingTop: "10px",
+              zIndex: 100,
+            }}
+          >
+            <div
               style={{
-                border: "none",
-                backgroundColor:
-                  objectivesActive || objectivesOpen
-                    ? "#CFE2F3"
-                    : "transparent",
-                color: "#1F1E40",
-                fontSize: "18px",
-                padding: "16px 22px",
-                borderRadius: "14px",
-                cursor: "pointer",
-                fontFamily: '"Avenir", "Helvetica", sans-serif',
-                fontWeight: objectivesActive ? "600" : "400",
+                position: "relative",
+                backgroundColor: "#fff",
+                border: "1px solid #eef0f4",
+                borderRadius: "12px",
+                boxShadow: "0 10px 30px rgba(26,43,74,0.15)",
+                padding: "8px",
+                minWidth: "220px",
               }}
             >
-              Objectives
-              <span
-                style={{
-                  color: "#72CDF4",
-                  marginLeft: "10px",
-                  fontSize: "20px",
-                }}
-              >
-                {objectivesOpen ? "▲" : "▼"}
-              </span>
-            </button>
-
-            {objectivesOpen && (
+              {/* A little pointer */}
               <div
                 style={{
                   position: "absolute",
-                  top: "62px",
-                  left: "0",
-                  width: "220px",
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #CFE2F3",
-                  borderRadius: "8px",
-                  padding: "8px",
-                  zIndex: 20,
+                  top: "-6px",
+                  left: "24px",
+                  width: "12px",
+                  height: "12px",
+                  backgroundColor: "#fff",
+                  borderLeft: "1px solid #eef0f4",
+                  borderTop: "1px solid #eef0f4",
+                  transform: "rotate(45deg)",
                 }}
-              >
-                <NavLink
-                  to="/objectives"
-                  style={getLinkStyle}
-                  onClick={closeMenus}
-                >
-                  All Objectives
-                </NavLink>
+              ></div>
 
-                <NavLink
-                  to="/dashboard/objectives/create"
-                  style={getLinkStyle}
-                  onClick={closeMenus}
-                >
-                  Create Objective
-                </NavLink>
-              </div>
-            )}
-          </div>
-
-          <NavLink to="/report" style={getLinkStyle}>
-            Reports
-          </NavLink>
-
-          {isAdmin && (
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminOpen(!adminOpen);
-                  setObjectivesOpen(false);
-                }}
-                style={{
-                  border: "none",
-                  backgroundColor:
-                    adminActive || adminOpen ? "#CFE2F3" : "transparent",
-                  color: "#1F1E40",
-                  fontSize: "18px",
-                  padding: "16px 22px",
-                  borderRadius: "14px",
-                  cursor: "pointer",
-                  fontFamily: '"Avenir", "Helvetica", sans-serif',
-                  fontWeight: adminActive ? "600" : "400",
-                }}
-              >
-                Admin
-                <span
-                  style={{
-                    color: "#72CDF4",
-                    marginLeft: "10px",
-                    fontSize: "20px",
-                  }}
-                >
-                  {adminOpen ? "▲" : "▼"}
-                </span>
-              </button>
-
-              {adminOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "62px",
-                    left: "0",
-                    width: "230px",
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #CFE2F3",
-                    borderRadius: "8px",
-                    padding: "8px",
-                    zIndex: 20,
-                  }}
-                >
-                  <NavLink
-                    to="/dashboard/admin/groups"
-                    style={getLinkStyle}
-                    onClick={closeMenus}
+              {items.map((item) => {
+                const itemHover = hoverItem === item.label;
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.path}
+                    onClick={() => setOpenMenu(null)}
+                    onMouseEnter={() => setHoverItem(item.label)}
+                    onMouseLeave={() => setHoverItem(null)}
+                    style={{
+                      display: "block",
+                      padding: "12px 16px",
+                      color: navy,
+                      fontSize: "15px",
+                      fontWeight: "500",
+                      textDecoration: "none",
+                      borderRadius: "8px",
+                      whiteSpace: "nowrap",
+                      backgroundColor: itemHover ? "#f2f6fb" : "transparent",
+                      transition: "background-color 0.15s ease",
+                    }}
                   >
-                    Group Management
-                  </NavLink>
-
-                  <NavLink
-                    to="/dashboard/admin/roles"
-                    style={getLinkStyle}
-                    onClick={closeMenus}
-                  >
-                    Role Management
-                  </NavLink>
-                </div>
-              )}
+                    {item.label}
+                  </Link>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        padding: "16px 40px",
+        gap: "28px",
+        fontFamily: "sans-serif",
+        backgroundColor: "#fff",
+        borderBottom: "1px solid #eef0f4",
+        boxShadow: "0 2px 8px rgba(26,43,74,0.05)",
+      }}
+    >
+      {/* Logo links back to the dashboard */}
+      <Link to="/dashboard/okrtracker/okrdashboard" style={{ textDecoration: "none", marginRight: "12px" }}>
+        <div>
+          <div style={{ fontWeight: "bold", fontSize: "24px" }}>
+            <span style={{ color: navy }}>micro</span>
+            <span style={{ color: "#4a7c9e" }}>max</span>
+            <span style={{ color: "#2e7d5b" }}> ))</span>
+          </div>
+          <div style={{ fontSize: "10px", letterSpacing: "3px", color: navy }}>
+            technology
+          </div>
+        </div>
+      </Link>
+
+      {/* Dashboard link */}
+      <Link
+        to="/dashboard/okrtracker/okrdashboard"
+        onMouseEnter={() => setHoverTab("dashboard")}
+        onMouseLeave={() => setHoverTab(null)}
+        style={tabStyle("dashboard", isActive("/dashboard/okrtracker/okrdashboard"))}
+      >
+        Dashboard
+      </Link>
+
+      {/* Objectives dropdown */}
+      {dropdown("objectives", "Objectives", "/dashboard/okrtracker/objectives", [
+        { label: "Create Objective", path: "/dashboard/okrtracker/objectives/create" },
+        { label: "All Objectives", path: "/dashboard/okrtracker/objectives" },
+      ])}
+
+      {/* Reports link */}
+      <Link
+        to="/dashboard/okrtracker/reports"
+        onMouseEnter={() => setHoverTab("reports")}
+        onMouseLeave={() => setHoverTab(null)}
+        style={tabStyle("reports", isActive("/dashboard/okrtracker/reports"))}
+      >
+        Reports
+      </Link>
+
+      {/* Admin dropdown */}
+      {dropdown("admin", "Admin", "/dashboard/okrtracker/admin", [
+        { label: "Role Management", path: "/dashboard/okrtracker/admin/roles" },
+        { label: "Group Management", path: "/dashboard/okrtracker/admin/groups" },
+      ])}
+
+      {/* Profile icon */}
+      <div style={{ marginLeft: "auto" }}>
         <div
           style={{
-            marginLeft: "auto",
-            width: "55px",
-            height: "55px",
+            width: "42px",
+            height: "42px",
             borderRadius: "50%",
-            border: "2px solid #CFE2F3",
+            backgroundColor: "#e8ebf0",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "#1F1E40",
-            fontSize: "32px",
+            fontSize: "20px",
+            cursor: "pointer",
           }}
         >
-          ●
+          &#128100;
         </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          padding: "24px 38px",
-          backgroundColor: "#ffffff",
-          fontFamily: '"Avenir", "Helvetica", sans-serif',
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Search"
-          style={{
-            width: "400px",
-            padding: "16px 20px",
-            border: "1px solid #CFE2F3",
-            borderRadius: "10px",
-            backgroundColor: "#eef3f8",
-            color: "#1F1E40",
-            fontSize: "17px",
-            outline: "none",
-          }}
-        />
       </div>
     </div>
   );
 }
 
-export default NavigationTabs;
+export default Navbar;

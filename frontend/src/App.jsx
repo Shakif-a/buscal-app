@@ -13,6 +13,7 @@ import PageNotFound from "./components/Authenticate/PageNotFound";
 // Pages
 import HomePage from "./pages/home/HomePage";
 import NotificationsArchive from "./pages/NotificationsArchive";
+import NavigationTabs from "./pages/navigation/navigation";
 
 // Account
 import Account from "./pages/account/Account";
@@ -33,6 +34,7 @@ import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
 import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
 import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
 import CreateObjectives from "./okrTracker/pages/objectives/CreateObjectives";
+//import ReportsPage from "./okrTracker/pages/reports/ReportsPage";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
@@ -79,7 +81,7 @@ function App() {
               />
             }
           >
-            <Route path="/dashboard" element={<HomePage />} />
+            <Route path="/dashboard/okrtracker/okrdashboard" element={<HomePage />} />
 
             <Route
               path="/dashboard/notifications"
@@ -166,6 +168,11 @@ function App() {
             <Route
               path="/dashboard/okrtracker/admin/roles"
               element={<Nav main={[<RoleManagement />]} />}
+            />
+            
+            <Route
+              path="/dashboard/okr-navigation"
+              element={<NavigationTabs />}
             />
           </Route>
 
