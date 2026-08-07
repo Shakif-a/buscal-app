@@ -121,12 +121,20 @@ function GroupManagement() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>
+            {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>*/}
+            <img
+              src="/images/okr/ArrowLogoLeft.png"
+              alt = "Arrow Logo L"
+              className = "logo"/>
             <span style={{ color: navy, fontSize: "26px", fontWeight: "bold" }}>
               Group Management
             </span>
           </div>
-          <span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>
+          <img
+              src="/images/okr/ArrowLogoRight.png"
+              alt = "Arrow Logo R"
+              className = "logo"/>
+          {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>*/}
         </div>
       </div>
 

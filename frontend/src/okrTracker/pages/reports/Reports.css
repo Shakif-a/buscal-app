@@ -115,3 +115,16 @@
     font-size:12px;
     text-align: center;
 }
+
+.export-button{
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    background: #72cdf4;
+    color: #20203f;
+    font-weight: 600;
+    cursor: pointer;
+}

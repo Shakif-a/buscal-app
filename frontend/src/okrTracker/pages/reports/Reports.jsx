@@ -15,7 +15,7 @@ function Reports(){
               alt = "Arrow Logo L"
               className = "logo"
               />
-              <h1>Dashboard</h1>
+              <h1>Reports</h1>
 
           </div>
               <img
@@ -24,32 +24,29 @@ function Reports(){
               className = "logo"/>
       </div>
 
-      {/*<div className="statistics">
+      <div className="statistics">
           <div className="cards">
-            <p>Total Objectives</p>
-            <h2>24</h2>
-            <span>Across 3 groups</span>
+            <p>Objectives On Track</p>
+            <h2>14</h2>
 
           </div>
 
           <div className="cards">
-            <p>Completed</p>
+            <p>Average Completed</p>
             <h2>65%</h2>
-            <span>16 of 24 objectives</span>
 
           </div>
 
           <div className="cards">
-            <p>At Risk Objectives</p>
-            <h2>5</h2>
-            <span>Need attention this week</span>
+            <p>Reports Exported</p>
+            <h2>8</h2>
 
           </div>
       </div>
 
       <div className="bottom-section">
           <div className="week-statistics">
-            <h3>Current Week Statistics</h3>
+            <h3>Completion By Group - This Quarter</h3>
 
             <div className="progress-row">
               <span>R &amp; D</span>
@@ -85,27 +82,10 @@ function Reports(){
       </div>
 
       <div>
-        <p></p>
+        <button type="button" className="export-button">
+                Export Reports
+              </button>
       </div>
-
-      <div className="completion-overview">
-        <h3>Completion Overview</h3>
-        <div className="graph-container">
-          <div className="circle">
-            <h4>72%</h4>
-            <p>On Track</p>
-          </div>
-          <div className="circlee">
-            <h2>65%</h2>
-            <p className="texter">Overall Completed</p>
-          </div>
-          <div className="circle">
-            <h4>21%</h4>
-            <p>At Risk</p>
-          </div>
-        </div>
-
-      </div>*/}
       
     </div>
 

@@ -27,7 +27,7 @@ function OkrDashboard(){
               className = "logo"/>
       </div>
 
-      {/*<div className="statistics">
+      <div className="statistics">
           <div className="card">
             <p>Total Objectives</p>
             <h2>24</h2>
@@ -48,9 +48,9 @@ function OkrDashboard(){
             <span>Need attention this week</span>
 
           </div>
-      </div>*/}
+      </div>
 
-      {/*<div className="bottom-section">
+      <div className="bottom-section">
           <div className="week-statistics">
             <h3>Current Week Statistics</h3>
 
@@ -85,30 +85,32 @@ function OkrDashboard(){
             </div>
           </div>
           
-      </div>*/}
-
-      <div>
-        <p></p>
       </div>
 
-      {/*<div className="completion-overview">
+      <div className="completion-overview">
         <h3>Completion Overview</h3>
         <div className="graph-container">
-          <div className="circle">
-            <h4>72%</h4>
-            <p>On Track</p>
+          <div className="circle1">
+            <div className = "circle">
+              <h4>72%</h4>
+              <p>On Track</p>
+            </div>
           </div>
-          <div className="circlee">
-            <h2>65%</h2>
-            <p className="texter">Overall Completed</p>
+          <div className="circle2">
+            <div className = "circle">
+              <h2>65%</h2>
+              <p className="texter">Completed</p>
+            </div>
           </div>
-          <div className="circle">
-            <h4>21%</h4>
-            <p>At Risk</p>
+          <div className="circle3">
+            <div className = "circle">
+              <h4>21%</h4>
+              <p>At Risk</p>
+            </div>
           </div>
         </div>
 
-      </div>*/}
+      </div>
       
     </div>
 

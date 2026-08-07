@@ -101,11 +101,33 @@
     flex-direction: column;
 }
 
-.circlee{
+.circle1{
     width: 140px;
     height: 140px;
     border-radius: 50%;
-    background: #ddd;
+    background: #72cdf4;
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.circle2{
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: #00b085;
+    display:flex;
+    justify-content:center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.circle3{
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: #1f1e40;
     display:flex;
     justify-content:center;
     align-items: center;
@@ -113,6 +135,7 @@
 }
 
 .texter {
-    font-size:12px;
+    font-size:14px;
     text-align: center;
+    
 }

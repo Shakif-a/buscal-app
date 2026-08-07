@@ -36,6 +36,7 @@ import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
 import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
 import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
 import CreateObjectives from "./okrTracker/pages/objectives/CreateObjectives";
+import Reports from "./okrTracker/pages/reports/Reports";
 
 // Shell
 import Nav from "./pages/navigation/Nav";
