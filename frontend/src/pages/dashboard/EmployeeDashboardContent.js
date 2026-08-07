@@ -17,7 +17,7 @@ const cardData = [
     accent: "#6366f1",
   },
   {
-    link: "/dashboard/okrtracker/objectives",
+    link: "/dashboard/okrtracker/okrdashboard",
     image: "/images/icons/roadmap.svg",
     title: "OKR",
     description:
