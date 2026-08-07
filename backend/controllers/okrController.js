@@ -149,6 +149,7 @@ const createObjective = asyncHandler(async (req, res) => {
       endTime: objective.dueDate,
       completionStatus: "not started",
       category: "OKR Objective",
+      priority: "normal",
     });
   } catch (error) {
     console.error("Could not create linked calendar entry for objective:", error);
