@@ -274,7 +274,9 @@ function ObjectiveCard({ objective }) {
                         )
                       }
                     >
-                      <option value="Choose Progress">Choose Progress</option>
+                      <option value="Choose Progress">
+                        Choose Progress
+                      </option>
                       <option value="Not Started">Not Started</option>
                       <option value="On Track">On Track</option>
                       <option value="At Risk">At Risk</option>
