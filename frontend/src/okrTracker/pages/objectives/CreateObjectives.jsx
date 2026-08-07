@@ -46,7 +46,7 @@ function CreateObjectives() {
           }))
         );
       } catch (error) {
-        console.error(error);
+        console.error("Could not load owners:", error);
       }
     }
  
@@ -151,11 +151,6 @@ function CreateObjectives() {
  
     if (!selectedDate) {
       alert("Please select a due date.");
-      return;
-    }
- 
-    if (!group) {
-      alert("Please select a group.");
       return;
     }
  

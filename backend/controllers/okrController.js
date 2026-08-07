@@ -113,11 +113,6 @@ const createObjective = asyncHandler(async (req, res) => {
     throw new Error("Please add a title");
   }
 
-  if (!req.body.group) {
-    res.status(400);
-    throw new Error("Please add a group");
-  }
-
   if (!req.body.owner) {
     res.status(400);
     throw new Error("Please add an owner");
