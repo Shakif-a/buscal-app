@@ -1,79 +1,72 @@
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { createObjective as createObjectiveThunk } from "../../features/objectives/objectiveSlice";
+import objectiveService from "../../features/objectives/objectiveService";
+import userService from "../../features/users/userService"
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function CreateObjectives() {
   // The dark navy colour used for headings and text.
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const navy = "#1a2b4a";
-
+ 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("");
   const [group, setGroup] = useState("");
   const [commitmentType, setCommitmentType] = useState("");
-  
+ 
   const [ownerOptions, setOwnerOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+ 
   useEffect(() => {
     async function loadOptions() {
       try {
-  
-        const headers = {
-          Authorization: `Bearer ${user.token}`,
-        };
-  
-        const [groupsResponse, usersResponse] = await Promise.all([
-          fetch("http://localhost:5000/api/okr/objectives/groups", {
-            headers,
-          }),
-          fetch("http://localhost:5000/api/users/user", {
-            headers,
-          }),
+        const [groupsData, usersData] = await Promise.all([
+          objectiveService.getObjectiveGroups(user.token),
+          userService.getUsers(user.token),
         ]);
-  
-        if (!groupsResponse.ok || !usersResponse.ok) {
-          throw new Error("Could not load groups or owners.");
-        }
-  
-        const groupsData = await groupsResponse.json();
-        const usersData = await usersResponse.json();
-  
+ 
         setGroupOptions(
           Array.isArray(groupsData)
             ? groupsData
             : groupsData.groups || []
         );
-  
+ 
         setOwnerOptions(
-          Array.isArray(usersData)
-            ? usersData
-            : usersData.users || []
+          usersData.map((u) => ({
+            id: u._id,
+            label:
+              [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+              u.email ||
+              "Unknown user",
+          }))
         );
       } catch (error) {
-        console.error(error);
-      
-      } 
+        console.error("Could not load owners:", error);
+      }
     }
-  
+ 
     if (user?.token) {
       loadOptions();
     }
   }, [user?.token]);
-
+ 
   const today = new Date();
-
+ 
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
-// user can choose date 
+// user can choose date
   const [selectedDate, setSelectedDate] = useState(null);
-
+ 
   const commitmentTypeOptions = [
     { value: "committed", label: "Committed" },
     { value: "aspirational", label: "Aspirational" },
   ];
-
+ 
   // calendar heading.
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -82,12 +75,12 @@ function CreateObjectives() {
   function daysInMonth(year, month) {
     return new Date(year, month + 1, 0).getDate();
   }
-
+ 
   function firstWeekdayMondayFirst(year, month) {
     const jsDay = new Date(year, month, 1).getDay();
     return (jsDay + 6) % 7;
   }
-
+ 
   function previousMonth() {
     if (viewMonth === 0) {
       setViewMonth(11);
@@ -96,8 +89,8 @@ function CreateObjectives() {
       setViewMonth(viewMonth - 1);
     }
   }
-
-  // Move the calendar forward 
+ 
+  // Move the calendar forward
   function nextMonth() {
     if (viewMonth === 11) {
       setViewMonth(0);
@@ -106,12 +99,12 @@ function CreateObjectives() {
       setViewMonth(viewMonth + 1);
     }
   }
-
-  // Pick a day 
+ 
+  // Pick a day
   function selectDay(day) {
     setSelectedDate({ year: viewYear, month: viewMonth, day: day });
   }
-
+ 
   function isSelected(day) {
     return (
       selectedDate &&
@@ -120,8 +113,8 @@ function CreateObjectives() {
       selectedDate.day === day
     );
   }
-
-  // Build the list of cells for the calendar 
+ 
+  // Build the list of cells for the calendar
   function buildCalendarCells() {
     const total = daysInMonth(viewYear, viewMonth);
     const leadingBlanks = firstWeekdayMondayFirst(viewYear, viewMonth);
@@ -134,7 +127,7 @@ function CreateObjectives() {
     }
     return cells;
   }
-
+ 
   // Clear the form back to empty.
   function cancel() {
     setTitle("");
@@ -144,66 +137,50 @@ function CreateObjectives() {
     setCommitmentType("");
     setSelectedDate(null);
   }
-
+ 
   async function createObjective() {
+    if (!user?.token) {
+      alert("Your session has expired. Please log in again.");
+      return;
+    }
+ 
     if (!title.trim()) {
       alert("Please enter an objective title.");
       return;
     }
-  
+ 
     if (!selectedDate) {
       alert("Please select a due date.");
       return;
     }
-  
-    if (!group) {
-      alert("Please select a group.");
-      return;
-    }
-  
+ 
     if (!owner) {
       alert("Please select an owner.");
       return;
     }
-  
+ 
     if (!commitmentType) {
       alert("Please select a type.");
       return;
     }
-  
+ 
     const month = String(selectedDate.month + 1).padStart(2, "0");
     const day = String(selectedDate.day).padStart(2, "0");
     const dueDate = `${selectedDate.year}-${month}-${day}`;
-  
+ 
     try {
       setIsSubmitting(true);
-  
-      const response = await fetch(
-        "http://localhost:5000/api/okr/objectives",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${user.token}`,
-          },
-          body: JSON.stringify({
-            title: title.trim(),
-            dueDate,
-            group,
-            commitmentType,
-            owner,
-          }),
-        }
-      );
-  
-      const result = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Could not create the objective."
-        );
-      }
-  
+      await dispatch(
+        createObjectiveThunk({
+          title: title.trim(),
+          description,
+          dueDate,
+          group,
+          commitmentType,
+          owner,
+        })
+      ).unwrap();
+ 
       alert("Objective created successfully.");
       cancel();
     } catch (error) {
@@ -213,7 +190,7 @@ function CreateObjectives() {
       setIsSubmitting(false);
     }
   }
-
+ 
   // A shared style for the three dropdowns.
   const selectStyle = {
     width: "220px",
@@ -226,7 +203,7 @@ function CreateObjectives() {
     cursor: "pointer",
     outline: "none",
   };
-
+ 
   // A shared style for the field labels.
   const labelStyle = {
     color: navy,
@@ -235,10 +212,10 @@ function CreateObjectives() {
     marginBottom: "10px",
     display: "block",
   };
-
+ 
   return (
     <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "sans-serif" }}>
-
+ 
       {/* Page header */}
       <div style={{ padding: "30px 40px" }}>
         <div
@@ -268,7 +245,7 @@ function CreateObjectives() {
           {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>*/}
         </div>
       </div>
-
+ 
       {/* Main form*/}
       <div style={{ padding: "0 40px 60px" }}>
         <div
@@ -300,7 +277,7 @@ function CreateObjectives() {
                   marginBottom: "30px",
                 }}
               />
-
+ 
               {/* Due Date with the calendar */}
               <label style={labelStyle}>Due Date</label>
               <div
@@ -354,7 +331,7 @@ function CreateObjectives() {
                     ›
                   </button>
                 </div>
-
+ 
                 {/* Weekday headings */}
                 <div
                   style={{
@@ -374,7 +351,7 @@ function CreateObjectives() {
                   <div>Sa</div>
                   <div>Su</div>
                 </div>
-
+ 
                 {/* The day cells */}
                 <div
                   style={{
@@ -410,7 +387,7 @@ function CreateObjectives() {
                   })}
                 </div>
               </div>
-
+ 
               {/* Owner dropdown */}
               <label style={labelStyle}>Owner</label>
               <div style={{ marginBottom: "24px" }}>
@@ -420,12 +397,12 @@ function CreateObjectives() {
                   style={selectStyle}
                 >
                   <option value="">Select owner</option>
-                  {ownerOptions.map((name) => (
-                    <option key={name} value={name}>{name}</option>
+                  {ownerOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
                   ))}
                 </select>
               </div>
-
+ 
               {/* Group dropdown */}
               <label style={labelStyle}>Group</label>
               <div style={{ marginBottom: "24px" }}>
@@ -440,7 +417,7 @@ function CreateObjectives() {
                   ))}
                 </select>
               </div>
-
+ 
               {/* Type dropdown */}
               <label style={labelStyle}>Type</label>
               <div>
@@ -458,7 +435,7 @@ function CreateObjectives() {
                 </select>
               </div>
             </div>
-
+ 
             {/* Right column: description */}
             <div>
               <label style={labelStyle}>Description</label>
@@ -481,7 +458,7 @@ function CreateObjectives() {
               />
             </div>
           </div>
-
+ 
           {/* Cancel and Create buttons */}
           <div
             style={{
@@ -528,5 +505,5 @@ function CreateObjectives() {
     </div>
   );
 }
-
+ 
 export default CreateObjectives;

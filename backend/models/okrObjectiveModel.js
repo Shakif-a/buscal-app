@@ -17,7 +17,7 @@ const objectiveSchema = new mongoose.Schema(
     },
     group: {
       type: String,
-      required: [true, "Please add a group"],
+      default: "none",
     },
     commitmentType: {
       type: String,
