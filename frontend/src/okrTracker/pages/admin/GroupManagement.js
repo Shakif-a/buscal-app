@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./GroupManagement.css";
 
 
 function GroupManagement() {
@@ -105,41 +106,24 @@ function GroupManagement() {
   );
 
   return (
-    <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "sans-serif" }}>
-
-
+    <div className= "group-management">
       {/* header */}
-      <div style={{ padding: "30px 40px" }}>
-        <div
-          style={{
-            border: "1px solid #eee",
-            borderRadius: "16px",
-            padding: "24px 30px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>*/}
+      <div className="group-header">
+          <div className= "group-header-title">
             <img
               src="/images/okr/ArrowLogoLeft.png"
               alt = "Arrow Logo L"
               className = "logo"/>
-            <span style={{ color: navy, fontSize: "26px", fontWeight: "bold" }}>
-              Group Management
-            </span>
+            <h1>Group Management</h1>
           </div>
           <img
               src="/images/okr/ArrowLogoRight.png"
               alt = "Arrow Logo R"
               className = "logo"/>
-          {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>*/}
         </div>
-      </div>
 
       {/* Main content*/}
-      <div style={{ padding: "0 40px 40px" }}>
+      <div>
         <div
           style={{
             border: "1px solid #eee",

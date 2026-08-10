@@ -88,20 +88,9 @@ function ObjectivesPage() {
 
   return (
     <div className="objectives-page">
-      {/* Search bar */}
-      <div className="objectives-top-row">
-        <input
-          className="objectives-search"
-          type="text"
-          placeholder="Search objectives..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
 
       {/* Objectives heading */}
       <div className="objectives-banner">
-        {/*<span className="banner-arrow">»»</span>*/}
         <img
               src="/images/okr/ArrowLogoLeft.png"
               alt = "Arrow Logo L"
@@ -109,7 +98,6 @@ function ObjectivesPage() {
 
         <h2>All Objectives</h2>
 
-        {/*<span className="banner-arrow">»»</span>*/}
         <img
               src="/images/okr/ArrowLogoRight.png"
               alt = "Arrow Logo R"
@@ -138,6 +126,14 @@ function ObjectivesPage() {
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
+          
+        <input
+          className="objectives-search"
+          type="text"
+          placeholder="Search Objectives..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {/* Clean alternative view when dataset returns completely empty */}

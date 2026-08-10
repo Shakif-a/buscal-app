@@ -17,7 +17,6 @@
 }
 
 .report-title{
-
     display:flex;
     align-items: center;
     gap: 20px;
@@ -26,6 +25,7 @@
 .report-title h1 {
     margin: 0;
     font-size: 40px;
+    font-family: avenir;
     color: #1f1e40
 }
 
@@ -150,7 +150,7 @@
 .progress-row:nth-child(6) progress::-webkit-progress-value{
     background: #1f1e40;
 }
-/*firefox*/
+/*firefox support*/
 .progress-row progress::-moz-progress-bar{
     border-radius: 10px;
 }

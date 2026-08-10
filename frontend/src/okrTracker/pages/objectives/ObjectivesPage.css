@@ -1,23 +1,20 @@
 .objectives-page {
-  padding: 20px 24px;
-  color: #20203f;
+  padding: 40px;
+  color: #1f1e40;
+  background:#fafafa;
+  min-height: 100vh;
 }
 
 /* ---------------- Top Search ---------------- */
 
-.objectives-top-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 20px;
-}
-
 .objectives-search {
-  width: 260px;
+  width: 350px;
   padding: 10px 14px;
   border: 1px solid #d9dfea;
   border-radius: 8px;
   background-color: #f3f6fa;
   font-size: 15px;
+  margin-left: auto
 }
 
 /* ---------------- Banner ---------------- */
@@ -25,29 +22,28 @@
 .objectives-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 18px 20px;
+  gap: 20px;
+  background: white;
+  padding: 20px;
   border: 1px solid #d9dfea;
-  border-radius: 12px;
-  margin-bottom: 18px;
+  border-radius: 15px;
+  margin-bottom: 30px;
 }
 
 .objectives-banner h2 {
   margin: 0;
-  font-size: 30px;
-  font-weight: 700;
-  color: #20203f;
+  font-size: 40px;
+  font-family: avenir;
+  color: #1f1e40;
+}
+
+.objectives-banner .logo:last-child {
+  margin-left: auto;
 }
 
 .logo {
     width: 40px;
     height: auto;
-}
-
-.banner-arrow {
-  font-size: 30px;
-  font-weight: 700;
-  color: #20203f;
 }
 
 /* ---------------- Filters ---------------- */
@@ -70,6 +66,7 @@
 /* ---------------- Objective Card ---------------- */
 
 .objective-card {
+  background: white;
   border: 1px solid #d9dfea;
   border-radius: 12px;
   padding: 55px 18px 18px;
