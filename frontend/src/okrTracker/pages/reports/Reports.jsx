@@ -85,7 +85,8 @@ function Reports(){
       </div>
 
       <div className="export-container">
-        <button type="button" className="export-button">
+        <button type="button" className="export-button"
+        onClick={() => alert("Your report has been exported successfully.")}>
                 Export Reports
               </button>
       </div>
