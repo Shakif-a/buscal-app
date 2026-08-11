@@ -1,8 +1,9 @@
-import React from "react";
+import { useState } from "react";
 import "./Reports.css";
 
 
 function Reports(){
+  const [showExportPopup, setShowExportPopup] = useState(false);
 
   return (
     <div className="reports">
@@ -86,9 +87,21 @@ function Reports(){
 
       <div className="export-container">
         <button type="button" className="export-button"
-        onClick={() => alert("Your report has been exported successfully.")}>
+        onClick={() => setShowExportPopup(true)}>
                 Export Reports
-              </button>
+        </button>
+
+        {showExportPopup && (
+          <div className="popup-overlay">
+            <div className="export-popup">
+              <h2>Report Exported</h2>
+              <p>Your report has been exported successfully.</p>
+
+              <button className="popup-close-button"
+              onClick={() => setShowExportPopup(false)}>OK</button>
+            </div>
+          </div>
+        )}
       </div>
       
     </div>
