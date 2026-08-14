@@ -1,0 +1,35 @@
+.role-management {
+    padding: 40px;
+    background: #fafafa;
+    min-height: 100vh;
+    color: #1f1e40;
+}
+
+.role-header {
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 20px;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.role-header-title {
+    display:flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.role-header-title h1 {
+    margin: 0;
+    font-size: 40px;
+    font-family: avenir;
+    color: #1f1e40
+}
+
+.logo {
+    width: 40px;
+    height: auto;
+}

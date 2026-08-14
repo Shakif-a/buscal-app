@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { createObjective as createObjectiveThunk } from "../../features/objectives/objectiveSlice";
 import objectiveService from "../../features/objectives/objectiveService";
 import userService from "../../features/users/userService"
+import "./CreateObjectives.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -214,40 +215,27 @@ function CreateObjectives() {
   };
  
   return (
-    <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <div className="create-objectives">
  
       {/* Page header */}
       <div style={{ padding: "30px 40px" }}>
-        <div
-          style={{
-            border: "1px solid #eee",
-            borderRadius: "16px",
-            padding: "24px 30px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>((</span>*/}
+        <div className="create-header">
+          <div className="create-header-title">
             <img
               src="/images/okr/ArrowLogoLeft.png"
               alt = "Arrow Logo L"
               className = "logo"/>
-            <span style={{ color: navy, fontSize: "26px", fontWeight: "bold" }}>
-              Create Objectives
-            </span>
+            <h1>Create Objectives</h1>
           </div>
           <img
               src="/images/okr/ArrowLogoRight.png"
               alt = "Arrow Logo R"
               className = "logo"/>
-          {/*<span style={{ color: "#2e7d5b", fontSize: "24px" }}>))</span>*/}
         </div>
       </div>
  
       {/* Main form*/}
-      <div style={{ padding: "0 40px 60px" }}>
+      <div>
         <div
           style={{
             border: "1px solid #eee",
@@ -286,6 +274,7 @@ function CreateObjectives() {
                   borderRadius: "12px",
                   padding: "20px",
                   marginBottom: "30px",
+                  background: "#ffffff",
                 }}
               >
                 {/* Calendar header with arrows and the month name */}
@@ -299,17 +288,7 @@ function CreateObjectives() {
                 >
                   <button
                     onClick={previousMonth}
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "8px",
-                      border: "1px solid #cfe0f0",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      fontSize: "16px",
-                    }}
-                  >
+                    className="calendar-arrow">
                     ‹
                   </button>
                   <div style={{ color: navy, fontSize: "20px", fontWeight: "bold" }}>
@@ -317,17 +296,7 @@ function CreateObjectives() {
                   </div>
                   <button
                     onClick={nextMonth}
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "8px",
-                      border: "1px solid #cfe0f0",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      fontSize: "16px",
-                    }}
-                  >
+                    className="calendar-arrow">
                     ›
                   </button>
                 </div>
@@ -470,33 +439,15 @@ function CreateObjectives() {
           >
             <button
               onClick={cancel}
-              style={{
-                padding: "14px 32px",
-                borderRadius: "8px",
-                border: "1px solid #ddd",
-                backgroundColor: "#f2f2f2",
-                color: navy,
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
+              className="cancel-button"
             >
               Cancel
             </button>
             <button
               onClick={createObjective}
               disabled={isSubmitting}
-              style={{
-                padding: "14px 32px",
-                borderRadius: "8px",
-                border: "none",
-                backgroundColor: "#2e9e6b",
-                color: "#fff",
-                fontWeight: "600",
-                fontSize: "16px",
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                opacity: isSubmitting ? 0.7 : 1,
-              }}
-            >
+              className="create-objective-button"
+              >
               {isSubmitting ? "Creating..." : "Create New Objective"}
             </button>
           </div>

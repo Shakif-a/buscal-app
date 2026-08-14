@@ -1,0 +1,91 @@
+.create-objectives {
+    padding: 40px;
+    background: #fafafa;
+    min-height: 100vh;
+    color: #1f1e40;
+}
+
+.create-header {
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 20px;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.create-header-title {
+    display:flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.create-header-title h1 {
+    margin: 0;
+    font-size: 40px;
+    font-family: avenir;
+    color: #1f1e40
+}
+
+.logo {
+    width: 40px;
+    height: auto;
+}
+
+.calendar-arrow {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #cfe0f0;
+    background-color: #ffffff;
+    color: #1f1e40;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+}
+
+.calendar-arrow:hover{
+    background-color: #cfe2f0;
+}
+
+.cancel-button{
+    padding: 14px 32px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background-color: #f2f2f2;
+    color: #1f1e40;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.cancel-button:hover{
+    background-color: #cfe2f0;
+}
+
+.create-objective-button{
+    padding: 14px 32px;
+    border-radius: 8px;
+    border: none;
+    background-color: #2e9e6b;
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.create-objective-button:hover{
+    background-color: #32785d;
+}
+
+.create-objective-button:disabled{
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.create-objective-button:disabled:hover{
+    background-color: #2e9e6b;
+}
