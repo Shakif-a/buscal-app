@@ -102,7 +102,7 @@ function ObjectiveCard({ objective }) {
           </p>
 
           <p>
-            Objective Manager: <strong>{objective.manager}</strong>
+            Owner: <strong>{objective.manager}</strong>
           </p>
 
           <p>
