@@ -332,3 +332,11 @@
 .remove-key-result:hover {
   color: #b52b27;
 }
+
+.key-result-name-input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid #d9dfea;
+  border-radius: 7px;
+  font-size: 13px;
+}

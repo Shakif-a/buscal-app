@@ -169,6 +169,8 @@ function ObjectiveCard({ objective }) {
             <tbody>
               {keyResults.map((keyResult) => (
                 <tr key={keyResult.id}>
+
+                  {/* Key Result name */}
                   <td>
                     {editMode && (
                       <button
@@ -180,9 +182,25 @@ function ObjectiveCard({ objective }) {
                       </button>
                     )}
 
-                    <span>{keyResult.name}</span>
+                    {editMode ? (
+                      <input
+                        className="key-result-name-input"
+                        type="text"
+                        value={keyResult.name}
+                        onChange={(event) =>
+                          updateKeyResult(
+                            keyResult.id,
+                            "name",
+                            event.target.value
+                          )
+                        }
+                      />
+                    ) : (
+                      <span>{keyResult.name}</span>
+                    )}
                   </td>
 
+                  {/* Weight */}
                   <td>
                     {editMode ? (
                       <input
@@ -202,6 +220,7 @@ function ObjectiveCard({ objective }) {
                     )}
                   </td>
 
+                  {/* Assigned */}
                   <td>
                     {editMode ? (
                       <input
@@ -221,6 +240,7 @@ function ObjectiveCard({ objective }) {
                     )}
                   </td>
 
+                  {/* Progress */}
                   <td>
                     {editMode ? (
                       <input
@@ -242,6 +262,7 @@ function ObjectiveCard({ objective }) {
                     )}
                   </td>
 
+                  {/* Due Date */}
                   <td>
                     {editMode ? (
                       <input
@@ -262,6 +283,7 @@ function ObjectiveCard({ objective }) {
                     )}
                   </td>
 
+                  {/* Status */}
                   <td>
                     <select
                       value={keyResult.status}
@@ -277,13 +299,22 @@ function ObjectiveCard({ objective }) {
                       <option value="Choose Progress">
                         Choose Progress
                       </option>
-                      <option value="Not Started">Not Started</option>
-                      <option value="On Track">On Track</option>
-                      <option value="At Risk">At Risk</option>
-                      <option value="Completed">Completed</option>
+                      <option value="Not Started">
+                        Not Started
+                      </option>
+                      <option value="On Track">
+                        On Track
+                      </option>
+                      <option value="At Risk">
+                        At Risk
+                      </option>
+                      <option value="Completed">
+                        Completed
+                      </option>
                     </select>
                   </td>
 
+                  {/* Evidence */}
                   <td>
                     <button type="button" className="action-link">
                       View
@@ -302,6 +333,7 @@ function ObjectiveCard({ objective }) {
                     </button>
                   </td>
 
+                  {/* Approval */}
                   <td>
                     <input
                       type="checkbox"
@@ -322,6 +354,7 @@ function ObjectiveCard({ objective }) {
             </tbody>
           </table>
 
+          {/* Footer */}
           <div className="key-results-footer">
             <button
               type="button"
