@@ -314,7 +314,6 @@
 
 .key-results-table select:disabled {
   color: #20203f;
-  background-color: white;
   opacity: 1;
   cursor: default;
 }
@@ -339,4 +338,27 @@
   border: 1px solid #d9dfea;
   border-radius: 7px;
   font-size: 13px;
+}
+
+/* ---------------- Key Result Status Colours ---------------- */
+
+.status-select.on-track {
+  background-color: #5cb85c;
+}
+
+.status-select.completed {
+  background-color: #449d44;
+}
+
+.status-select.at-risk {
+  background-color: #f0ad4e;
+}
+
+.status-select.overdue {
+  background-color: #d9534f;
+}
+
+.status-select option {
+  background-color: white;
+  color: #20203f;
 }

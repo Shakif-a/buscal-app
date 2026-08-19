@@ -286,6 +286,7 @@ function ObjectiveCard({ objective }) {
                   {/* Status */}
                   <td>
                     <select
+                      className={`status-select ${keyResult.status.toLowerCase().replace(" ", "-")}`}
                       value={keyResult.status}
                       disabled={!editMode}
                       onChange={(event) =>
@@ -299,15 +300,19 @@ function ObjectiveCard({ objective }) {
                       <option value="Choose Progress">
                         Choose Progress
                       </option>
-                      <option value="Not Started">
-                        Not Started
-                      </option>
+
                       <option value="On Track">
                         On Track
                       </option>
+
                       <option value="At Risk">
                         At Risk
                       </option>
+
+                      <option value="Overdue">
+                        Overdue
+                      </option>
+
                       <option value="Completed">
                         Completed
                       </option>
