@@ -368,3 +368,48 @@
   background-color: white;
   color: #20203f;
 }
+
+/* ---------------- Evidence Popup ---------------- */
+
+.evidence-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.evidence-popup {
+  width: 420px;
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+}
+
+.evidence-note {
+  width: 100%;
+  height: 120px;
+  padding: 10px;
+  margin-top: 15px;
+  box-sizing: border-box;
+  font-family: Arial;
+}
+
+.evidence-upload-box {
+  margin-top: 20px;
+  padding: 20px;
+  border: 2px dashed #d9dfea;
+  border-radius: 8px;
+}
+
+.evidence-popup-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}

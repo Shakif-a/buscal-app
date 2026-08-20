@@ -3,6 +3,8 @@ import { useState } from "react";
 function ObjectiveCard({ objective }) {
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [showEvidencePopup, setShowEvidencePopup] = useState(false);
+  const [selectedEvidenceKR, setSelectedEvidenceKR] = useState(null);
 
   const [keyResults, setKeyResults] = useState([
     {
@@ -327,14 +329,15 @@ function ObjectiveCard({ objective }) {
 
                     <span> | </span>
 
-                    <button type="button" className="action-link">
-                      Edit
-                    </button>
-
-                    <span> | </span>
-
-                    <button type="button" className="action-link">
-                      Delete
+                    <button
+                      type="button"
+                      className="action-link"
+                      onClick={() => {
+                        setSelectedEvidenceKR(keyResult);
+                        setShowEvidencePopup(true);
+                      }}
+                    >
+                      Upload
                     </button>
                   </td>
 
@@ -394,6 +397,46 @@ function ObjectiveCard({ objective }) {
           </div>
         </div>
       )}
+
+      {/* Evidence Upload Popup */}
+      {showEvidencePopup && (
+        <div className="evidence-popup-overlay">
+          <div className="evidence-popup">
+            <h3>Upload Evidence</h3>
+
+            <p>
+              Key Result: <strong>{selectedEvidenceKR?.name}</strong>
+            </p>
+
+            <textarea
+              className="evidence-note"
+              placeholder="Add a note"
+            />
+
+            <div className="evidence-upload-box">
+              <input type="file" multiple />
+            </div>
+
+            <div className="evidence-popup-buttons">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={() => setShowEvidencePopup(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="save-button"
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
