@@ -1,11 +1,16 @@
 import { useState } from "react";
 
 function ObjectiveCard({ objective }) {
+  // Key Results
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
+
+  // Evidence
   const [showEvidencePopup, setShowEvidencePopup] = useState(false);
   const [selectedEvidenceKR, setSelectedEvidenceKR] = useState(null);
+  const [showViewEvidence, setShowViewEvidence] = useState(false);
 
+  // Key Results Data
   const [keyResults, setKeyResults] = useState([
     {
       id: 1,
@@ -323,7 +328,14 @@ function ObjectiveCard({ objective }) {
 
                   {/* Evidence */}
                   <td>
-                    <button type="button" className="action-link">
+                    <button
+                      type="button"
+                      className="action-link"
+                      onClick={() => {
+                        setSelectedEvidenceKR(keyResult);
+                        setShowViewEvidence(true);
+                      }}
+                    >
                       View
                     </button>
 
@@ -398,47 +410,74 @@ function ObjectiveCard({ objective }) {
         </div>
       )}
 
-      {/* Evidence Upload Popup */}
-      {showEvidencePopup && (
-        <div className="evidence-popup-overlay">
-          <div className="evidence-popup">
-            <h3>Upload Evidence</h3>
+     {/* Evidence Upload Popup */}
+{showEvidencePopup && (
+  <div className="evidence-popup-overlay">
+    <div className="evidence-popup">
+      <h3>Upload Evidence</h3>
 
-            <p>
-              Key Result: <strong>{selectedEvidenceKR?.name}</strong>
-            </p>
+      <p>
+        Key Result: <strong>{selectedEvidenceKR?.name}</strong>
+      </p>
 
-            <textarea
-              className="evidence-note"
-              placeholder="Add a note"
-            />
+      <textarea
+        className="evidence-note"
+        placeholder="Add a note"
+      />
 
-            <div className="evidence-upload-box">
-              <input type="file" multiple />
-            </div>
+      <div className="evidence-upload-box">
+        <input type="file" multiple />
+      </div>
 
-            <div className="evidence-popup-buttons">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => setShowEvidencePopup(false)}
-              >
-                Cancel
-              </button>
+      <div className="evidence-popup-buttons">
+        <button
+          type="button"
+          className="cancel-button"
+          onClick={() => setShowEvidencePopup(false)}
+        >
+          Cancel
+        </button>
 
-              <button
-                type="button"
-                className="save-button"
-              >
-                Upload
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+        <button
+          type="button"
+          className="save-button"
+        >
+          Upload
+        </button>
+      </div>
     </div>
-  );
+  </div>
+)}
+
+{/* View Evidence Popup */}
+{showViewEvidence && (
+  <div className="evidence-popup-overlay">
+    <div className="evidence-popup">
+      <h3>View Evidence</h3>
+
+      <p>
+        Key Result: <strong>{selectedEvidenceKR?.name}</strong>
+      </p>
+
+      <div className="evidence-list">
+        <p>No evidence uploaded yet.</p>
+      </div>
+
+      <div className="evidence-popup-buttons">
+        <button
+          type="button"
+          className="cancel-button"
+          onClick={() => setShowViewEvidence(false)}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+</div>
+);
 }
 
 export default ObjectiveCard;

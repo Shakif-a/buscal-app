@@ -413,3 +413,27 @@
   gap: 12px;
   margin-top: 20px;
 }
+
+.evidence-list {
+  margin-top: 20px;
+}
+
+.evidence-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin-bottom: 10px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+}
+
+.evidence-item p {
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+
+.evidence-actions {
+  display: flex;
+  gap: 12px;
+}
