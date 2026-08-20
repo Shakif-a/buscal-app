@@ -70,10 +70,29 @@ async function loadObjective(objective) {
   };
 }
 
+function compareObjectives(firstObjective, secondObjective) {
+  const firstOwner = firstObjective.manager.toLowerCase();
+  const secondOwner = secondObjective.manager.toLowerCase();
+
+  if (firstOwner < secondOwner) {
+    return -1;
+  }
+
+  if (firstOwner > secondOwner) {
+    return 1;
+  }
+
+  const firstDueDate = new Date(firstObjective.dueDate);
+  const secondDueDate = new Date(secondObjective.dueDate);
+
+  return firstDueDate - secondDueDate;
+}
+
 const getObjectives = asyncHandler(async (req, res) => {
-  const objectives = await OkrObjective.find()
-    .populate("owner", "firstName lastName")
-    .sort({ dueDate: 1 });
+  const objectives = await OkrObjective.find().populate(
+    "owner",
+    "firstName lastName"
+  );
 
   const result = [];
 
@@ -83,6 +102,8 @@ const getObjectives = asyncHandler(async (req, res) => {
     data.objective.keyResults = data.keyResults;
     result.push(data.objective);
   }
+
+  result.sort(compareObjectives);
 
   res.status(200).json(result);
 });
