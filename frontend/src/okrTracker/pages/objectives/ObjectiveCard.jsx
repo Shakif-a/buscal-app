@@ -361,13 +361,15 @@ function ObjectiveCard({ objective }) {
 
           {/* Footer */}
           <div className="key-results-footer">
-            <button
-              type="button"
-              className="add-key-result"
-              onClick={addKeyResult}
-            >
-              + Add Key Result
-            </button>
+            {editMode && (
+              <button
+                type="button"
+                className="add-key-result"
+                onClick={addKeyResult}
+              >
+                + Add Key Result
+              </button>
+            )}
 
             <div className="footer-buttons">
               <button

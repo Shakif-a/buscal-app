@@ -1,7 +1,7 @@
 .objectives-page {
   padding: 40px;
   color: #1f1e40;
-  background:#fafafa;
+  background: #fafafa;
   min-height: 100vh;
 }
 
@@ -42,8 +42,8 @@
 }
 
 .logo {
-    width: 40px;
-    height: auto;
+  width: 40px;
+  height: auto;
 }
 
 /* ---------------- Filters ---------------- */
@@ -118,6 +118,7 @@
   border-top: 1px solid #d9dfea;
   margin: 55px 0 18px;
 }
+
 /* ---------------- Progress ---------------- */
 
 .progress-section {
@@ -208,6 +209,7 @@
   font-size: 15px;
   font-weight: 500;
 }
+
 /* ---------------- Key Results ---------------- */
 
 .key-results-section {
@@ -261,6 +263,7 @@
 .footer-buttons {
   display: flex;
   gap: 12px;
+  margin-left: auto;
 }
 
 .cancel-button {
@@ -268,6 +271,8 @@
   border: none;
   border-radius: 10px;
   background: #eef2f7;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -277,6 +282,7 @@
   border-radius: 10px;
   background: #72cdf4;
   color: #20203f;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
