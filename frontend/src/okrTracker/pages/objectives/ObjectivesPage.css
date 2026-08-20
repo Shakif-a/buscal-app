@@ -332,3 +332,137 @@
 .remove-key-result:hover {
   color: #b52b27;
 }
+
+/* ---------------- Kebab Menu ---------------- */
+
+.objective-menu-container{
+  position: relative;
+  margin-left: 18px;
+}
+
+.objective-menu-button{
+  border: none;
+  background: none;
+  color: #6c7284;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.objective-menu-button:hover{
+  background-color: #f3f6fa;
+  color: #1f1e40;
+}
+
+.objective-menu-dropdown{
+  position: absolute;
+  top: 35px;
+  right: 0;
+  width: 120px;
+  background-color: white;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(31, 30, 64, 0.12);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.objective-menu-item{
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: white;
+  color: #1f1e40;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.objective-menu-item:hover{
+  background-color: #cfe2f0;
+}
+
+.delete-menu-item{
+  color: #d9534f;
+}
+
+.popup-overlay{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(31, 30, 64, 0.25);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.delete-objective-popup{
+    width: 400px;
+    padding: 30px;
+    background-color: white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    text-align: center;
+}
+
+.delete-objective-popup h2{
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #1f1e40;
+    font-size: 26px;
+}
+
+.delete-objective-popup p{
+    margin-bottom: 25px;
+    color: #1f1e40;
+    font-size: 16px;
+}
+
+.delete-warning{
+  color: #d9534f !important;
+  font-size: 14px !important;
+  margin-bottom: 25px;
+}
+
+.popup-buttons{
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.popup-cancel-button{
+    padding: 10px 24px;
+    border: 1px solid #d9dfea;
+    border-radius: 8px;
+    background-color: #f2f2f2;
+    color: #1f1e40;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.popup-cancel-button:hover{
+    background-color: #cfe2f0;
+}
+
+.popup-delete-button{
+  padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    background-color: #d9534f;
+    color: #1f1e40;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.popup-delete-button:hover{
+    background-color: #b52b27;
+}

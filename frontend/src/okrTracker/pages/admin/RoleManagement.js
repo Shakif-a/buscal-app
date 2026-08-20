@@ -101,13 +101,17 @@ function RoleManagement() {
   // Save the changes. Here we just show a confirmation, since there
   // is no backend connected yet. we have to Replace this with an API call later.
   function saveRole(roleName) {
-    alert("Changes saved for " + roleName + " role.");
+    setSavedRole(roleName);
+    setShowSavePopup(true);
   }
 
   // Filter the roles by the search text.
   const visibleRoles = roleNames.filter((name) =>
     name.toLowerCase().includes(searchText.toLowerCase())
   );
+
+  const [showSavePopup,setShowSavePopup] = useState(false);
+  const [savedRole, setSavedRole] = useState("");
 
   return (
     <div className="role-management">
@@ -388,6 +392,16 @@ function RoleManagement() {
           ))}
         </div>
       </div>
+      {showSavePopup && (
+        <div className="popup-overlay">
+          <div className="role-popup">
+            <h2>Changes Saved</h2>
+            <p>Changes to the <strong>{savedRole}</strong> role have been saved.</p>
+            <button className="popup-close-button"
+            onClick={() => setShowSavePopup(false)}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

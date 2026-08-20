@@ -22,6 +22,8 @@ function CreateObjectives() {
   const [ownerOptions, setOwnerOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
  
   useEffect(() => {
     async function loadOptions() {
@@ -182,7 +184,7 @@ function CreateObjectives() {
         })
       ).unwrap();
  
-      alert("Objective created successfully.");
+      setShowSuccessPopup(true);
       cancel();
     } catch (error) {
       console.error(error);
@@ -453,6 +455,18 @@ function CreateObjectives() {
           </div>
         </div>
       </div>
+      {showSuccessPopup && (
+        <div className="popup-overlay">
+          <div className="success-popup">
+            <h2>Objective Created</h2>
+            <p>Your Objective has been created successfully</p>
+            <button className="popup-close-button"
+            onClick={() => setShowSuccessPopup(false)}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
