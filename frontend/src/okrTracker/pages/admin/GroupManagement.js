@@ -140,19 +140,14 @@ function GroupManagement() {
               marginBottom: "24px",
             }}
           >
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="🔍  Search group..."
-              style={{
-                width: "45%",
-                padding: "14px 18px",
-                borderRadius: "10px",
-                border: "1px solid #ddd",
-                outline: "none",
-              }}
-            />
+            {/* Search group input and Add Group button */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "24px",
+            }}
+          >
             <button
               onClick={addGroup}
               style={{
@@ -166,6 +161,22 @@ function GroupManagement() {
             >
               (+) Add Group
             </button>
+          </div>
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder=" Search group..."
+              style={{
+                width: "360px",
+                padding: "14px 18px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                outline: "none",
+                marginLeft: "auto",
+              }}
+            />
+            
           </div>
 
           {/* Table header row */}

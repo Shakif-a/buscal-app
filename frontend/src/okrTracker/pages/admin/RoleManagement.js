@@ -146,25 +146,10 @@ function RoleManagement() {
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
               alignItems: "center",
               marginBottom: "24px",
             }}
           >
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="🔍  Search role..."
-              style={{
-                width: "45%",
-                padding: "14px 18px",
-                borderRadius: "10px",
-                border: "1px solid #ddd",
-                backgroundColor: "#f7f8fa",
-                outline: "none",
-              }}
-            />
             <button
               onClick={() => alert("Add Role clicked")}
               style={{
@@ -178,6 +163,21 @@ function RoleManagement() {
             >
               (+) Add Role
             </button>
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="  Search role..."
+              style={{
+                width: "360px",
+                padding: "14px 18px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                backgroundColor: "#f7f8fa",
+                outline: "none",
+                marginLeft: "auto",
+              }}
+            />
           </div>
 
           {/* Table header row */}
