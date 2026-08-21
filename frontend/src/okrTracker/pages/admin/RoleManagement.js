@@ -135,19 +135,40 @@ function RoleManagement() {
 
       {/* Main content */}
       <div>
+        {/* Search role input */}
         <div
           style={{
-            border: "1px solid #eee",
-            borderRadius: "16px",
-            padding: "30px",
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "16px",
           }}
         >
-          {/* Search role input and Add Role button */}
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="  Search role..."
+              style={{
+                width: "360px",
+                padding:"14px 18px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                backgroundColor: "#f7f8fa",
+                outline: "none",
+              }}
+            />
+          </div>
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "24px",
+              border: "1px solid #eee",
+              borderRadius: "16px",
+              padding: "30px",
+            }}
+          >  
+          {/* Add Role button */}
+          <div
+            style={{
+              marginBottom: "40px",
             }}
           >
             <button
@@ -160,24 +181,9 @@ function RoleManagement() {
                 border: "none",
                 cursor: "pointer",
               }}
-            >
-              (+) Add Role
+          >    
+              (+)Add Role
             </button>
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="  Search role..."
-              style={{
-                width: "360px",
-                padding: "14px 18px",
-                borderRadius: "10px",
-                border: "1px solid #ddd",
-                backgroundColor: "#f7f8fa",
-                outline: "none",
-                marginLeft: "auto",
-              }}
-            />
           </div>
 
           {/* Table header row */}

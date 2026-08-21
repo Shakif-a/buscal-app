@@ -122,30 +122,42 @@ function GroupManagement() {
               className = "logo"/>
         </div>
 
-      {/* Main content*/}
+      {/* Main content */}
       <div>
+        {/* Search group input */}
         <div
           style={{
-            border: "1px solid #eee",
-            borderRadius: "16px",
-            padding: "30px",
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "16px",
           }}
         >
-          {/* Search group input and Add Group button */}
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="  Search group..."
+              style={{
+                width: "360px",
+                padding:"14px 18px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                backgroundColor: "#f7f8fa",
+                outline: "none",
+              }}
+            />
+          </div>
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "24px",
+              border: "1px solid #eee",
+              borderRadius: "16px",
+              padding: "30px",
             }}
-          >
-            {/* Search group input and Add Group button */}
+          >  
+          {/* Add Group button */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "24px",
+              marginBottom: "40px",
             }}
           >
             <button
@@ -158,26 +170,11 @@ function GroupManagement() {
                 border: "none",
                 cursor: "pointer",
               }}
-            >
-              (+) Add Group
+          >    
+              (+)Add Group
             </button>
           </div>
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder=" Search group..."
-              style={{
-                width: "360px",
-                padding: "14px 18px",
-                borderRadius: "10px",
-                border: "1px solid #ddd",
-                outline: "none",
-                marginLeft: "auto",
-              }}
-            />
-            
-          </div>
+
 
           {/* Table header row */}
           <div
