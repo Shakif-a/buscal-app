@@ -3,9 +3,6 @@ import "./GroupManagement.css";
 
 
 function GroupManagement() {
-  // The dark navy colour used for headings and text.
-  const navy = "#1a2b4a";
-
   // add user 
   const allPeople = [
     "Sarah Nguyen",
@@ -125,51 +122,21 @@ function GroupManagement() {
       {/* Main content */}
       <div>
         {/* Search group input */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginBottom: "16px",
-          }}
-        >
+        <div className= "group-search-row">
             <input
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="  Search group..."
-              style={{
-                width: "360px",
-                padding:"14px 18px",
-                borderRadius: "10px",
-                border: "1px solid #ddd",
-                backgroundColor: "#f7f8fa",
-                outline: "none",
-              }}
+              className="group-search-input"
             />
           </div>
-          <div
-            style={{
-              border: "1px solid #eee",
-              borderRadius: "16px",
-              padding: "30px",
-            }}
-          >  
+          <div className="group-content-box">  
           {/* Add Group button */}
-          <div
-            style={{
-              marginBottom: "40px",
-            }}
-          >
+          <div className="group-add-section">
             <button
               onClick={addGroup}
-              style={{
-                color: "#2e6da4",
-                fontWeight: "bold",
-                fontSize: "18px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className="group-add-button"
           >    
               (+)Add Group
             </button>
@@ -177,18 +144,7 @@ function GroupManagement() {
 
 
           {/* Table header row */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr",
-              padding: "0 10px 12px",
-              borderBottom: "1px solid #eee",
-              color: "#888",
-              fontWeight: "600",
-              letterSpacing: "1px",
-              fontSize: "14px",
-            }}
-          >
+          <div className="group-table-header">
             <div>GROUP NAME</div>
             <div>MEMBERS</div>
             <div>ACTIONS</div>
@@ -197,51 +153,27 @@ function GroupManagement() {
           {/* Group rows */}
           {visibleGroups.map((group) => (
             <div key={group.name}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr",
-                  alignItems: "center",
-                  padding: "22px 10px",
-                  borderBottom: "1px solid #eee",
-                }}
-              >
-                <div
-                  style={{
-                    color: navy,
-                    fontSize: "18px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
+              <div className="group-table-row">
+                <div className="group-name">
                   {/* Show a minus icon on the expanded group */}
                   {expandedGroup === group.name && (
                     <span
                       onClick={() => openEditor(group.name)}
-                      style={{ cursor: "pointer", color: "#888" }}
+                      className="group-collapse-icon"
                     >
                       ⊖
                     </span>
                   )}
                   {group.name}
                 </div>
-                <div style={{ color: navy, fontSize: "18px" }}>{group.members.length}</div>
+                <div className="group-member-count">{group.members.length}</div>
                 <div>
                   <button
                     onClick={() => openEditor(group.name)}
-                    style={{
-                      padding: "10px 30px 10px 20px",
-                      borderRadius: "8px",
-                      border: "1px solid #ddd",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      position: "relative",
-                    }}
+                    className="group-edit-button"
                   >
                     Edit
-                    <span style={{ position: "absolute", right: "10px", color: "#aaa" }}>
+                    <span className="group-edit-arrow">
                       {expandedGroup === group.name ? "▴" : "▾"}
                     </span>
                   </button>
@@ -250,117 +182,52 @@ function GroupManagement() {
 
               {/* Expanded member panel, only shown for the open group */}
               {expandedGroup === group.name && (
-                <div
-                  style={{
-                    border: "1px solid #eee",
-                    borderRadius: "12px",
-                    padding: "24px 30px",
-                    margin: "16px 0",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: navy,
-                      fontSize: "18px",
-                      fontWeight: "bold",
-                      marginBottom: "20px",
-                    }}
-                  >
+                <div className="group-member-panel">
+                  <div className="group-member-title">
                     Members
                   </div>
 
                   {/* Every person in the pool, in two columns.
                       A ticked box means they belong to this group. */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      rowGap: "20px",
-                      marginBottom: "40px",
-                    }}
-                  >
+                  <div className="group-member-grid">
                     {people.map((person) => {
                       const isChecked = draftMembers.includes(person);
                       return (
                         <label
                           key={person}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                            cursor: "pointer",
-                          }}
+                          className="group-member-label"
                         >
                           <span
                             onClick={() => toggleMember(person)}
-                            style={{
-                              width: "24px",
-                              height: "24px",
-                              borderRadius: "6px",
-                              border: isChecked ? "none" : "2px solid #ccc",
-                              backgroundColor: isChecked ? "#4caf7d" : "#fff",
-                              color: "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "16px",
-                            }}
+                            className={`group-member-checkbox ${isChecked ? "checked" : ""}`}
                           >
                             {isChecked ? "✓" : ""}
                           </span>
-                          <span style={{ color: navy, fontSize: "17px" }}>{person}</span>
+                          <span className="group-member-name">{person}</span>
                         </label>
                       );
                     })}
                   </div>
 
                   {/* Add Users link and the action buttons */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
+                  <div className="group-action-row">
                     <button
                       onClick={addUser}
-                      style={{
-                        color: "#2e6da4",
-                        fontWeight: "bold",
-                        fontSize: "17px",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
+                      className="group-add-user-button"
                     >
                       (+) Add Users
                     </button>
 
-                    <div style={{ display: "flex", gap: "16px" }}>
+                    <div className="group-action-buttons">
                       <button
                         onClick={cancelEdit}
-                        style={{
-                          padding: "12px 28px",
-                          borderRadius: "8px",
-                          border: "1px solid #ddd",
-                          backgroundColor: "#fff",
-                          color: navy,
-                          cursor: "pointer",
-                        }}
+                        className="group-cancel-button"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => saveChanges(group.name)}
-                        style={{
-                          padding: "12px 28px",
-                          borderRadius: "8px",
-                          border: "none",
-                          backgroundColor: "#7fbce0",
-                          color: "#fff",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                        }}
+                        className="group-save-button"
                       >
                         Save Changes
                       </button>
