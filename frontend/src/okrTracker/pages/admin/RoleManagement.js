@@ -2,9 +2,6 @@ import React, { useState } from "react";
 import "./RoleManagement.css";
 
 function RoleManagement() {
-  // The dark navy colour used for headings and text.
-  const navy = "#1a2b4a";
-
   // The list of permissions shown for a role
   const permissionList = [
     "Create Objectives",
@@ -119,7 +116,7 @@ function RoleManagement() {
       {/* Page header */}
       <div className="role-header">
         <div className="role-header-title">
-          <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+          <div className="role-header-title-inner">
             <img
               src="/images/okr/ArrowLogoLeft.png"
               alt = "Arrow Logo L"
@@ -136,69 +133,28 @@ function RoleManagement() {
       {/* Main content */}
       <div>
         {/* Search role input */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginBottom: "16px",
-          }}
-        >
+        <div className="role-search-row">
             <input
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="  Search role..."
-              style={{
-                width: "360px",
-                padding:"14px 18px",
-                borderRadius: "10px",
-                border: "1px solid #ddd",
-                backgroundColor: "#f7f8fa",
-                outline: "none",
-              }}
+              className="role-search-input"
             />
           </div>
-          <div
-            style={{
-              border: "1px solid #eee",
-              borderRadius: "16px",
-              padding: "30px",
-            }}
-          >  
+          <div className="role-content-box">  
           {/* Add Role button */}
-          <div
-            style={{
-              marginBottom: "40px",
-            }}
-          >
+          <div className="role-add-section">
             <button
               onClick={() => alert("Add Role clicked")}
-              style={{
-                color: "#2e6da4",
-                fontWeight: "bold",
-                fontSize: "18px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className="role-add-button"
           >    
               (+)Add Role
             </button>
           </div>
 
           {/* Table header row */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 3fr",
-              padding: "0 10px 12px",
-              borderBottom: "1px solid #eee",
-              color: "#888",
-              fontWeight: "600",
-              letterSpacing: "1px",
-              fontSize: "14px",
-            }}
-          >
+          <div className="role-table-header">
             <div>ROLE</div>
             <div>ACTIONS</div>
           </div>
@@ -206,31 +162,15 @@ function RoleManagement() {
           {/* Role rows */}
           {visibleRoles.map((roleName) => (
             <div key={roleName}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 3fr",
-                  alignItems: "center",
-                  padding: "22px 10px",
-                  borderBottom: "1px solid #eee",
-                }}
-              >
-                <div style={{ color: navy, fontSize: "18px" }}>{roleName}</div>
+              <div className="role-table-row">
+                <div className="role-name">{roleName}</div>
                 <div>
                   <button
                     onClick={() => toggleExpand(roleName)}
-                    style={{
-                      padding: "10px 30px 10px 20px",
-                      borderRadius: "8px",
-                      border: "1px solid #ddd",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      position: "relative",
-                    }}
+                    className="role-edit-button"
                   >
                     Edit
-                    <span style={{ position: "absolute", right: "10px", color: "#aaa" }}>
+                    <span className="role-edit-arrow">
                       {expandedRole === roleName ? "▴" : "▾"}
                     </span>
                   </button>
@@ -239,96 +179,45 @@ function RoleManagement() {
 
               {/* Expanded permissions panel, only for the open role */}
               {expandedRole === roleName && (
-                <div
-                  style={{
-                    border: "1px solid #eee",
-                    borderRadius: "12px",
-                    padding: "24px 30px",
-                    margin: "16px 0",
-                  }}
-                >
+                <div className="role-permissions-panel">
                   <div
-                    style={{
-                      color: navy,
-                      fontSize: "18px",
-                      fontWeight: "bold",
-                      marginBottom: "20px",
-                    }}
-                  >
+                    className="role-permissions-title">
                     Permissions for {roleName}
                   </div>
 
                   {/* Permissions laid out in two columns */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      rowGap: "20px",
-                      marginBottom: "30px",
-                    }}
-                  >
+                  <div className="role-permissions-grid">
                     {permissionList.map((permission) => {
                       const isChecked = roles[roleName][permission];
                       return (
                         <label
                           key={permission}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                            cursor: "pointer",
-                          }}
+                          className="role-permission-label"
                         >
                           {/* Custom coloured checkbox */}
                           <span
                             onClick={() => togglePermission(roleName, permission)}
-                            style={{
-                              width: "24px",
-                              height: "24px",
-                              borderRadius: "6px",
-                              border: isChecked ? "none" : "2px solid #ccc",
-                              backgroundColor: isChecked ? "#4caf7d" : "#fff",
-                              color: "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "16px",
-                            }}
+                            className={`role-permission-checkbox ${isChecked ? "checked" : ""}`}
                           >
                             {isChecked ? "✓" : ""}
                           </span>
-                          <span style={{ color: navy, fontSize: "17px" }}>{permission}</span>
+                          <span className="role-permission-name">{permission}</span>
                         </label>
                       );
                     })}
                   </div>
 
                   {/* Reset and Save Changes buttons */}
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "16px" }}>
+                  <div className="role-action-buttons">
                     <button
                       onClick={() => resetRole(roleName)}
-                      style={{
-                        padding: "12px 28px",
-                        borderRadius: "8px",
-                        border: "1px solid #ddd",
-                        backgroundColor: "#f2f2f2",
-                        color: navy,
-                        cursor: "pointer",
-                      }}
+                      className="role-reset-button"
                     >
                       Reset
                     </button>
                     <button
                       onClick={() => saveRole(roleName)}
-                      style={{
-                        padding: "12px 28px",
-                        borderRadius: "8px",
-                        border: "none",
-                        backgroundColor: "#7fbce0",
-                        color: "#fff",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                      }}
+                      className="role-save-button"
                     >
                       Save Changes
                     </button>
@@ -341,39 +230,16 @@ function RoleManagement() {
       </div>
 
       {/* Permission reference */}
-      <div style={{ marginTop: "30px" }}>
+      <div className="role-reference-section">
         <div
-          style={{
-            border: "1px solid #eee",
-            borderRadius: "16px",
-            padding: "30px",
-          }}
+          className="role-reference-box"
         >
-          <div
-            style={{
-              color: "#888",
-              fontWeight: "600",
-              letterSpacing: "1px",
-              fontSize: "15px",
-              marginBottom: "20px",
-            }}
-          >
+          <div className="role-reference-title">
             PERMISSION REFERENCE
           </div>
 
           {/* Reference table header */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              padding: "0 10px 14px",
-              borderBottom: "1px solid #eee",
-              color: "#888",
-              fontWeight: "600",
-              letterSpacing: "1px",
-              fontSize: "14px",
-            }}
-          >
+          <div className="role-reference-table-header">
             <div>AREA</div>
             <div>MANAGER / EXECUTIVE / ADMIN</div>
             <div>EMPLOYEE</div>
@@ -383,17 +249,10 @@ function RoleManagement() {
           {permissionReference.map((row) => (
             <div
               key={row.area}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                padding: "18px 10px",
-                borderBottom: "1px solid #eee",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ color: navy, fontSize: "17px", fontWeight: "600" }}>{row.area}</div>
-              <div style={{ color: "#666", fontSize: "17px" }}>{row.manager}</div>
-              <div style={{ color: "#666", fontSize: "17px" }}>{row.employee}</div>
+              className="role-reference-table-row">
+              <div className="role-reference-area">{row.area}</div>
+              <div className="role-reference-value">{row.manager}</div>
+              <div className="role-reference-value">{row.employee}</div>
             </div>
           ))}
         </div>
