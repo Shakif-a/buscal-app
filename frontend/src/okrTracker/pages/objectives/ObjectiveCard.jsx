@@ -8,6 +8,8 @@ import {
 } from "../../features/keyResults/keyResultSlice"
 
 function ObjectiveCard({ objective }) {
+  console.log("Objective:", objective);
+  console.log("Objective ID being used:", objective.id);
   const dispatch = useDispatch();
   const { keyResults, isLoading: krLoading, isError: krError, message: krMessage } = useSelector(state => state.keyResults);
   
@@ -83,7 +85,7 @@ function ObjectiveCard({ objective }) {
     } else {
       // If existing, dispatch delete action to backend
       dispatch(deleteKeyResult({
-        objectiveId: objective.id,
+        objectiveId: objective._id,
         keyResultId: keyResult._id || id
       }));
     }
@@ -98,7 +100,7 @@ function ObjectiveCard({ objective }) {
     newKeyResults.forEach(kr => {
       if (kr.title && kr.weight && kr.dueDate) {
         dispatch(createKeyResult({
-          objectiveId: objective.id,
+          objectiveId: objective._id,
           keyResultData: {
             title: kr.title,
             weight: Number(kr.weight),
@@ -114,7 +116,7 @@ function ObjectiveCard({ objective }) {
       const original = keyResults.find(orig => orig._id === kr._id);
       if (original && JSON.stringify(kr) !== JSON.stringify(original)) {
         dispatch(updateKeyResult({
-          objectiveId: objective.id,
+          objectiveId: objective._id,
           keyResultId: kr._id,
           keyResultData: {
             title: kr.title,
