@@ -26,10 +26,163 @@
     margin: 0;
     font-size: 40px;
     font-family: avenir;
-    color: #1f1e40
+    color: #1f1e40;
 }
 
 .logo {
     width: 40px;
     height: auto;
+}
+.group-search-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+.group-search-input {
+    width: 360px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background-color: #f7f8fa;
+    outline: none;
+}
+.group-content-box {
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 30px;
+}
+.group-add-section {
+    margin-bottom: 40px;
+}
+.group-add-button {
+    color: #2e6da4;
+    font-weight: bold;
+    font-size: 18px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.group-table-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    padding: 0 10px 12px;
+    border-bottom: 1px solid #eee;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-size: 14px;
+}
+.group-table-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    align-items: center;
+    padding: 22px 10px;
+    border-bottom: 1px solid #eee;
+}
+.group-name {
+    color: #1a2b4a;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.group-collapse-icon {
+    cursor: pointer;
+    color: #888;
+}
+.group-member-count {
+    color: #1a2b4a;
+    font-size: 18px;
+}
+.group-edit-button {
+    padding: 10px 30px 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    color: #1a2b4a;
+    cursor: pointer;
+    position: relative;
+}
+.group-edit-arrow {
+    position: absolute;
+    right: 10px;
+    color: #aaa;
+}
+.group-member-panel {
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 24px 30px;
+    margin: 16px 0;
+}
+.group-member-title {
+    color: #1a2b4a;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+.group-member-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: 20px;
+    margin-bottom: 40px;
+}
+.group-member-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+.group-member-checkbox {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 2px solid #ccc;
+    background-color: #fff;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+.group-member-checkbox.checked {
+    border: none;
+    background-color: #4caf7d;
+}
+.group-member-name {
+    color: #1a2b4a;
+    font-size: 17px;
+}
+.group-action-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.group-add-user-button {
+    color: #2e6da4;
+    font-weight: bold;
+    font-size: 17px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.group-action-buttons {
+    display: flex;
+    gap: 16px;
+}
+.group-cancel-button {
+    padding: 12px 28px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    color: #1a2b4a;
+    cursor: pointer;
+}
+.group-save-button {
+    padding: 12px 28px;
+    border-radius: 8px;
+    border: none;
+    background-color: #7fbce0;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
 }
