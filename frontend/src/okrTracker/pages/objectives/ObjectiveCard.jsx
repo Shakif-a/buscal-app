@@ -1,16 +1,40 @@
 import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { 
+  getKeyResultsByObjective, 
+  createKeyResult, 
+  updateKeyResult, 
+  deleteKeyResult 
+} from "../../features/keyResults/keyResultSlice"
 
 function ObjectiveCard({ objective }) {
+  const dispatch = useDispatch();
+  const { keyResults, isLoading: krLoading, isError: krError, message: krMessage } = useSelector(state => state.keyResults);
+  
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
-
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const menuRef = useRef(null);
 
+  // Track local edits before saving
+  const [localKeyResults, setLocalKeyResults] = useState([]);
+
+  // Load key results when expanding
   useEffect(() => {
-    function handleClickOutside(event){
-      if (menuRef.current && !menuRef.current.contains(event.target)){
+    if (showKeyResults && objective.id) {
+      dispatch(getKeyResultsByObjective(objective.id));
+    }
+  }, [showKeyResults, objective.id, dispatch]);
+
+  // Sync Redux data to local state when it changes
+  useEffect(() => {
+    setLocalKeyResults(keyResults);
+  }, [keyResults]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
       }
     }
@@ -20,90 +44,98 @@ function ObjectiveCard({ objective }) {
     };
   }, []);
 
-  const [keyResults, setKeyResults] = useState([
-    {
-      id: 1,
-      name: "KR#1",
-      weight: 30,
-      assigned: "J. Smith",
-      progress: 90,
-      dueDate: "30/10/26",
-      status: "Completed",
-      approved: true,
-    },
-    {
-      id: 2,
-      name: "KR#2",
-      weight: 25,
-      assigned: "A. Lee",
-      progress: 40,
-      dueDate: "12/11/26",
-      status: "At Risk",
-      approved: false,
-    },
-    {
-      id: 3,
-      name: "KR#3",
-      weight: 25,
-      assigned: "R. Kaur",
-      progress: 60,
-      dueDate: "20/11/26",
-      status: "On Track",
-      approved: false,
-    },
-    {
-      id: 4,
-      name: "KR#4",
-      weight: 20,
-      assigned: "M. Chan",
-      progress: 15,
-      dueDate: "30/11/26",
-      status: "Choose Progress",
-      approved: false,
-    },
-  ]);
-
   function addKeyResult() {
+    // Create new key result with default values
     const newKeyResult = {
-      id: Date.now(),
-      name: `KR#${keyResults.length + 1}`,
+      id: Date.now().toString(),
+      title: "",
       weight: 0,
-      assigned: "",
-      progress: 0,
+      assigned: "Unassigned",
+      assignedTo: null,
       dueDate: "",
-      status: "Choose Progress",
-      approved: false,
+      isNew: true, // Flag to indicate this is a new, unsaved KR
     };
 
-    setKeyResults([...keyResults, newKeyResult]);
+    setLocalKeyResults([...localKeyResults, newKeyResult]);
     setEditMode(true);
   }
 
-  function updateKeyResult(id, field, value) {
-    const updatedKeyResults = keyResults.map((keyResult) => {
-      if (keyResult.id === id) {
+  function updateLocalKeyResult(id, field, value) {
+    const updatedKeyResults = localKeyResults.map((keyResult) => {
+      if (keyResult.id === id || keyResult._id === id) {
         return {
           ...keyResult,
           [field]: value,
         };
       }
-
       return keyResult;
     });
 
-    setKeyResults(updatedKeyResults);
+    setLocalKeyResults(updatedKeyResults);
   }
 
-  function deleteKeyResult(id) {
-    const updatedKeyResults = keyResults.filter(
-      (keyResult) => keyResult.id !== id
-    );
+  function deleteLocalKeyResult(id) {
+    const keyResult = localKeyResults.find(kr => kr.id === id || kr._id === id);
+    
+    if (keyResult.isNew) {
+      // If new (unsaved), just remove from local state
+      setLocalKeyResults(localKeyResults.filter(kr => kr.id !== id && kr._id !== id));
+    } else {
+      // If existing, dispatch delete action to backend
+      dispatch(deleteKeyResult({
+        objectiveId: objective.id,
+        keyResultId: keyResult._id || id
+      }));
+    }
+  }
 
-    setKeyResults(updatedKeyResults);
+  function handleSaveKeyResults() {
+    // Separate new and existing key results
+    const newKeyResults = localKeyResults.filter(kr => kr.isNew);
+    const modifiedKeyResults = localKeyResults.filter(kr => !kr.isNew);
+
+    // Create new key results
+    newKeyResults.forEach(kr => {
+      if (kr.title && kr.weight && kr.dueDate) {
+        dispatch(createKeyResult({
+          objectiveId: objective.id,
+          keyResultData: {
+            title: kr.title,
+            weight: Number(kr.weight),
+            dueDate: kr.dueDate,
+            assignedTo: kr.assignedTo || null,
+          }
+        }));
+      }
+    });
+
+    // Update modified key results (compare with original)
+    modifiedKeyResults.forEach(kr => {
+      const original = keyResults.find(orig => orig._id === kr._id);
+      if (original && JSON.stringify(kr) !== JSON.stringify(original)) {
+        dispatch(updateKeyResult({
+          objectiveId: objective.id,
+          keyResultId: kr._id,
+          keyResultData: {
+            title: kr.title,
+            weight: Number(kr.weight),
+            dueDate: kr.dueDate,
+            assignedTo: kr.assignedTo || null,
+          }
+        }));
+      }
+    });
+
+    setEditMode(false);
   }
 
   function handleEditButton() {
     setEditMode(!editMode);
+  }
+
+  function handleCancelEdits() {
+    setEditMode(false);
+    setLocalKeyResults(keyResults); // Revert to last saved state
   }
 
   return (
@@ -130,23 +162,36 @@ function ObjectiveCard({ objective }) {
           Due: <strong>{objective.dueDate}</strong>
         </p>
 
-        <div className="objective-menu-container"
-        ref={menuRef}>
-          <button type="button"
-          className="objective-menu-button"
-          onClick={() => setShowMenu(!showMenu)}>...</button>
+        <div className="objective-menu-container" ref={menuRef}>
+          <button
+            type="button"
+            className="objective-menu-button"
+            onClick={() => setShowMenu(!showMenu)}
+          >
+            ...
+          </button>
           {showMenu && (
             <div className="objective-menu-dropdown">
-              <button type="button"
-              className="objective-menu-item"
-              onClick={() => {console.log("Edit Objective", objective);
-                              setShowMenu(false);
-              }}>Edit</button>
-              <button type="button"
-              className="objective-menu-item delete-menu-item"
-              onClick={() => {setShowMenu(false);
-                setShowDeleteModal(true);
-              }}>Delete</button>
+              <button
+                type="button"
+                className="objective-menu-item"
+                onClick={() => {
+                  console.log("Edit Objective", objective);
+                  setShowMenu(false);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="objective-menu-item delete-menu-item"
+                onClick={() => {
+                  setShowMenu(false);
+                  setShowDeleteModal(true);
+                }}
+              >
+                Delete
+              </button>
             </div>
           )}
         </div>
@@ -173,15 +218,9 @@ function ObjectiveCard({ objective }) {
           </div>
 
           <div className="progress-track">
-            <div
-              className="progress-fill"
-              style={{ width: `${objective.progress}%` }}
-            />
+            <div className="progress-fill" style={{ width: `${objective.progress}%` }} />
 
-            <div
-              className="progress-circle"
-              style={{ left: `${objective.progress}%` }}
-            />
+            <div className="progress-circle" style={{ left: `${objective.progress}%` }} />
           </div>
         </div>
       </div>
@@ -189,206 +228,151 @@ function ObjectiveCard({ objective }) {
       {/* Key Results Table */}
       {showKeyResults && (
         <div className="key-results-section">
-          <table className="key-results-table">
-            <thead>
-              <tr>
-                <th>KEY RESULTS</th>
-                <th>WEIGHT</th>
-                <th>ASSIGNED</th>
-                <th>PROGRESS</th>
-                <th>DUE DATE</th>
-                <th>STATUS</th>
-                <th>EVIDENCE</th>
-                <th>APPROVAL</th>
-              </tr>
-            </thead>
+          {krLoading && <p>Loading key results...</p>}
+          {krError && <p className="error-message">{krMessage}</p>}
+          
+          {!krLoading && (
+            <>
+              <table className="key-results-table">
+                <thead>
+                  <tr>
+                    <th>KEY RESULTS</th>
+                    <th>WEIGHT</th>
+                    <th>ASSIGNED</th>
+                    <th>DUE DATE</th>
+                  </tr>
+                </thead>
 
-            <tbody>
-              {keyResults.map((keyResult) => (
-                <tr key={keyResult.id}>
-                  <td>
-                    {editMode && (
-                      <button
-                        type="button"
-                        className="remove-key-result"
-                        onClick={() => deleteKeyResult(keyResult.id)}
-                      >
-                        −
-                      </button>
-                    )}
+                <tbody>
+                  {localKeyResults.map((keyResult) => (
+                    <tr key={keyResult._id || keyResult.id}>
+                      <td>
+                        {editMode && (
+                          <button
+                            type="button"
+                            className="remove-key-result"
+                            onClick={() => deleteLocalKeyResult(keyResult._id || keyResult.id)}
+                          >
+                            −
+                          </button>
+                        )}
 
-                    <span>{keyResult.name}</span>
-                  </td>
+                        {editMode ? (
+                          <input
+                            className="key-result-input"
+                            type="text"
+                            value={keyResult.title}
+                            placeholder="Enter key result title"
+                            onChange={(event) =>
+                              updateLocalKeyResult(
+                                keyResult._id || keyResult.id,
+                                "title",
+                                event.target.value
+                              )
+                            }
+                          />
+                        ) : (
+                          <span>{keyResult.title}</span>
+                        )}
+                      </td>
 
-                  <td>
-                    {editMode ? (
-                      <input
-                        className="key-result-small-input"
-                        type="number"
-                        value={keyResult.weight}
-                        onChange={(event) =>
-                          updateKeyResult(
-                            keyResult.id,
-                            "weight",
-                            event.target.value
-                          )
-                        }
-                      />
-                    ) : (
-                      `${keyResult.weight}%`
-                    )}
-                  </td>
+                      <td>
+                        {editMode ? (
+                          <input
+                            className="key-result-small-input"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={keyResult.weight}
+                            placeholder="0"
+                            onChange={(event) =>
+                              updateLocalKeyResult(
+                                keyResult._id || keyResult.id,
+                                "weight",
+                                event.target.value
+                              )
+                            }
+                          />
+                        ) : (
+                          `${keyResult.weight}%`
+                        )}
+                      </td>
 
-                  <td>
-                    {editMode ? (
-                      <input
-                        className="key-result-input"
-                        type="text"
-                        value={keyResult.assigned}
-                        onChange={(event) =>
-                          updateKeyResult(
-                            keyResult.id,
-                            "assigned",
-                            event.target.value
-                          )
-                        }
-                      />
-                    ) : (
-                      keyResult.assigned
-                    )}
-                  </td>
+                      <td>
+                        {editMode ? (
+                          <input
+                            className="key-result-input"
+                            type="text"
+                            value={keyResult.assigned}
+                            placeholder="Assigned to"
+                            onChange={(event) =>
+                              updateLocalKeyResult(
+                                keyResult._id || keyResult.id,
+                                "assigned",
+                                event.target.value
+                              )
+                            }
+                          />
+                        ) : (
+                          keyResult.assigned
+                        )}
+                      </td>
 
-                  <td>
-                    {editMode ? (
-                      <input
-                        className="key-result-small-input"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={keyResult.progress}
-                        onChange={(event) =>
-                          updateKeyResult(
-                            keyResult.id,
-                            "progress",
-                            event.target.value
-                          )
-                        }
-                      />
-                    ) : (
-                      `${keyResult.progress}%`
-                    )}
-                  </td>
+                      <td>
+                        {editMode ? (
+                          <input
+                            className="key-result-input"
+                            type="text"
+                            placeholder="DD/MM/YY"
+                            value={keyResult.dueDate}
+                            onChange={(event) =>
+                              updateLocalKeyResult(
+                                keyResult._id || keyResult.id,
+                                "dueDate",
+                                event.target.value
+                              )
+                            }
+                          />
+                        ) : (
+                          keyResult.dueDate
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                  <td>
-                    {editMode ? (
-                      <input
-                        className="key-result-input"
-                        type="text"
-                        placeholder="DD/MM/YY"
-                        value={keyResult.dueDate}
-                        onChange={(event) =>
-                          updateKeyResult(
-                            keyResult.id,
-                            "dueDate",
-                            event.target.value
-                          )
-                        }
-                      />
-                    ) : (
-                      keyResult.dueDate
-                    )}
-                  </td>
+              <div className="key-results-footer">
+                <button
+                  type="button"
+                  className="add-key-result"
+                  onClick={addKeyResult}
+                  disabled={!editMode}
+                >
+                  + Add Key Result
+                </button>
 
-                  <td>
-                    <select
-                      value={keyResult.status}
-                      disabled={!editMode}
-                      onChange={(event) =>
-                        updateKeyResult(
-                          keyResult.id,
-                          "status",
-                          event.target.value
-                        )
-                      }
-                    >
-                      <option value="Choose Progress">
-                        Choose Progress
-                      </option>
-                      <option value="Not Started">Not Started</option>
-                      <option value="On Track">On Track</option>
-                      <option value="At Risk">At Risk</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
+                <div className="footer-buttons">
+                  <button
+                    type="button"
+                    className="cancel-button"
+                    onClick={handleCancelEdits}
+                    disabled={!editMode}
+                  >
+                    Cancel
+                  </button>
 
-                  <td>
-                    <button type="button" className="action-link">
-                      View
-                    </button>
-
-                    <span> | </span>
-
-                    <button type="button" className="action-link">
-                      Edit
-                    </button>
-
-                    <span> | </span>
-
-                    <button type="button" className="action-link">
-                      Delete
-                    </button>
-                  </td>
-
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={keyResult.approved}
-                      onChange={(event) => {
-                        if (!editMode) return;
-
-                        updateKeyResult(
-                          keyResult.id,
-                          "approved",
-                          event.target.checked
-                        );
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="key-results-footer">
-            <button
-              type="button"
-              className="add-key-result"
-              onClick={addKeyResult}
-            >
-              + Add Key Result
-            </button>
-
-            <div className="footer-buttons">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => {
-                  setEditMode(false);
-                  setShowKeyResults(false);
-                }}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="save-button"
-                onClick={handleEditButton}
-              >
-                {editMode ? "Save Key Results" : "Edit Key Results"}
-              </button>
-            </div>
-          </div>
+                  <button
+                    type="button"
+                    className="save-button"
+                    onClick={editMode ? handleSaveKeyResults : handleEditButton}
+                  >
+                    {editMode ? "Save Key Results" : "Edit Key Results"}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -396,18 +380,29 @@ function ObjectiveCard({ objective }) {
         <div className="popup-overlay">
           <div className="delete-objective-popup">
             <h2>Delete Objective</h2>
-            <p>Are you sure you want to delete <strong>{objective.title}</strong>?</p>
+            <p>
+              Are you sure you want to delete <strong>{objective.title}</strong>?
+            </p>
             <p>This action cannot be undone.</p>
 
             <div className="popup-buttons">
-              <button type="button"
-              className="popup-cancel-button"
-              onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button type="button"
-              className="popup-delete-button"
-              onClick={() => {console.log("Delete objective", objective);
-                              setShowDeleteModal(false);
-              }}>Delete</button>
+              <button
+                type="button"
+                className="popup-cancel-button"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="popup-delete-button"
+                onClick={() => {
+                  console.log("Delete objective", objective);
+                  setShowDeleteModal(false);
+                }}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
