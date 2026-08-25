@@ -384,6 +384,8 @@
   background-color: #cfe2f0;
 }
 
+/* ---------------- Kebab Menu Delete ---------------- */
+
 .delete-menu-item{
   color: #d9534f;
 }
@@ -465,4 +467,129 @@
 
 .popup-delete-button:hover{
     background-color: #b52b27;
+}
+
+/* ---------------- Kebab Menu Edit ---------------- */
+
+.edit-popup-overlay{
+    position: fixed;
+    inset: 0;
+    background-color: rgba(31, 30, 64, 0.25);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 90px;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.edit-objective-popup{
+    width: 850px;
+    max-width: 90%;
+    max-height: calc(100vh - 120px);
+    background-color: white;
+    border: 1px solid #d9dfea;
+    border-radius: 15px;
+    padding: 28px 32px;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.edit-popup-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.edit-popup-header h2{
+  margin: 0;
+  font-size: 32px;
+  font-family: avenir;
+  color: #1f1e40;
+}
+
+.edit-popup-close{
+  padding: 1px 10px;
+  padding-bottom: 4px;
+  border: 1px solid #d9dfea;
+  background-color: #cc5656;
+  font-size: 24px;
+  color: #1f1e40;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.edit-objective-form{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+.edit-form-left, .edit-form-right{
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-objective-form label{
+  margin-bottom: 8px;
+  margin-top: 18px;
+  color: #1f1e40;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.edit-objective-form input, 
+.edit-objective-form select, 
+.edit-objective-form textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d9dfea;
+  border-radius: 10px;
+  font-size:  16px;
+  color: #1f1e40;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.edit-objective-form textarea {
+  height: 340px;
+  resize: vertical;
+  font-family: sans-serif;
+}
+
+.edit-popup-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.edit-cancel-button {
+  padding: 12px 28px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  background-color: #f2f2f2;
+  color: #1f1e40;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.edit-cancel-button:hover{
+    background-color: #cfe2f0;
+}
+
+.edit-save-button {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 8px;
+  background-color: #2e9e6b;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-save-button:hover{
+    background-color: #32785d;
 }

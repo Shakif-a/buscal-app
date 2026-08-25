@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from "react";
+import { useDispatch } from "react-redux";
+import { deleteObjective, updateObjective, } from "../../features/objectives/objectiveSlice";
 
 function ObjectiveCard({ objective }) {
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const[editTitle, setEditTitle] = useState("");
+  const[editDueDate, setEditDueDate] = useState("");
+  const[editOwner, setEditOwner] = useState("");
+  const[editGroup, setEditGroup] = useState("");
+  const[editCommitmentType, setEditCommitmentType] = useState("");
+  const[editDescription, setEditDescription] = useState("");
 
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const menuRef = useRef(null);
+
+  const dispatch = useDispatch();
 
   useEffect(() => {
     function handleClickOutside(event){
@@ -20,6 +32,25 @@ function ObjectiveCard({ objective }) {
     };
   }, []);
 
+  function openEditModal() {
+    setEditTitle(objective.title || "");
+    setEditOwner(objective.owner?._id || objective.owner || "");
+    setEditGroup(objective.group || "");
+    setEditCommitmentType (objective.commitmentType || "committed");
+    setEditDescription (objective.description || "");
+
+    if (objective.dueDate) {
+      const date = new Date(objective.dueDate);
+      const formattedDate = date.toISOString().split("T")[0];
+      setEditDueDate(formattedDate);
+    } else {
+      setEditDueDate("");
+    }
+
+    setShowMenu(false);
+    setShowEditModal(true);
+  }
+  
   const [keyResults, setKeyResults] = useState([
     {
       id: 1,
@@ -106,6 +137,45 @@ function ObjectiveCard({ objective }) {
     setEditMode(!editMode);
   }
 
+  {/*delete objective*/}
+  const handleDeleteObjective = async () => {
+    try {
+      const objectiveId = objective._id || objective.id;
+
+      await dispatch(deleteObjective(objectiveId)).unwrap();
+
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Failed to delete objective", error);
+    }
+  };
+
+  const handleUpdateObjective = async () => {
+    try {
+      const objectiveId = objective._id || objective.id;
+
+      const objectiveData = {
+        title: editTitle,
+        dueDate: editDueDate,
+        owner: editOwner,
+        group: editGroup,
+        commitmentType: editCommitmentType,
+        description: editDescription,
+      };
+
+      await dispatch(
+        updateObjective({
+          objectiveId,
+          objectiveData,
+        })
+      ).unwrap();
+
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Failed to update objective", error);
+    }
+  };
+
   return (
     <div className="objective-card">
       {/* Objective information */}
@@ -139,14 +209,16 @@ function ObjectiveCard({ objective }) {
             <div className="objective-menu-dropdown">
               <button type="button"
               className="objective-menu-item"
-              onClick={() => {console.log("Edit Objective", objective);
-                              setShowMenu(false);
-              }}>Edit</button>
+              onClick={openEditModal}
+              >Edit</button>
               <button type="button"
               className="objective-menu-item delete-menu-item"
               onClick={() => {setShowMenu(false);
                 setShowDeleteModal(true);
-              }}>Delete</button>
+              }}
+              >
+                Delete
+              </button>
             </div>
           )}
         </div>
@@ -405,9 +477,92 @@ function ObjectiveCard({ objective }) {
               onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button type="button"
               className="popup-delete-button"
-              onClick={() => {console.log("Delete objective", objective);
-                              setShowDeleteModal(false);
-              }}>Delete</button>
+              onClick={handleDeleteObjective}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div className="edit-popup-overlay">
+          <div className="edit-objective-popup">
+            <div className="edit-popup-header">
+              <h2>Edit Objective</h2>
+
+              <button type="button"
+              className="edit-popup-close"
+              onClick={() => setShowEditModal(false)}>x</button>
+            </div>
+
+            <div className="edit-objective-form">
+              <div className="edit-form-left">
+                <label>Title</label>
+                <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Enter Objective Title"/>
+
+                <label>Due Date</label>
+                <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    />
+                
+                <label>Owner</label>
+                <input
+                    type="text"
+                    value={editOwner}
+                    onChange={(e) => setEditOwner(e.target.value)}
+                    />
+                
+                <label>Group</label>
+                <input
+                    type="text"
+                    value={editGroup}
+                    onChange={(e) => setEditGroup(e.target.value)}
+                    />
+                
+                <label>Type</label>
+                <select
+                    value={editCommitmentType}
+                    onChange={(e) => setEditCommitmentType(e.target.value)}
+                >
+                  <option value = "committed">Committed</option>
+                  <option value = "aspirational">Aspirational</option>
+                </select>
+              </div>
+
+              <div className="edit-form-right">
+                <label>Description</label>
+                <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Describe the Objective"
+                />
+              </div>
+            </div>
+
+            <div className="edit-popup-buttons">
+              <button
+                  type="button"
+                  className="edit-cancel-button"
+                  onClick={() => setShowEditModal(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                  type="button"
+                  className="edit-save-button"
+                  onClick={handleUpdateObjective}
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>

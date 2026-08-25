@@ -144,6 +144,9 @@ export const objectiveSlice = createSlice({
       // Fetch Single Objective By ID
       .addCase(getObjectiveById.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = "";
       })
       .addCase(getObjectiveById.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -159,6 +162,9 @@ export const objectiveSlice = createSlice({
       // Create Objective
       .addCase(createObjective.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = "";
       })
       .addCase(createObjective.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -175,6 +181,9 @@ export const objectiveSlice = createSlice({
       // Delete Objective
       .addCase(deleteObjective.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = "";
       })
       .addCase(deleteObjective.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -193,6 +202,9 @@ export const objectiveSlice = createSlice({
       // Update Objective
       .addCase(updateObjective.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = "";
       })
       .addCase(updateObjective.fulfilled, (state, action) => {
         state.isLoading = false;
