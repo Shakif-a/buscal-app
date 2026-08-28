@@ -70,5 +70,6 @@ function adminOrExec(req, res, next) {
 module.exports = {
   adminOrExec,
   defaultPermissions,
+  getRoleName,
   hasPermission,
 };

@@ -1,9 +1,16 @@
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
-const { hasPermission } = require("./adminPermissions");
+const { getRoleName, hasPermission } = require("./adminPermissions");
 
 const canCreateObjective = asyncHandler(async (req, res, next) => {
+  const role = getRoleName(req.user);
+
+  if (role === "Employee") {
+    res.status(403);
+    throw new Error("You do not have permission to create objectives");
+  }
+
   const allowed = await hasPermission(req.user, "Create Objectives");
 
   if (!allowed) {
@@ -29,9 +36,21 @@ const canManageObjective = asyncHandler(async (req, res, next) => {
 
   const isOwner = objective.owner.toString() === req.user._id.toString();
 
+  if (isOwner) {
+    next();
+    return;
+  }
+
+  const role = getRoleName(req.user);
+
+  if (role === "Employee") {
+    res.status(403);
+    throw new Error("You do not have permission to manage this objective");
+  }
+
   const allowed = await hasPermission(req.user, "Edit Objectives");
 
-  if (!allowed && !isOwner) {
+  if (!allowed) {
     res.status(403);
     throw new Error("You do not have permission to manage this objective");
   }
