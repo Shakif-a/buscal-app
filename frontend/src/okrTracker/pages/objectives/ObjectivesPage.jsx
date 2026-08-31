@@ -176,8 +176,7 @@ function ObjectivesPage() {
           value={selectedObjectives}
           onChange={(e) => setSelectedObjectives(e.target.value)}
         >
-          <option value="">Objectives</option>
-          <option value="all">All Objectives</option>
+          <option value="">Objectives (All)</option>
           <option value="mine">My Objectives</option>
         </select>
 
