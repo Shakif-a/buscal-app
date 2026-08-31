@@ -269,6 +269,12 @@
   border-radius: 10px;
   background: #eef2f7;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.key-results-footer .cancel-button:hover{
+  background-color: #cc5656;
+  color: white;
 }
 
 .save-button {

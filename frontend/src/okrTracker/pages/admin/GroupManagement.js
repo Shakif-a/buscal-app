@@ -222,15 +222,7 @@ function GroupManagement() {
                 <div>
                   <button
                     onClick={() => openEditor(group.name)}
-                    style={{
-                      padding: "10px 30px 10px 20px",
-                      borderRadius: "8px",
-                      border: "1px solid #ddd",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      position: "relative",
-                    }}
+                    className="group-edit-button"
                   >
                     Edit
                     <span style={{ position: "absolute", right: "10px", color: "#aaa" }}>
@@ -331,28 +323,13 @@ function GroupManagement() {
                     <div style={{ display: "flex", gap: "16px" }}>
                       <button
                         onClick={cancelEdit}
-                        style={{
-                          padding: "12px 28px",
-                          borderRadius: "8px",
-                          border: "1px solid #ddd",
-                          backgroundColor: "#fff",
-                          color: navy,
-                          cursor: "pointer",
-                        }}
+                        className="group-cancel-button"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => saveChanges(group.name)}
-                        style={{
-                          padding: "12px 28px",
-                          borderRadius: "8px",
-                          border: "none",
-                          backgroundColor: "#7fbce0",
-                          color: "#fff",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                        }}
+                        className="group-save-button"
                       >
                         Save Changes
                       </button>

@@ -446,7 +446,6 @@ function ObjectiveCard({ objective }) {
                 className="cancel-button"
                 onClick={() => {
                   setEditMode(false);
-                  setShowKeyResults(false);
                 }}
               >
                 Cancel

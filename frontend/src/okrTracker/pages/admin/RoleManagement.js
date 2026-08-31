@@ -213,15 +213,7 @@ function RoleManagement() {
                 <div>
                   <button
                     onClick={() => toggleExpand(roleName)}
-                    style={{
-                      padding: "10px 30px 10px 20px",
-                      borderRadius: "8px",
-                      border: "1px solid #ddd",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      position: "relative",
-                    }}
+                    className="role-edit-button"
                   >
                     Edit
                     <span style={{ position: "absolute", right: "10px", color: "#aaa" }}>
@@ -301,28 +293,13 @@ function RoleManagement() {
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "16px" }}>
                     <button
                       onClick={() => resetRole(roleName)}
-                      style={{
-                        padding: "12px 28px",
-                        borderRadius: "8px",
-                        border: "1px solid #ddd",
-                        backgroundColor: "#f2f2f2",
-                        color: navy,
-                        cursor: "pointer",
-                      }}
+                      className="role-reset-button"
                     >
-                      Reset
+                      Cancel
                     </button>
                     <button
                       onClick={() => saveRole(roleName)}
-                      style={{
-                        padding: "12px 28px",
-                        borderRadius: "8px",
-                        border: "none",
-                        backgroundColor: "#7fbce0",
-                        color: "#fff",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                      }}
+                      className="role-save-button"
                     >
                       Save Changes
                     </button>
