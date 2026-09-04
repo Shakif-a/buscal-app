@@ -1,76 +1,77 @@
-import React, { useEffect, useState } from "react";
-import adminService from "../../features/admin/adminService";
+import React, { useState } from "react";
 import "./RoleManagement.css";
 
-const permissionList = [
-  "Create Objectives",
-  "Edit Objectives",
-  "Create Key Results",
-  "Approve Key Results",
-  "View Reports",
-  "Manage Users",
-  "Manage Roles",
-  "Manage Groups",
-];
+function RoleManagement() {
+  // The dark navy colour used for headings and text.
+  const navy = "#1a2b4a";
 
-const roleNames = ["Admin", "Manager", "Employee"];
-
-const defaultRoles = {
-  Admin: [...permissionList],
-  Manager: [
+  // The list of permissions shown for a role
+  const permissionList = [
     "Create Objectives",
     "Edit Objectives",
     "Create Key Results",
     "Approve Key Results",
     "View Reports",
-  ],
-  Employee: ["View Reports"],
-};
+    "Manage Users",
+    "Manage Roles",
+    "Manage Groups",
+  ];
 
-function getErrorMessage(error) {
-  if (error.response && error.response.data && error.response.data.message) {
-    return error.response.data.message;
-  }
+  const defaultRoles = {
+    Admin: {
+      "Create Objectives": true,
+      "Edit Objectives": true,
+      "Create Key Results": true,
+      "Approve Key Results": true,
+      "View Reports": true,
+      "Manage Users": true,
+      "Manage Roles": true,
+      "Manage Groups": true,
+    },
+    Manager: {
+      "Create Objectives": true,
+      "Edit Objectives": true,
+      "Create Key Results": true,
+      "Approve Key Results": true,
+      "View Reports": true,
+      "Manage Users": false,
+      "Manage Roles": false,
+      "Manage Groups": false,
+    },
+    Employee: {
+      "Create Objectives": false,
+      "Edit Objectives": false,
+      "Create Key Results": false,
+      "Approve Key Results": false,
+      "View Reports": true,
+      "Manage Users": false,
+      "Manage Roles": false,
+      "Manage Groups": false,
+    },
+  };
 
-  return "Something went wrong";
-}
+  // The list of role names
+  const roleNames = ["Admin", "Manager", "Employee"];
 
-function makeRoleState(roleList) {
-  const result = {};
-
-  for (let i = 0; i < roleList.length; i++) {
-    result[roleList[i].role] = roleList[i].permissions;
-  }
-
-  return result;
-}
-
-function RoleManagement() {
+  // The editable permission state for every role.
   const [roles, setRoles] = useState(defaultRoles);
+
   const [expandedRole, setExpandedRole] = useState("Manager");
+
+  // The text typed into the role search box.
   const [searchText, setSearchText] = useState("");
-  const [savedRole, setSavedRole] = useState("");
-  const [showSavePopup, setShowSavePopup] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadPermissions();
-  }, []);
+  const permissionReference = [
+    { area: "Dashboard", manager: "Read", employee: "Read" },
+    { area: "Calendar", manager: "Read", employee: "Read" },
+    { area: "Objectives (all)", manager: "Full Access", employee: "Read" },
+    { area: "Objectives (create)", manager: "Full Access", employee: "No Access" },
+    { area: "Key Results", manager: "Full Access", employee: "Read" },
+    { area: "Reports", manager: "Full Access", employee: "Read, create" },
+    { area: "Admin", manager: "Full Access", employee: "No Access" },
+  ];
 
-  async function loadPermissions() {
-    try {
-      setLoading(true);
-      setError("");
-      const savedPermissions = await adminService.getPermissions();
-      setRoles(makeRoleState(savedPermissions));
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // Open or close the permissions panel for a role.
   function toggleExpand(roleName) {
     if (expandedRole === roleName) {
       setExpandedRole(null);
@@ -79,145 +80,249 @@ function RoleManagement() {
     }
   }
 
+  // Tick or untick a single permission for the given role.
   function togglePermission(roleName, permission) {
-    const currentPermissions = roles[roleName] || [];
-    let updatedPermissions;
-
-    if (currentPermissions.includes(permission)) {
-      updatedPermissions = currentPermissions.filter(
-        (name) => name !== permission
-      );
-    } else {
-      updatedPermissions = [...currentPermissions, permission];
-    }
-
-    setRoles({
-      ...roles,
-      [roleName]: updatedPermissions,
+    setRoles((previous) => {
+      const updatedRole = {
+        ...previous[roleName],
+        [permission]: !previous[roleName][permission],
+      };
+      return { ...previous, [roleName]: updatedRole };
     });
   }
 
+  // Reset a role's permissions back to the defaults.
   function resetRole(roleName) {
-    setRoles({
-      ...roles,
-      [roleName]: [...defaultRoles[roleName]],
+    setRoles((previous) => {
+      return { ...previous, [roleName]: { ...defaultRoles[roleName] } };
     });
   }
 
-  async function saveRole(roleName) {
-    try {
-      setError("");
-      const saved = await adminService.updatePermissions(
-        roleName,
-        roles[roleName]
-      );
-
-      setRoles({
-        ...roles,
-        [roleName]: saved.permissions,
-      });
-      setSavedRole(roleName);
-      setShowSavePopup(true);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    }
+  // Save the changes. Here we just show a confirmation, since there
+  // is no backend connected yet. we have to Replace this with an API call later.
+  function saveRole(roleName) {
+    setSavedRole(roleName);
+    setShowSavePopup(true);
   }
 
+  // Filter the roles by the search text.
   const visibleRoles = roleNames.filter((name) =>
     name.toLowerCase().includes(searchText.toLowerCase())
   );
 
+  const [showSavePopup,setShowSavePopup] = useState(false);
+  const [savedRole, setSavedRole] = useState("");
+
   return (
     <div className="role-management">
+
+      {/* Page header */}
       <div className="role-header">
         <div className="role-header-title">
-          <div className="role-header-title-inner">
+          <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
             <img
               src="/images/okr/ArrowLogoLeft.png"
-              alt="Arrow Logo L"
-              className="logo"
-            />
+              alt = "Arrow Logo L"
+              className = "logo"/>
             <h1>Role Management</h1>
           </div>
           <img
-            src="/images/okr/ArrowLogoRight.png"
-            alt="Arrow Logo R"
-            className="logo"
-          />
+              src="/images/okr/ArrowLogoRight.png"
+              alt = "Arrow Logo R"
+              className = "logo"/>
         </div>
       </div>
 
-      <div className="role-search-row">
-        <input
-          type="text"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          placeholder="Search role..."
-          className="role-search-input"
-        />
-      </div>
+      {/* Main content */}
+      <div>
+        <div
+          style={{
+            border: "1px solid #eee",
+            borderRadius: "16px",
+            padding: "30px",
+          }}
+        >
+          {/* Search role input and Add Role button */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "24px",
+            }}
+          >
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="🔍  Search role..."
+              style={{
+                width: "45%",
+                padding: "14px 18px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                backgroundColor: "#f7f8fa",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={() => alert("Add Role clicked")}
+              style={{
+                color: "#2e6da4",
+                fontWeight: "bold",
+                fontSize: "18px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              (+) Add Role
+            </button>
+          </div>
 
-      <div className="role-content-box">
-        {error && <div className="role-error">{error}</div>}
-        {loading && <div className="role-message">Loading roles...</div>}
+          {/* Table header row */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 3fr",
+              padding: "0 10px 12px",
+              borderBottom: "1px solid #eee",
+              color: "#888",
+              fontWeight: "600",
+              letterSpacing: "1px",
+              fontSize: "14px",
+            }}
+          >
+            <div>ROLE</div>
+            <div>ACTIONS</div>
+          </div>
 
-        <div className="role-table-header">
-          <div>ROLE</div>
-          <div>ACTIONS</div>
-        </div>
-
-        {!loading &&
-          visibleRoles.map((roleName) => (
+          {/* Role rows */}
+          {visibleRoles.map((roleName) => (
             <div key={roleName}>
-              <div className="role-table-row">
-                <div className="role-name">{roleName}</div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 3fr",
+                  alignItems: "center",
+                  padding: "22px 10px",
+                  borderBottom: "1px solid #eee",
+                }}
+              >
+                <div style={{ color: navy, fontSize: "18px" }}>{roleName}</div>
                 <div>
                   <button
                     onClick={() => toggleExpand(roleName)}
-                    className="role-edit-button"
+                    style={{
+                      padding: "10px 30px 10px 20px",
+                      borderRadius: "8px",
+                      border: "1px solid #ddd",
+                      backgroundColor: "#fff",
+                      color: navy,
+                      cursor: "pointer",
+                      position: "relative",
+                    }}
                   >
                     Edit
-                    <span className="role-edit-arrow">
+                    <span style={{ position: "absolute", right: "10px", color: "#aaa" }}>
                       {expandedRole === roleName ? "▴" : "▾"}
                     </span>
                   </button>
                 </div>
               </div>
 
+              {/* Expanded permissions panel, only for the open role */}
               {expandedRole === roleName && (
-                <div className="role-permissions-panel">
-                  <div className="role-permissions-title">
+                <div
+                  style={{
+                    border: "1px solid #eee",
+                    borderRadius: "12px",
+                    padding: "24px 30px",
+                    margin: "16px 0",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: navy,
+                      fontSize: "18px",
+                      fontWeight: "bold",
+                      marginBottom: "20px",
+                    }}
+                  >
                     Permissions for {roleName}
                   </div>
 
-                  <div className="role-permissions-grid">
-                    {permissionList.map((permission) => (
-                      <label key={permission} className="role-permission-label">
-                        <input
-                          type="checkbox"
-                          checked={(roles[roleName] || []).includes(permission)}
-                          onChange={() =>
-                            togglePermission(roleName, permission)
-                          }
-                          className="role-permission-checkbox"
-                        />
-                        <span className="role-permission-name">
-                          {permission}
-                        </span>
-                      </label>
-                    ))}
+                  {/* Permissions laid out in two columns */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      rowGap: "20px",
+                      marginBottom: "30px",
+                    }}
+                  >
+                    {permissionList.map((permission) => {
+                      const isChecked = roles[roleName][permission];
+                      return (
+                        <label
+                          key={permission}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {/* Custom coloured checkbox */}
+                          <span
+                            onClick={() => togglePermission(roleName, permission)}
+                            style={{
+                              width: "24px",
+                              height: "24px",
+                              borderRadius: "6px",
+                              border: isChecked ? "none" : "2px solid #ccc",
+                              backgroundColor: isChecked ? "#4caf7d" : "#fff",
+                              color: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "16px",
+                            }}
+                          >
+                            {isChecked ? "✓" : ""}
+                          </span>
+                          <span style={{ color: navy, fontSize: "17px" }}>{permission}</span>
+                        </label>
+                      );
+                    })}
                   </div>
 
-                  <div className="role-action-buttons">
+                  {/* Reset and Save Changes buttons */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "16px" }}>
                     <button
                       onClick={() => resetRole(roleName)}
-                      className="role-reset-button"
+                      style={{
+                        padding: "12px 28px",
+                        borderRadius: "8px",
+                        border: "1px solid #ddd",
+                        backgroundColor: "#f2f2f2",
+                        color: navy,
+                        cursor: "pointer",
+                      }}
                     >
                       Reset
                     </button>
                     <button
                       onClick={() => saveRole(roleName)}
-                      className="role-save-button"
+                      style={{
+                        padding: "12px 28px",
+                        borderRadius: "8px",
+                        border: "none",
+                        backgroundColor: "#7fbce0",
+                        color: "#fff",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
                     >
                       Save Changes
                     </button>
@@ -226,19 +331,74 @@ function RoleManagement() {
               )}
             </div>
           ))}
+        </div>
       </div>
 
+      {/* Permission reference */}
+      <div style={{ marginTop: "30px" }}>
+        <div
+          style={{
+            border: "1px solid #eee",
+            borderRadius: "16px",
+            padding: "30px",
+          }}
+        >
+          <div
+            style={{
+              color: "#888",
+              fontWeight: "600",
+              letterSpacing: "1px",
+              fontSize: "15px",
+              marginBottom: "20px",
+            }}
+          >
+            PERMISSION REFERENCE
+          </div>
+
+          {/* Reference table header */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              padding: "0 10px 14px",
+              borderBottom: "1px solid #eee",
+              color: "#888",
+              fontWeight: "600",
+              letterSpacing: "1px",
+              fontSize: "14px",
+            }}
+          >
+            <div>AREA</div>
+            <div>MANAGER / EXECUTIVE / ADMIN</div>
+            <div>EMPLOYEE</div>
+          </div>
+
+          {/* Reference table rows */}
+          {permissionReference.map((row) => (
+            <div
+              key={row.area}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                padding: "18px 10px",
+                borderBottom: "1px solid #eee",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ color: navy, fontSize: "17px", fontWeight: "600" }}>{row.area}</div>
+              <div style={{ color: "#666", fontSize: "17px" }}>{row.manager}</div>
+              <div style={{ color: "#666", fontSize: "17px" }}>{row.employee}</div>
+            </div>
+          ))}
+        </div>
+      </div>
       {showSavePopup && (
         <div className="popup-overlay">
           <div className="role-popup">
             <h2>Changes Saved</h2>
-            <p>Changes to the {savedRole} role have been saved.</p>
-            <button
-              className="popup-close-button"
-              onClick={() => setShowSavePopup(false)}
-            >
-              OK
-            </button>
+            <p>Changes to the <strong>{savedRole}</strong> role have been saved.</p>
+            <button className="popup-close-button"
+            onClick={() => setShowSavePopup(false)}>OK</button>
           </div>
         </div>
       )}
