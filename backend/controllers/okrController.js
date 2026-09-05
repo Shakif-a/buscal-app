@@ -4,6 +4,7 @@ const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const User = require("../models/userModel");
+const OkrGroup = require("../models/okrGroupModel");
 
 function getName(user) {
   let name = "";
@@ -111,7 +112,17 @@ const getObjectives = asyncHandler(async (req, res) => {
 });
 
 const getObjectiveGroups = asyncHandler(async (req, res) => {
-  const groups = await OkrObjective.distinct("group", { group: { $ne: "" } });
+  const objectiveGroups = await OkrObjective.distinct("group", {
+    group: { $nin: ["", "none"] },
+  });
+  const savedGroups = await OkrGroup.find().select("name");
+  const groups = [...objectiveGroups];
+
+  for (let i = 0; i < savedGroups.length; i++) {
+    if (!groups.includes(savedGroups[i].name)) {
+      groups.push(savedGroups[i].name);
+    }
+  }
 
   res.status(200).json(groups.sort());
 });
