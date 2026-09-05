@@ -5,6 +5,7 @@ const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 const {
   getObjectives,
+  getObjective,
   updateObjective,
   deleteObjective,
   createKeyResult,
@@ -94,6 +95,128 @@ function makeObjective(options = {}) {
 
   return objective;
 }
+
+function mockPartialKeyResults(objective) {
+  const keyResults = [
+    new OkrKeyResult({
+      objective: objective._id,
+      title: "First key result",
+      weight: 60,
+      progress: 20,
+      approved: false,
+      dueDate: "2026-11-01",
+    }),
+    new OkrKeyResult({
+      objective: objective._id,
+      title: "Second key result",
+      weight: 40,
+      progress: 80,
+      approved: false,
+      dueDate: "2026-11-01",
+    }),
+  ];
+
+  OkrKeyResult.find = (filter) => {
+    assert.equal(filter.objective.toString(), objective._id.toString());
+
+    return {
+      populate() {
+        return this;
+      },
+      async sort() {
+        return keyResults;
+      },
+    };
+  };
+
+  return keyResults;
+}
+
+test("the objective list counts partial progress before approval", async () => {
+  const objective = makeObjective();
+  const keyResults = mockPartialKeyResults(objective);
+
+  OkrObjective.find = () => ({
+    async populate() {
+      return [objective];
+    },
+  });
+
+  const result = await runController(getObjectives, {});
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.data[0].progress, 44);
+  assert.equal(result.data[0].keyResults.length, 2);
+  assert.equal(result.data[0].keyResults[0].approved, false);
+  assert.equal(result.data[0].keyResults[1].approved, false);
+  assert.equal(keyResults[0].progress, 20);
+  assert.equal(keyResults[1].progress, 80);
+  assert.equal(objective.saveCount, 0);
+});
+
+test("objective details count partial progress before approval", async () => {
+  const objective = makeObjective();
+  mockPartialKeyResults(objective);
+
+  OkrObjective.findById = (id) => {
+    assert.equal(id, objective._id.toString());
+
+    return {
+      async populate() {
+        return objective;
+      },
+    };
+  };
+
+  const result = await runController(getObjective, {
+    params: { id: objective._id.toString() },
+  });
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.data.objective.progress, 44);
+  assert.equal(result.data.keyResults[0].progress, 20);
+  assert.equal(result.data.keyResults[1].progress, 80);
+  assert.equal(result.data.keyResults[0].approved, false);
+  assert.equal(result.data.keyResults[1].approved, false);
+  assert.equal(objective.saveCount, 0);
+});
+
+test("editing an objective keeps its unapproved partial progress", async () => {
+  const objective = makeObjective();
+  mockPartialKeyResults(objective);
+
+  OkrObjective.findById = async () => objective;
+
+  const result = await runController(updateObjective, {
+    params: { id: objective._id.toString() },
+    body: { title: "Updated objective" },
+  });
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.data.title, "Updated objective");
+  assert.equal(result.data.progress, 44);
+  assert.equal(result.data.keyResults[0].approved, false);
+  assert.equal(result.data.keyResults[1].approved, false);
+  assert.equal(objective.saveCount, 1);
+});
+
+test("an objective without key results has zero progress", async () => {
+  const objective = makeObjective();
+
+  OkrObjective.find = () => ({
+    async populate() {
+      return [objective];
+    },
+  });
+  OkrKeyResult.find = noKeyResults;
+
+  const result = await runController(getObjectives, {});
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.data[0].progress, 0);
+  assert.deepEqual(result.data[0].keyResults, []);
+  assert.equal(objective.saveCount, 0);
+});
 
 test("a valid objective edit saves and returns the updated objective", async () => {
   const objective = makeObjective();
