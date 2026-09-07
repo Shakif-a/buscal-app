@@ -319,7 +319,7 @@ const getKeyResults = asyncHandler(async (req, res) => {
 
   if (!objective) {
     res.status(404);
-    throw new Error("Objective not found");
+    throw new Error("Objective not found by ID");
   }
 
   const keyResults = await OkrKeyResult.find({ objective: objectiveId })

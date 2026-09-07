@@ -34,12 +34,15 @@ const canCreateObjective = (req, res, next) => {
 };
 
 const canManageObjective = asyncHandler(async (req, res, next) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
+  
+  const objectiveId = req.params.id || req.params.objectiveId;
+
+  if (!mongoose.isValidObjectId(objectiveId)) {
     res.status(404);
     throw new Error("Objective not found");
   }
 
-  const objective = await OkrObjective.findById(req.params.id);
+  const objective = await OkrObjective.findById(objectiveId);
 
   if (!objective) {
     res.status(404);

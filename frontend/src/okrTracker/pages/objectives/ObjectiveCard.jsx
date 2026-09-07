@@ -8,8 +8,6 @@ import {
 } from "../../features/keyResults/keyResultSlice"
 
 function ObjectiveCard({ objective }) {
-  console.log("Objective:", objective);
-  console.log("Objective ID being used:", objective.id);
   const dispatch = useDispatch();
   const { keyResults, isLoading: krLoading, isError: krError, message: krMessage } = useSelector(state => state.keyResults);
   
