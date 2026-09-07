@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
+const OkrGroup = require("../models/okrGroupModel");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrRolePermission = require("../models/okrRolePermissionModel");
 const {
@@ -13,10 +14,12 @@ const {
 } = require("../middleware/okrPermissions");
 
 const originalFindObjective = OkrObjective.findById;
+const originalFindGroup = OkrGroup.findOne;
 const originalFindPermission = OkrRolePermission.findOne;
 
 test.afterEach(() => {
   OkrObjective.findById = originalFindObjective;
+  OkrGroup.findOne = originalFindGroup;
   OkrRolePermission.findOne = originalFindPermission;
 });
 
@@ -107,6 +110,7 @@ test("admins executives and managers can create objectives", async () => {
 });
 
 test("employees cannot create objectives", async () => {
+  OkrGroup.findOne = async () => null;
   OkrRolePermission.findOne = async () => ({
     permissions: ["Create Objectives"],
   });
@@ -116,6 +120,33 @@ test("employees cannot create objectives", async () => {
   });
 
   assert.equal(result.statusCode, 403);
+});
+
+test("a group manager can create objectives only for their group", async () => {
+  const groupManager = makeUser("employee");
+  OkrGroup.findOne = async (query) => {
+    if (
+      query.name === "Sales" &&
+      query.manager.toString() === groupManager._id.toString()
+    ) {
+      return { name: "Sales" };
+    }
+
+    return null;
+  };
+  OkrRolePermission.findOne = async () => null;
+
+  const ownGroup = await runMiddleware(canCreateObjective, {
+    user: groupManager,
+    body: { group: "Sales" },
+  });
+  const otherGroup = await runMiddleware(canCreateObjective, {
+    user: groupManager,
+    body: { group: "Marketing" },
+  });
+
+  assert.equal(ownGroup.error, undefined);
+  assert.equal(otherGroup.statusCode, 403);
 });
 
 test("saved permissions can stop a manager from creating objectives", async () => {
@@ -163,6 +194,7 @@ test("an unrelated employee cannot manage an objective", async () => {
   const otherOwner = new mongoose.Types.ObjectId();
 
   OkrObjective.findById = async () => ({ owner: otherOwner });
+  OkrGroup.findOne = async () => null;
   OkrRolePermission.findOne = async () => ({
     permissions: ["Edit Objectives"],
   });
@@ -170,6 +202,84 @@ test("an unrelated employee cannot manage an objective", async () => {
   const result = await runMiddleware(canManageObjective, {
     user: employee,
     params: { id: new mongoose.Types.ObjectId().toString() },
+  });
+
+  assert.equal(result.statusCode, 403);
+});
+
+test("a group manager can manage objectives only in their group", async () => {
+  const groupManager = makeUser("employee");
+  const objectiveId = new mongoose.Types.ObjectId().toString();
+  OkrObjective.findById = async () => ({
+    owner: new mongoose.Types.ObjectId(),
+    group: "Sales",
+  });
+  OkrGroup.findOne = async (query) => {
+    if (
+      query.name === "Sales" &&
+      query.manager.toString() === groupManager._id.toString()
+    ) {
+      return { name: "Sales" };
+    }
+
+    return null;
+  };
+  OkrRolePermission.findOne = async () => null;
+
+  const allowed = await runMiddleware(canManageObjective, {
+    user: groupManager,
+    params: { id: objectiveId },
+  });
+
+  OkrObjective.findById = async () => ({
+    owner: new mongoose.Types.ObjectId(),
+    group: "Marketing",
+  });
+  const rejected = await runMiddleware(canManageObjective, {
+    user: groupManager,
+    params: { id: objectiveId },
+  });
+
+  assert.equal(allowed.error, undefined);
+  assert.equal(rejected.statusCode, 403);
+});
+
+test("saved manager permissions also apply to group managers", async () => {
+  const groupManager = makeUser("employee");
+  OkrObjective.findById = async () => ({
+    owner: new mongoose.Types.ObjectId(),
+    group: "Sales",
+  });
+  OkrGroup.findOne = async () => ({ name: "Sales" });
+  OkrRolePermission.findOne = async () => ({ permissions: ["View Reports"] });
+
+  const result = await runMiddleware(canManageObjective, {
+    user: groupManager,
+    params: { id: new mongoose.Types.ObjectId().toString() },
+  });
+
+  assert.equal(result.statusCode, 403);
+});
+
+test("a group manager cannot move an objective to another group", async () => {
+  const groupManager = makeUser("employee");
+  OkrObjective.findById = async () => ({
+    owner: new mongoose.Types.ObjectId(),
+    group: "Sales",
+  });
+  OkrGroup.findOne = async (query) => {
+    if (query.name === "Sales") {
+      return { name: "Sales" };
+    }
+
+    return null;
+  };
+  OkrRolePermission.findOne = async () => null;
+
+  const result = await runMiddleware(canManageObjective, {
+    user: groupManager,
+    params: { id: new mongoose.Types.ObjectId().toString() },
+    body: { group: "Marketing" },
   });
 
   assert.equal(result.statusCode, 403);

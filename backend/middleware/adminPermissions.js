@@ -47,8 +47,7 @@ function getRoleName(user) {
   return "Employee";
 }
 
-async function hasPermission(user, permission) {
-  const role = getRoleName(user);
+async function hasRolePermission(role, permission) {
   const savedRole = await OkrRolePermission.findOne({ role });
 
   if (savedRole) {
@@ -56,6 +55,11 @@ async function hasPermission(user, permission) {
   }
 
   return defaultPermissions[role].includes(permission);
+}
+
+async function hasPermission(user, permission) {
+  const role = getRoleName(user);
+  return hasRolePermission(role, permission);
 }
 
 function adminOrExec(req, res, next) {
@@ -72,4 +76,5 @@ module.exports = {
   defaultPermissions,
   getRoleName,
   hasPermission,
+  hasRolePermission,
 };
