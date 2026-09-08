@@ -9,6 +9,7 @@ const {
   getRoleName,
 } = require("../middleware/adminPermissions");
 const {
+  canUserManageObjective,
   canCreateObjective,
   canManageObjective,
 } = require("../middleware/okrPermissions");
@@ -187,6 +188,37 @@ test("admins executives managers and owners can manage objectives", async () => 
   assert.equal(exec.error, undefined);
   assert.equal(manager.error, undefined);
   assert.equal(ownerResult.error, undefined);
+});
+
+test("the objective access flag matches every user role", async () => {
+  const owner = makeUser("employee");
+  const objective = {
+    owner: owner._id,
+    group: "Sales",
+  };
+
+  OkrRolePermission.findOne = async () => null;
+  OkrGroup.findOne = async () => null;
+
+  assert.equal(await canUserManageObjective(makeUser("admin"), objective), true);
+  assert.equal(await canUserManageObjective(makeUser("exec"), objective), true);
+  assert.equal(await canUserManageObjective(makeUser("manager"), objective), true);
+  assert.equal(await canUserManageObjective(owner, objective), true);
+  assert.equal(
+    await canUserManageObjective(makeUser("employee"), objective),
+    false
+  );
+
+  const groupManager = makeUser("employee");
+  OkrGroup.findOne = async (query) => {
+    if (query.manager.toString() === groupManager._id.toString()) {
+      return { name: "Sales" };
+    }
+
+    return null;
+  };
+
+  assert.equal(await canUserManageObjective(groupManager, objective), true);
 });
 
 test("an unrelated employee cannot manage an objective", async () => {

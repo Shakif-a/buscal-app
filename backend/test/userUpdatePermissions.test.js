@@ -1,11 +1,71 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
+const { loginUser } = require("../controllers/userController");
 const userRoutes = require("../routes/userRoutes");
 const { errorHandler } = require("../middleware/errorMiddleware");
+
+test("login returns the fields used by the admin pages", async () => {
+  const originalFindUser = User.findOne;
+  const originalCompare = bcrypt.compare;
+  const originalSecret = process.env.JWT_SECRET;
+  const userId = new mongoose.Types.ObjectId();
+  const companyRoles = [{ managementLevel: 2 }];
+
+  process.env.JWT_SECRET = "local-login-response-test-only";
+  User.findOne = async () => ({
+    _id: userId,
+    id: userId.toString(),
+    firstName: "Test",
+    lastName: "Executive",
+    email: "executive@example.com",
+    password: "saved-password",
+    roles: ["employee"],
+    exec: "yes",
+    companyRoles,
+    supervisor: null,
+  });
+  bcrypt.compare = async () => true;
+
+  const result = await new Promise((resolve) => {
+    const res = {
+      statusCode: 200,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(data) {
+        resolve({ data, statusCode: this.statusCode });
+      },
+    };
+
+    loginUser(
+      { body: { email: "executive@example.com", password: "password" } },
+      res,
+      (error) => resolve({ error, statusCode: res.statusCode })
+    );
+  });
+
+  try {
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.data.exec, "yes");
+    assert.deepEqual(result.data.companyRoles, companyRoles);
+    assert.equal(typeof result.data.token, "string");
+  } finally {
+    User.findOne = originalFindUser;
+    bcrypt.compare = originalCompare;
+
+    if (originalSecret === undefined) {
+      delete process.env.JWT_SECRET;
+    } else {
+      process.env.JWT_SECRET = originalSecret;
+    }
+  }
+});
 
 test("user update routes protect roles and preserve profile edits", async () => {
   const originalFindUser = User.findById;

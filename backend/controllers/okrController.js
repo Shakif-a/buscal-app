@@ -5,6 +5,7 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const User = require("../models/userModel");
 const OkrGroup = require("../models/okrGroupModel");
+const { canUserManageObjective } = require("../middleware/okrPermissions");
 
 function getName(user) {
   let name = "";
@@ -20,7 +21,7 @@ function getName(user) {
   return name.trim();
 }
 
-async function loadObjective(objective) {
+async function loadObjective(objective, user) {
   const keyResultDocuments = await OkrKeyResult.find({
     objective: objective._id,
   })
@@ -67,6 +68,12 @@ async function loadObjective(objective) {
     objectiveData.progress = Math.round(totalProgress / totalWeight);
   }
 
+  objectiveData.canManage = false;
+
+  if (user) {
+    objectiveData.canManage = await canUserManageObjective(user, objective);
+  }
+
   return {
     objective: objectiveData,
     keyResults: keyResults,
@@ -100,7 +107,7 @@ const getObjectives = asyncHandler(async (req, res) => {
   const result = [];
 
   for (let i = 0; i < objectives.length; i++) {
-    const data = await loadObjective(objectives[i]);
+    const data = await loadObjective(objectives[i], req.user);
 
     data.objective.keyResults = data.keyResults;
     result.push(data.objective);
@@ -138,7 +145,7 @@ const getObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  const data = await loadObjective(objective);
+  const data = await loadObjective(objective, req.user);
   res.status(200).json(data);
 });
 
@@ -189,7 +196,10 @@ const createObjective = asyncHandler(async (req, res) => {
     console.error("Could not create linked calendar entry for objective:", error);
   }
 
-  res.status(201).json(objective);
+  const objectiveData = objective.toObject();
+  objectiveData.canManage = await canUserManageObjective(req.user, objective);
+
+  res.status(201).json(objectiveData);
 });
 
 const updateObjective = asyncHandler(async (req, res) => {
@@ -298,7 +308,7 @@ const updateObjective = asyncHandler(async (req, res) => {
   await objective.save();
   await objective.populate("owner", "firstName lastName");
 
-  const data = await loadObjective(objective);
+  const data = await loadObjective(objective, req.user);
   data.objective.keyResults = data.keyResults;
 
   res.status(200).json(data.objective);

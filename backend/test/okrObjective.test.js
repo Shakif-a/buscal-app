@@ -3,9 +3,12 @@ const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const OkrGroup = require("../models/okrGroupModel");
+const CalendarEntry = require("../models/calendarEntryModel");
 const {
   getObjectives,
   getObjective,
+  createObjective,
   updateObjective,
   deleteObjective,
   createKeyResult,
@@ -16,6 +19,9 @@ const originalFindObjective = OkrObjective.findById;
 const originalFindKeyResults = OkrKeyResult.find;
 const originalDeleteKeyResults = OkrKeyResult.deleteMany;
 const originalCreateKeyResult = OkrKeyResult.create;
+const originalFindGroup = OkrGroup.findOne;
+const originalCreateObjective = OkrObjective.create;
+const originalCreateCalendarEntry = CalendarEntry.create;
 
 test.afterEach(() => {
   OkrObjective.find = originalFindObjectives;
@@ -23,6 +29,9 @@ test.afterEach(() => {
   OkrKeyResult.find = originalFindKeyResults;
   OkrKeyResult.deleteMany = originalDeleteKeyResults;
   OkrKeyResult.create = originalCreateKeyResult;
+  OkrGroup.findOne = originalFindGroup;
+  OkrObjective.create = originalCreateObjective;
+  CalendarEntry.create = originalCreateCalendarEntry;
 });
 
 function runController(controller, req) {
@@ -154,9 +163,47 @@ test("the objective list counts partial progress before approval", async () => {
   assert.equal(objective.saveCount, 0);
 });
 
+test("objective responses say if the current user can manage them", async () => {
+  const objective = makeObjective();
+  const owner = {
+    _id: objective.owner._id,
+    roles: ["employee"],
+    exec: "no",
+    companyRoles: [],
+  };
+  const otherEmployee = {
+    _id: new mongoose.Types.ObjectId(),
+    roles: ["employee"],
+    exec: "no",
+    companyRoles: [],
+  };
+
+  OkrObjective.find = () => ({
+    async populate() {
+      return [objective];
+    },
+  });
+  OkrKeyResult.find = noKeyResults;
+  OkrGroup.findOne = async () => null;
+
+  const ownerResult = await runController(getObjectives, { user: owner });
+  const employeeResult = await runController(getObjectives, {
+    user: otherEmployee,
+  });
+
+  assert.equal(ownerResult.data[0].canManage, true);
+  assert.equal(employeeResult.data[0].canManage, false);
+});
+
 test("objective details count partial progress before approval", async () => {
   const objective = makeObjective();
   mockPartialKeyResults(objective);
+  const owner = {
+    _id: objective.owner._id,
+    roles: ["employee"],
+    exec: "no",
+    companyRoles: [],
+  };
 
   OkrObjective.findById = (id) => {
     assert.equal(id, objective._id.toString());
@@ -170,6 +217,7 @@ test("objective details count partial progress before approval", async () => {
 
   const result = await runController(getObjective, {
     params: { id: objective._id.toString() },
+    user: owner,
   });
 
   assert.equal(result.statusCode, 200);
@@ -178,7 +226,35 @@ test("objective details count partial progress before approval", async () => {
   assert.equal(result.data.keyResults[1].progress, 80);
   assert.equal(result.data.keyResults[0].approved, false);
   assert.equal(result.data.keyResults[1].approved, false);
+  assert.equal(result.data.objective.canManage, true);
   assert.equal(objective.saveCount, 0);
+});
+
+test("a newly created objective includes its access flag", async () => {
+  const ownerId = new mongoose.Types.ObjectId();
+  const owner = {
+    _id: ownerId,
+    roles: ["employee"],
+    exec: "no",
+    companyRoles: [],
+  };
+  const objective = makeObjective({ owner: ownerId });
+
+  OkrObjective.create = async () => objective;
+  CalendarEntry.create = async () => ({});
+
+  const result = await runController(createObjective, {
+    user: owner,
+    body: {
+      title: "New objective",
+      owner: ownerId.toString(),
+      group: "Sales",
+      dueDate: "2026-12-01",
+    },
+  });
+
+  assert.equal(result.statusCode, 201);
+  assert.equal(result.data.canManage, true);
 });
 
 test("editing an objective keeps its unapproved partial progress", async () => {
@@ -220,6 +296,12 @@ test("an objective without key results has zero progress", async () => {
 
 test("a valid objective edit saves and returns the updated objective", async () => {
   const objective = makeObjective();
+  const owner = {
+    _id: objective.owner._id,
+    roles: ["employee"],
+    exec: "no",
+    companyRoles: [],
+  };
 
   OkrObjective.findById = async () => objective;
   OkrKeyResult.find = noKeyResults;
@@ -227,12 +309,14 @@ test("a valid objective edit saves and returns the updated objective", async () 
   const result = await runController(updateObjective, {
     params: { id: objective._id.toString() },
     body: { title: "  Updated objective  " },
+    user: owner,
   });
 
   assert.equal(result.statusCode, 200);
   assert.equal(result.data.title, "Updated objective");
   assert.equal(result.data.description, "Description");
   assert.equal(result.data.keyResults.length, 0);
+  assert.equal(result.data.canManage, true);
   assert.equal(objective.saveCount, 1);
 });
 

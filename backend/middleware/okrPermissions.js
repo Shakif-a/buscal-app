@@ -21,6 +21,29 @@ async function managesGroup(user, groupName) {
   return Boolean(group);
 }
 
+async function canUserManageObjective(user, objective) {
+  const ownerId = objective.owner._id || objective.owner;
+  const isOwner = ownerId.toString() === user._id.toString();
+
+  if (isOwner) {
+    return true;
+  }
+
+  const role = getRoleName(user);
+
+  if (role === "Employee") {
+    const isGroupManager = await managesGroup(user, objective.group);
+
+    if (!isGroupManager) {
+      return false;
+    }
+
+    return hasRolePermission("Manager", "Edit Objectives");
+  }
+
+  return hasPermission(user, "Edit Objectives");
+}
+
 const canCreateObjective = asyncHandler(async (req, res, next) => {
   const role = getRoleName(req.user);
 
@@ -67,23 +90,24 @@ const canManageObjective = asyncHandler(async (req, res, next) => {
     throw new Error("Objective not found");
   }
 
-  const isOwner = objective.owner.toString() === req.user._id.toString();
+  const ownerId = objective.owner._id || objective.owner;
+  const isOwner = ownerId.toString() === req.user._id.toString();
 
   if (isOwner) {
     next();
     return;
   }
 
+  const allowed = await canUserManageObjective(req.user, objective);
+
+  if (!allowed) {
+    res.status(403);
+    throw new Error("You do not have permission to manage this objective");
+  }
+
   const role = getRoleName(req.user);
 
   if (role === "Employee") {
-    const isGroupManager = await managesGroup(req.user, objective.group);
-
-    if (!isGroupManager) {
-      res.status(403);
-      throw new Error("You do not have permission to manage this objective");
-    }
-
     if (
       req.body &&
       typeof req.body.group === "string" &&
@@ -100,28 +124,15 @@ const canManageObjective = asyncHandler(async (req, res, next) => {
       }
     }
 
-    const allowed = await hasRolePermission("Manager", "Edit Objectives");
-
-    if (!allowed) {
-      res.status(403);
-      throw new Error("You do not have permission to manage this objective");
-    }
-
     next();
     return;
-  }
-
-  const allowed = await hasPermission(req.user, "Edit Objectives");
-
-  if (!allowed) {
-    res.status(403);
-    throw new Error("You do not have permission to manage this objective");
   }
 
   next();
 });
 
 module.exports = {
+  canUserManageObjective,
   canCreateObjective,
   canManageObjective,
 };
