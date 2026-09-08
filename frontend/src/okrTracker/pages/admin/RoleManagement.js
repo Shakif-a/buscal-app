@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import axios from "axios";
 import "./RoleManagement.css";
+const API_BASE =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/okr/admin`;
 
 function RoleManagement() {
+  const { user } = useSelector((state) => state.auth);
   // The list of permissions shown for a role
   const permissionList = [
     "Create Objectives",
@@ -57,6 +62,30 @@ function RoleManagement() {
 
   // The text typed into the role search box.
   const [searchText, setSearchText] = useState("");
+  useEffect(() => {
+    if (!user?.token) {
+      return;
+    }
+
+    const fetchPermissions = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/permissions`, {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+        });
+
+        console.log("Permissions response:", response.data);
+      } catch (error) {
+        console.error(
+          "Failed to load permissions:",
+          error.response?.data?.message || error.message
+        );
+      }
+    };
+
+    fetchPermissions();
+  }, [user?.token]);
 
   const permissionReference = [
     { area: "Dashboard", manager: "Read", employee: "Read" },
