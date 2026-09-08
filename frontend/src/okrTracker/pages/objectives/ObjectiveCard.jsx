@@ -127,7 +127,11 @@ function ObjectiveCard({ objective }) {
         </div>
 
         <p className="objective-due-date">
-          Due: <strong>{objective.dueDate}</strong>
+          Due: <strong>
+            {objective.dueDate 
+              ? new Date(objective.dueDate).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
+              : "No due date"}
+          </strong>
         </p>
 
         <div className="objective-menu-container"
