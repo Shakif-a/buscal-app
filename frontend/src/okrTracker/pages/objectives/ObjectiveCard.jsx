@@ -9,6 +9,8 @@ function ObjectiveCard({ objective }) {
   const [showEvidencePopup, setShowEvidencePopup] = useState(false);
   const [selectedEvidenceKR, setSelectedEvidenceKR] = useState(null);
   const [showViewEvidence, setShowViewEvidence] = useState(false);
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
+  const [evidenceNote, setEvidenceNote] = useState("");
 
   // Key Results Data
   const [keyResults, setKeyResults] = useState([
@@ -427,12 +429,19 @@ function ObjectiveCard({ objective }) {
             <textarea
               className="evidence-note"
               placeholder="Add a note"
+              value={evidenceNote}
+              onChange={(event) => setEvidenceNote(event.target.value)}
             />
 
             <div className="evidence-upload-box">
-              <input type="file" multiple />
+              <input
+                type="file"
+                multiple
+                onChange={(event) =>
+                  setEvidenceFiles(Array.from(event.target.files))
+                }
+              />
             </div>
-
             <div className="evidence-popup-buttons">
               <button
                 type="button"
@@ -463,8 +472,42 @@ function ObjectiveCard({ objective }) {
               Key Result: <strong>{selectedEvidenceKR?.name}</strong>
             </p>
 
+            {/* Evidence List */}
             <div className="evidence-list">
-              <p>No evidence uploaded yet.</p>
+              {selectedEvidenceKR?.evidence?.length > 0 ? (
+                selectedEvidenceKR.evidence.map((evidence) => (
+                  <div className="evidence-item" key={evidence.id}>
+                    <div>
+                      <strong>{evidence.fileName}</strong>
+
+                      {evidence.note && (
+                        <p>{evidence.note}</p>
+                      )}
+                    </div>
+
+                    {/* Evidence Actions */}
+                    <div className="evidence-actions">
+                      <a
+                        href={evidence.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="action-link"
+                      >
+                        Open
+                      </a>
+
+                      <button
+                        type="button"
+                        className="action-link"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p>No evidence uploaded yet.</p>
+              )}
             </div>
 
             <div className="evidence-popup-buttons">
@@ -479,7 +522,6 @@ function ObjectiveCard({ objective }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
