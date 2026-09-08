@@ -51,6 +51,23 @@
     border-radius: 16px;
     padding: 30px;
 }
+.group-status {
+    padding: 16px;
+    color: #1a2b4a;
+    text-align: center;
+}
+.group-error {
+    color: #a12622;
+    background-color: #fff2f1;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+.group-success {
+    color: #20613e;
+    background-color: #edf8f2;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
 .group-add-section {
     margin-bottom: 40px;
 }
@@ -120,6 +137,22 @@
     font-weight: bold;
     margin-bottom: 20px;
 }
+.group-manager-label {
+    display: block;
+    color: #1a2b4a;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.group-manager-select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    color: #1a2b4a;
+    margin-bottom: 28px;
+}
 .group-member-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -131,6 +164,11 @@
     align-items: center;
     gap: 12px;
     cursor: pointer;
+}
+.group-member-checkbox-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 .group-member-checkbox {
     width: 24px;
@@ -164,6 +202,10 @@
     background: none;
     border: none;
     cursor: pointer;
+}
+.group-member-help {
+    color: #666;
+    font-size: 15px;
 }
 .group-action-buttons {
     display: flex;

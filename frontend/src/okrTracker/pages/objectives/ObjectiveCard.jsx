@@ -1,24 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import ObjectiveActions from "./ObjectiveActions";
 
 function ObjectiveCard({ objective }) {
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
-
-  const [showMenu, setShowMenu] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(event){
-      if (menuRef.current && !menuRef.current.contains(event.target)){
-        setShowMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const [keyResults, setKeyResults] = useState([
     {
@@ -130,26 +115,7 @@ function ObjectiveCard({ objective }) {
           Due: <strong>{objective.dueDate}</strong>
         </p>
 
-        <div className="objective-menu-container"
-        ref={menuRef}>
-          <button type="button"
-          className="objective-menu-button"
-          onClick={() => setShowMenu(!showMenu)}>...</button>
-          {showMenu && (
-            <div className="objective-menu-dropdown">
-              <button type="button"
-              className="objective-menu-item"
-              onClick={() => {console.log("Edit Objective", objective);
-                              setShowMenu(false);
-              }}>Edit</button>
-              <button type="button"
-              className="objective-menu-item delete-menu-item"
-              onClick={() => {setShowMenu(false);
-                setShowDeleteModal(true);
-              }}>Delete</button>
-            </div>
-          )}
-        </div>
+        <ObjectiveActions objective={objective} />
       </div>
 
       <hr />
@@ -392,26 +358,6 @@ function ObjectiveCard({ objective }) {
         </div>
       )}
 
-      {showDeleteModal && (
-        <div className="popup-overlay">
-          <div className="delete-objective-popup">
-            <h2>Delete Objective</h2>
-            <p>Are you sure you want to delete <strong>{objective.title}</strong>?</p>
-            <p>This action cannot be undone.</p>
-
-            <div className="popup-buttons">
-              <button type="button"
-              className="popup-cancel-button"
-              onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button type="button"
-              className="popup-delete-button"
-              onClick={() => {console.log("Delete objective", objective);
-                              setShowDeleteModal(false);
-              }}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

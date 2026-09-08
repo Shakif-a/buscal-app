@@ -107,6 +107,17 @@
     border-radius: 16px;
     padding: 30px;
 }
+.role-status {
+    padding: 16px;
+    color: #1a2b4a;
+    text-align: center;
+}
+.role-error {
+    color: #a12622;
+    background-color: #fff2f1;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
 .role-add-section {
     margin-bottom: 40px;
 }
@@ -176,6 +187,11 @@
     align-items: center;
     gap: 12px;
     cursor: pointer;
+}
+.role-permission-checkbox-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 .role-permission-checkbox {
     width: 24px;

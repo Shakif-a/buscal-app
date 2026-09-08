@@ -16,6 +16,8 @@ const {
 } = require("../controllers/userController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { adminOrExec } = require("../middleware/adminPermissions");
+const { canUpdateUser } = require("../middleware/userUpdatePermissions");
 
 router.post("/", registerUser);
 router.post("/login", loginUser);
@@ -27,9 +29,9 @@ router.delete("/:id", protect, deleteUser);
 
 router.route("/user").get(protect, getUser);
 router.route("/user/:id").delete(protect, deleteUser);
-router.route("/user/:id").put(protect, updateUser);
+router.route("/user/:id").put(protect, canUpdateUser, updateUser);
 router.route("/userOne/:paramsField").get(protect, getUserOne);
-router.route("/userOne/:id").put(protect, updateUserOne);
-router.route("/manageUserOne/:id").put(protect, manageUserOne);
+router.route("/userOne/:id").put(protect, canUpdateUser, updateUserOne);
+router.route("/manageUserOne/:id").put(protect, adminOrExec, manageUserOne);
 
 module.exports = router;

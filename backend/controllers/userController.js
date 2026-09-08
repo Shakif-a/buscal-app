@@ -58,6 +58,8 @@ const registerUser = asyncHandler(async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       roles: user.roles,
+      exec: user.exec,
+      companyRoles: user.companyRoles,
       token: generateToken(user._id),
     });
   } else {
@@ -82,6 +84,8 @@ const loginUser = asyncHandler(async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       roles: user.roles,
+      exec: user.exec,
+      companyRoles: user.companyRoles,
       token: generateToken(user._id),
       supervisor: user.supervisor,
     });
@@ -217,6 +221,8 @@ const resetPassword = asyncHandler(async (req, res) => {
     lastName: user.lastName,
     email: user.email,
     roles: user.roles,
+    exec: user.exec,
+    companyRoles: user.companyRoles,
     token: generateToken(user._id),
   });
 });

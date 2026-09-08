@@ -1,7 +1,11 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
+const User = require("../models/userModel");
+const OkrGroup = require("../models/okrGroupModel");
+const { canUserManageObjective } = require("../middleware/okrPermissions");
 
 function getName(user) {
   let name = "";
@@ -17,7 +21,7 @@ function getName(user) {
   return name.trim();
 }
 
-async function loadObjective(objective) {
+async function loadObjective(objective, user) {
   const keyResultDocuments = await OkrKeyResult.find({
     objective: objective._id,
   })
@@ -64,31 +68,68 @@ async function loadObjective(objective) {
     objectiveData.progress = Math.round(totalProgress / totalWeight);
   }
 
+  objectiveData.canManage = false;
+
+  if (user) {
+    objectiveData.canManage = await canUserManageObjective(user, objective);
+  }
+
   return {
     objective: objectiveData,
     keyResults: keyResults,
   };
 }
 
+function compareObjectives(firstObjective, secondObjective) {
+  const firstOwner = firstObjective.manager.toLowerCase();
+  const secondOwner = secondObjective.manager.toLowerCase();
+
+  if (firstOwner < secondOwner) {
+    return -1;
+  }
+
+  if (firstOwner > secondOwner) {
+    return 1;
+  }
+
+  const firstDueDate = new Date(firstObjective.dueDate);
+  const secondDueDate = new Date(secondObjective.dueDate);
+
+  return firstDueDate - secondDueDate;
+}
+
 const getObjectives = asyncHandler(async (req, res) => {
-  const objectives = await OkrObjective.find()
-    .populate("owner", "firstName lastName")
-    .sort({ dueDate: 1 });
+  const objectives = await OkrObjective.find().populate(
+    "owner",
+    "firstName lastName"
+  );
 
   const result = [];
 
   for (let i = 0; i < objectives.length; i++) {
-    const data = await loadObjective(objectives[i]);
+    const data = await loadObjective(objectives[i], req.user);
 
     data.objective.keyResults = data.keyResults;
     result.push(data.objective);
   }
 
+  result.sort(compareObjectives);
+
   res.status(200).json(result);
 });
 
 const getObjectiveGroups = asyncHandler(async (req, res) => {
-  const groups = await OkrObjective.distinct("group", { group: { $ne: "" } });
+  const objectiveGroups = await OkrObjective.distinct("group", {
+    group: { $nin: ["", "none"] },
+  });
+  const savedGroups = await OkrGroup.find().select("name");
+  const groups = [...objectiveGroups];
+
+  for (let i = 0; i < savedGroups.length; i++) {
+    if (!groups.includes(savedGroups[i].name)) {
+      groups.push(savedGroups[i].name);
+    }
+  }
 
   res.status(200).json(groups.sort());
 });
@@ -104,7 +145,7 @@ const getObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  const data = await loadObjective(objective);
+  const data = await loadObjective(objective, req.user);
   res.status(200).json(data);
 });
 
@@ -155,7 +196,10 @@ const createObjective = asyncHandler(async (req, res) => {
     console.error("Could not create linked calendar entry for objective:", error);
   }
 
-  res.status(201).json(objective);
+  const objectiveData = objective.toObject();
+  objectiveData.canManage = await canUserManageObjective(req.user, objective);
+
+  res.status(201).json(objectiveData);
 });
 
 const updateObjective = asyncHandler(async (req, res) => {
@@ -166,33 +210,108 @@ const updateObjective = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
 
-  if (req.body.title) {
-    objective.title = req.body.title;
+  if (req.body.title !== undefined) {
+    if (typeof req.body.title !== "string") {
+      res.status(400);
+      throw new Error("Please add a valid title");
+    }
+
+    const title = req.body.title.trim();
+
+    if (!title) {
+      res.status(400);
+      throw new Error("Please add a title");
+    }
+
+    objective.title = title;
   }
 
-  if (req.body.description) {
+  if (req.body.description !== undefined) {
+    if (typeof req.body.description !== "string") {
+      res.status(400);
+      throw new Error("Please add a valid description");
+    }
+
     objective.description = req.body.description;
   }
 
-  if (req.body.group) {
-    objective.group = req.body.group;
+  if (req.body.group !== undefined) {
+    if (typeof req.body.group !== "string") {
+      res.status(400);
+      throw new Error("Please select a valid group");
+    }
+
+    const group = req.body.group.trim();
+
+    if (!group) {
+      res.status(400);
+      throw new Error("Please select a group");
+    }
+
+    objective.group = group;
   }
 
-  if (req.body.owner) {
+  if (req.body.owner !== undefined) {
+    if (!mongoose.isValidObjectId(req.body.owner)) {
+      res.status(400);
+      throw new Error("Please select a valid owner");
+    }
+
+    const ownerExists = await User.exists({ _id: req.body.owner });
+
+    if (!ownerExists) {
+      res.status(400);
+      throw new Error("Selected owner was not found");
+    }
+
     objective.owner = req.body.owner;
   }
 
-  if (req.body.dueDate) {
-    objective.dueDate = req.body.dueDate;
+  if (req.body.dueDate !== undefined) {
+    if (!req.body.dueDate) {
+      res.status(400);
+      throw new Error("Please add a valid due date");
+    }
+
+    const dueDate = new Date(req.body.dueDate);
+
+    if (isNaN(dueDate.getTime())) {
+      res.status(400);
+      throw new Error("Please add a valid due date");
+    }
+
+    objective.dueDate = dueDate;
   }
 
-  if (req.body.commitmentType) {
-    objective.commitmentType = req.body.commitmentType;
+  let type = req.body.commitmentType;
+
+  if (req.body.type !== undefined) {
+    type = req.body.type;
+  }
+
+  if (type !== undefined) {
+    if (typeof type !== "string") {
+      res.status(400);
+      throw new Error("Please select a valid objective type");
+    }
+
+    type = type.toLowerCase();
+
+    if (type !== "committed" && type !== "aspirational") {
+      res.status(400);
+      throw new Error("Please select a valid objective type");
+    }
+
+    objective.commitmentType = type;
   }
 
   await objective.save();
+  await objective.populate("owner", "firstName lastName");
 
-  res.status(200).json(objective);
+  const data = await loadObjective(objective, req.user);
+  data.objective.keyResults = data.keyResults;
+
+  res.status(200).json(data.objective);
 });
 
 const deleteObjective = asyncHandler(async (req, res) => {
