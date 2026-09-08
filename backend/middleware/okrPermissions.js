@@ -1,37 +1,81 @@
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
+const OkrGroup = require("../models/okrGroupModel");
 const OkrObjective = require("../models/okrObjectiveModel");
+const {
+  getRoleName,
+  hasPermission,
+  hasRolePermission,
+} = require("./adminPermissions");
 
-function hasManagementAccess(user) {
-  if (user.roles && user.roles.includes("admin")) {
-    return true;
+async function managesGroup(user, groupName) {
+  if (!groupName) {
+    return false;
   }
 
-  if (user.exec === "yes") {
-    return true;
-  }
+  const group = await OkrGroup.findOne({
+    name: groupName,
+    manager: user._id,
+  });
 
-  if (user.companyRoles) {
-    for (let i = 0; i < user.companyRoles.length; i++) {
-      const level = user.companyRoles[i].managementLevel;
-
-      if (level >= 1 && level <= 3) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return Boolean(group);
 }
 
-const canCreateObjective = (req, res, next) => {
-  if (!hasManagementAccess(req.user)) {
+async function canUserManageObjective(user, objective) {
+  const ownerId = objective.owner._id || objective.owner;
+  const isOwner = ownerId.toString() === user._id.toString();
+
+  if (isOwner) {
+    return true;
+  }
+
+  const role = getRoleName(user);
+
+  if (role === "Employee") {
+    const isGroupManager = await managesGroup(user, objective.group);
+
+    if (!isGroupManager) {
+      return false;
+    }
+
+    return hasRolePermission("Manager", "Edit Objectives");
+  }
+
+  return hasPermission(user, "Edit Objectives");
+}
+
+const canCreateObjective = asyncHandler(async (req, res, next) => {
+  const role = getRoleName(req.user);
+
+  if (role === "Employee") {
+    const groupName = req.body ? req.body.group : "";
+    const isGroupManager = await managesGroup(req.user, groupName);
+
+    if (!isGroupManager) {
+      res.status(403);
+      throw new Error("You do not have permission to create objectives");
+    }
+
+    const allowed = await hasRolePermission("Manager", "Create Objectives");
+
+    if (!allowed) {
+      res.status(403);
+      throw new Error("You do not have permission to create objectives");
+    }
+
+    next();
+    return;
+  }
+
+  const allowed = await hasPermission(req.user, "Create Objectives");
+
+  if (!allowed) {
     res.status(403);
     throw new Error("You do not have permission to create objectives");
   }
 
   next();
-};
+});
 
 const canManageObjective = asyncHandler(async (req, res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
@@ -46,17 +90,49 @@ const canManageObjective = asyncHandler(async (req, res, next) => {
     throw new Error("Objective not found");
   }
 
-  const isOwner = objective.owner.toString() === req.user._id.toString();
+  const ownerId = objective.owner._id || objective.owner;
+  const isOwner = ownerId.toString() === req.user._id.toString();
 
-  if (!hasManagementAccess(req.user) && !isOwner) {
+  if (isOwner) {
+    next();
+    return;
+  }
+
+  const allowed = await canUserManageObjective(req.user, objective);
+
+  if (!allowed) {
     res.status(403);
     throw new Error("You do not have permission to manage this objective");
+  }
+
+  const role = getRoleName(req.user);
+
+  if (role === "Employee") {
+    if (
+      req.body &&
+      typeof req.body.group === "string" &&
+      req.body.group.trim() !== objective.group
+    ) {
+      const managesNewGroup = await managesGroup(
+        req.user,
+        req.body.group.trim()
+      );
+
+      if (!managesNewGroup) {
+        res.status(403);
+        throw new Error("You do not have permission to move this objective");
+      }
+    }
+
+    next();
+    return;
   }
 
   next();
 });
 
 module.exports = {
+  canUserManageObjective,
   canCreateObjective,
   canManageObjective,
 };

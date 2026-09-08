@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import objectiveService from "./objectiveService";
+import objectiveService from "./objectiveService.js";
 
 const initialState = {
   objectives: [],
@@ -174,10 +174,9 @@ export const objectiveSlice = createSlice({
 
       // Delete Objective
       .addCase(deleteObjective.pending, (state) => {
-        state.isLoading = true;
+        state.message = "";
       })
       .addCase(deleteObjective.fulfilled, (state, action) => {
-        state.isLoading = false;
         state.isSuccess = true;
         state.objectives = state.objectives.filter(
           (obj) => obj._id !== action.payload.id && obj.id !== action.payload.id
@@ -185,17 +184,14 @@ export const objectiveSlice = createSlice({
         state.message = "Objective deleted successfully.";
       })
       .addCase(deleteObjective.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
         state.message = action.payload;
       })
 
       // Update Objective
       .addCase(updateObjective.pending, (state) => {
-        state.isLoading = true;
+        state.message = "";
       })
       .addCase(updateObjective.fulfilled, (state, action) => {
-        state.isLoading = false;
         state.isSuccess = true;
         state.objectives = state.objectives.map((obj) =>
           obj._id === action.payload._id || obj.id === action.payload.id
@@ -205,8 +201,6 @@ export const objectiveSlice = createSlice({
         state.message = "Objective updated successfully.";
       })
       .addCase(updateObjective.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
         state.message = action.payload;
       });
   },
