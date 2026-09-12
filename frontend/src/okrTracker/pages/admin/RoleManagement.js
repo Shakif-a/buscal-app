@@ -79,12 +79,13 @@ function makeDefaultRoleState() {
 
 function RoleManagement() {
   const { user } = useSelector((state) => state.auth);
-  const [roles, setRoles] = useState(makeDefaultRoleState());
+  const [roles, setRoles] = useState(null);
   const [expandedRole, setExpandedRole] = useState("Manager");
   const [searchText, setSearchText] = useState("");
   const [showSavePopup, setShowSavePopup] = useState(false);
   const [savedRole, setSavedRole] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const allowed = canManageAdmin(user);
@@ -135,6 +136,11 @@ function RoleManagement() {
   }
 
   async function saveRole(roleName) {
+    if (!roles || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
     const permissions = [];
 
     for (let i = 0; i < permissionList.length; i++) {
@@ -161,6 +167,8 @@ function RoleManagement() {
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -168,20 +176,10 @@ function RoleManagement() {
     name.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const permissionReference = [
-    { area: "Dashboard", manager: "Read", employee: "Read" },
-    { area: "Calendar", manager: "Read", employee: "Read" },
-    { area: "Objectives (all)", manager: "Full Access", employee: "Read" },
-    { area: "Objectives (create)", manager: "Full Access", employee: "No Access" },
-    { area: "Key Results", manager: "Full Access", employee: "Read" },
-    { area: "Reports", manager: "Full Access", employee: "Read, create" },
-    { area: "Admin", manager: "Full Access", employee: "No Access" },
-  ];
-
   if (!allowed) {
     return (
       <div className="role-management">
-        <div className="role-status role-error">
+        <div role="alert" className="role-status role-error">
           Admin or executive access is required.
         </div>
       </div>
@@ -209,7 +207,7 @@ function RoleManagement() {
       </div>
 
       {errorMessage && (
-        <div className="role-status role-error">{errorMessage}</div>
+        <div role="alert" className="role-status role-error">{errorMessage}</div>
       )}
 
       <div className="role-search-row">
@@ -217,6 +215,8 @@ function RoleManagement() {
           type="text"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
+          aria-label="Search roles"
+          disabled={isSaving}
           placeholder="Search role..."
           className="role-search-input"
         />
@@ -225,12 +225,16 @@ function RoleManagement() {
       <div className="role-content-box">
         {isLoading && <div className="role-status">Loading permissions...</div>}
 
-        {!isLoading && (
+        {!isLoading && roles && (
           <>
             <div className="role-table-header">
               <div>ROLE</div>
               <div>ACTIONS</div>
             </div>
+
+            {visibleRoles.length === 0 && (
+              <div className="role-status">No roles found.</div>
+            )}
 
             {visibleRoles.map((roleName) => (
               <div key={roleName}>
@@ -239,6 +243,8 @@ function RoleManagement() {
                   <div>
                     <button
                       onClick={() => toggleExpand(roleName)}
+                      disabled={isSaving}
+                      aria-expanded={expandedRole === roleName}
                       className="role-edit-button"
                     >
                       Edit
@@ -263,6 +269,7 @@ function RoleManagement() {
                           <label key={permission} className="role-permission-label">
                             <input
                               type="checkbox"
+                              disabled={isSaving}
                               checked={isChecked}
                               onChange={() => togglePermission(roleName, permission)}
                               className="role-permission-checkbox-input"
@@ -283,15 +290,17 @@ function RoleManagement() {
                     <div className="role-action-buttons">
                       <button
                         onClick={() => resetRole(roleName)}
+                        disabled={isSaving}
                         className="role-reset-button"
                       >
-                        Reset
+                        Reset to defaults
                       </button>
                       <button
                         onClick={() => saveRole(roleName)}
+                        disabled={isSaving}
                         className="role-save-button"
                       >
-                        Save Changes
+                        {isSaving ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
                   </div>
@@ -305,24 +314,23 @@ function RoleManagement() {
       <div className="role-reference-section">
         <div className="role-reference-box">
           <div className="role-reference-title">PERMISSION REFERENCE</div>
-          <div className="role-reference-table-header">
-            <div>AREA</div>
-            <div>MANAGER / EXECUTIVE / ADMIN</div>
-            <div>EMPLOYEE</div>
-          </div>
-
-          {permissionReference.map((row) => (
-            <div key={row.area} className="role-reference-table-row">
-              <div className="role-reference-area">{row.area}</div>
-              <div className="role-reference-value">{row.manager}</div>
-              <div className="role-reference-value">{row.employee}</div>
-            </div>
-          ))}
+          <p>Admin pages are available only to administrators and executives.</p>
+          <p>
+            Objective creation follows the saved Create Objectives permission.
+            Editing and deleting follow Edit Objectives, while objective owners
+            can manage their own objectives. Group managers can manage objectives
+            in their assigned groups using the Manager permissions.
+          </p>
+          <p>
+            The other permission settings are saved, but do not currently control
+            access to their named features. Reset to defaults changes the draft;
+            select Save Changes to apply it.
+          </p>
         </div>
       </div>
 
       {showSavePopup && (
-        <div className="popup-overlay">
+        <div className="role-popup-overlay">
           <div className="role-popup">
             <h2>Changes Saved</h2>
             <p>

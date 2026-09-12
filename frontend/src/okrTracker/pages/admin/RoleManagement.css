@@ -29,12 +29,12 @@
     color: #1f1e40;
 }
 
-.logo {
+.role-management .logo {
     width: 40px;
     height: auto;
 }
 
-.popup-overlay{
+.role-popup-overlay{
     position: fixed;
     top: 0;
     left: 0;
@@ -69,7 +69,7 @@
     font-size: 16px;
 }
 
-.popup-close-button{
+.role-popup .popup-close-button{
     padding: 10px 30px;
     border: none;
     border-radius: 8px;
@@ -81,7 +81,7 @@
     transition: background-color 0.2s ease;
 }
 
-.popup-close-button:hover{
+.role-popup .popup-close-button:hover{
     background-color: #cfe2f0;
 }
 .role-header-title-inner {
@@ -117,17 +117,6 @@
     background-color: #fff2f1;
     border-radius: 8px;
     margin-bottom: 16px;
-}
-.role-add-section {
-    margin-bottom: 40px;
-}
-.role-add-button {
-    color: #2e6da4;
-    font-weight: bold;
-    font-size: 18px;
-    background: none;
-    border: none;
-    cursor: pointer;
 }
 .role-table-header {
     display: grid;
@@ -251,30 +240,21 @@
     font-size: 15px;
     margin-bottom: 20px;
 }
-.role-reference-table-header {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    padding: 0 10px 14px;
-    border-bottom: 1px solid #eee;
-    color: #888;
-    font-weight: 600;
-    letter-spacing: 1px;
-    font-size: 14px;
-}
-.role-reference-table-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    padding: 18px 10px;
-    border-bottom: 1px solid #eee;
-    align-items: center;
-}
-.role-reference-area {
-    color: #1a2b4a;
-    font-size: 17px;
-    font-weight: 600;
+
+
+.role-management button:disabled {
+    opacity: 0.6;
+    cursor: wait;
 }
 
-.role-reference-value {
-    color: #666;
-    font-size: 17px;
+.role-management input:focus-visible,
+.role-management button:focus-visible,
+.role-management select:focus-visible {
+    outline: 2px solid #2e6da4;
+    outline-offset: 3px;
+}
+
+.role-permission-checkbox-input:focus-visible + span {
+    outline: 2px solid #2e6da4;
+    outline-offset: 3px;
 }

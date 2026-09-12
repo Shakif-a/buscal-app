@@ -37,6 +37,8 @@ function GroupManagement() {
   const [draftManager, setDraftManager] = useState("");
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -54,6 +56,7 @@ function GroupManagement() {
         const savedGroups = await adminService.getGroups(user.token);
         setPeople(users);
         setGroups(savedGroups);
+        setHasLoaded(true);
       } catch (error) {
         setErrorMessage(getErrorMessage(error));
       } finally {
@@ -65,6 +68,10 @@ function GroupManagement() {
   }, [allowed, user]);
 
   function openEditor(group) {
+    if (isSaving) {
+      return;
+    }
+
     if (expandedGroup === group._id) {
       cancelEdit();
       return;
@@ -92,6 +99,11 @@ function GroupManagement() {
   }
 
   async function saveChanges(groupId) {
+    if (!hasLoaded || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const updatedGroup = await adminService.updateGroup(
         groupId,
@@ -103,7 +115,7 @@ function GroupManagement() {
       );
 
       setGroups(
-        groups.map((group) =>
+        (previous) => previous.map((group) =>
           group._id === groupId ? updatedGroup : group
         )
       );
@@ -113,6 +125,8 @@ function GroupManagement() {
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
       setSuccessMessage("");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -123,20 +137,27 @@ function GroupManagement() {
   }
 
   async function addGroup() {
+    if (!hasLoaded || isSaving) {
+      return;
+    }
+
     const name = window.prompt("Enter a name for the new group:");
 
     if (!name || !name.trim()) {
       return;
     }
 
+    setIsSaving(true);
     try {
       const newGroup = await adminService.createGroup(name.trim(), user.token);
-      setGroups([...groups, newGroup]);
+      setGroups((previous) => [...previous, newGroup]);
       setSuccessMessage("Group created.");
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
       setSuccessMessage("");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -147,7 +168,7 @@ function GroupManagement() {
   if (!allowed) {
     return (
       <div className="group-management">
-        <div className="group-status group-error">
+        <div role="alert" className="group-status group-error">
           Admin or executive access is required.
         </div>
       </div>
@@ -173,10 +194,10 @@ function GroupManagement() {
       </div>
 
       {errorMessage && (
-        <div className="group-status group-error">{errorMessage}</div>
+        <div role="alert" className="group-status group-error">{errorMessage}</div>
       )}
       {successMessage && (
-        <div className="group-status group-success">{successMessage}</div>
+        <div role="status" className="group-status group-success">{successMessage}</div>
       )}
 
       <div className="group-search-row">
@@ -184,6 +205,8 @@ function GroupManagement() {
           type="text"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
+          aria-label="Search groups"
+          disabled={isSaving}
           placeholder="Search group..."
           className="group-search-input"
         />
@@ -191,7 +214,7 @@ function GroupManagement() {
 
       <div className="group-content-box">
         <div className="group-add-section">
-          <button onClick={addGroup} className="group-add-button">
+          <button onClick={addGroup} disabled={!hasLoaded || isSaving} className="group-add-button">
             (+) Add Group
           </button>
         </div>
@@ -204,7 +227,7 @@ function GroupManagement() {
 
         {isLoading && <div className="group-status">Loading groups...</div>}
 
-        {!isLoading && visibleGroups.length === 0 && (
+        {!isLoading && hasLoaded && visibleGroups.length === 0 && (
           <div className="group-status">No groups found.</div>
         )}
 
@@ -212,20 +235,14 @@ function GroupManagement() {
           <div key={group._id}>
             <div className="group-table-row">
               <div className="group-name">
-                {expandedGroup === group._id && (
-                  <span
-                    onClick={() => openEditor(group)}
-                    className="group-collapse-icon"
-                  >
-                    ⊖
-                  </span>
-                )}
                 {group.name}
               </div>
               <div className="group-member-count">{group.members.length}</div>
               <div>
                 <button
                   onClick={() => openEditor(group)}
+                  disabled={isSaving}
+                  aria-expanded={expandedGroup === group._id}
                   className="group-edit-button"
                 >
                   Edit
@@ -247,6 +264,7 @@ function GroupManagement() {
                 <select
                   id={`manager-${group._id}`}
                   className="group-manager-select"
+                  disabled={isSaving}
                   value={draftManager}
                   onChange={(event) => setDraftManager(event.target.value)}
                 >
@@ -267,6 +285,7 @@ function GroupManagement() {
                       <label key={person._id} className="group-member-label">
                         <input
                           type="checkbox"
+                          disabled={isSaving}
                           checked={isChecked}
                           onChange={() => toggleMember(person._id)}
                           className="group-member-checkbox-input"
@@ -291,14 +310,15 @@ function GroupManagement() {
                     Select existing users as members of this group.
                   </span>
                   <div className="group-action-buttons">
-                    <button onClick={cancelEdit} className="group-cancel-button">
+                    <button onClick={cancelEdit} disabled={isSaving} className="group-cancel-button">
                       Cancel
                     </button>
                     <button
                       onClick={() => saveChanges(group._id)}
+                      disabled={isSaving}
                       className="group-save-button"
                     >
-                      Save Changes
+                      {isSaving ? "Saving..." : "Save Changes"}
                     </button>
                   </div>
                 </div>

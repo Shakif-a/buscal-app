@@ -9,7 +9,7 @@ export default defineConfig({
   ],
   esbuild: {
     loader: "jsx",
-    include: /src\/.*\.[tj]sx?$/,
+    include: /(?:src|cypress\/fixtures)\/.*\.[tj]sx?$/,
     exclude: [],
   },
   optimizeDeps: {

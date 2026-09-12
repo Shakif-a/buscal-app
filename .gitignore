@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/
+node_modules
 *.gz
 
 # Environment variables
@@ -36,3 +36,7 @@ pids/
 *.pid
 *.seed
 *.pid.lock
+
+# Browser test outputs
+frontend/cypress/screenshots/
+frontend/cypress/videos/

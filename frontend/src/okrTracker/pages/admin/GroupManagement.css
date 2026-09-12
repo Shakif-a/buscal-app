@@ -29,7 +29,7 @@
     color: #1f1e40;
 }
 
-.logo {
+.group-management .logo {
     width: 40px;
     height: auto;
 }
@@ -102,10 +102,6 @@
     display: flex;
     align-items: center;
     gap: 10px;
-}
-.group-collapse-icon {
-    cursor: pointer;
-    color: #888;
 }
 .group-member-count {
     color: #1a2b4a;
@@ -195,14 +191,6 @@
     justify-content: space-between;
     align-items: center;
 }
-.group-add-user-button {
-    color: #2e6da4;
-    font-weight: bold;
-    font-size: 17px;
-    background: none;
-    border: none;
-    cursor: pointer;
-}
 .group-member-help {
     color: #666;
     font-size: 15px;
@@ -227,4 +215,21 @@
     color: #fff;
     font-weight: 600;
     cursor: pointer;
+}
+
+.group-management button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.group-management input:focus-visible,
+.group-management button:focus-visible,
+.group-management select:focus-visible {
+    outline: 2px solid #2e6da4;
+    outline-offset: 3px;
+}
+
+.group-member-checkbox-input:focus-visible + span {
+    outline: 2px solid #2e6da4;
+    outline-offset: 3px;
 }
