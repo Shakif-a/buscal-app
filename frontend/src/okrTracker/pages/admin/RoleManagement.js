@@ -1,32 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import adminService from "../../features/admin/adminService";
 import "./RoleManagement.css";
-
-const permissionList = [
-  "Create Objectives",
-  "Edit Objectives",
-  "Create Key Results",
-  "Approve Key Results",
-  "View Reports",
-  "Manage Users",
-  "Manage Roles",
-  "Manage Groups",
-];
-
-const roleNames = ["Admin", "Manager", "Employee"];
-
-const defaultRoles = {
-  Admin: permissionList,
-  Manager: [
-    "Create Objectives",
-    "Edit Objectives",
-    "Create Key Results",
-    "Approve Key Results",
-    "View Reports",
-  ],
-  Employee: ["View Reports"],
-};
 
 function canManageAdmin(user) {
   if (!user) {
@@ -48,13 +23,12 @@ function getErrorMessage(error) {
   return error.message || "Something went wrong";
 }
 
-function makeRoleState(rows) {
+function makeRoleState(rows, permissionList) {
   const result = {};
 
-  for (let i = 0; i < roleNames.length; i++) {
-    const roleName = roleNames[i];
-    const savedRole = rows.find((row) => row.role === roleName);
-    const savedPermissions = savedRole ? savedRole.permissions : [];
+  for (const savedRole of rows) {
+    const roleName = savedRole.role;
+    const savedPermissions = savedRole.permissions;
     result[roleName] = {};
 
     for (let j = 0; j < permissionList.length; j++) {
@@ -66,20 +40,17 @@ function makeRoleState(rows) {
   return result;
 }
 
-function makeDefaultRoleState() {
-  const rows = [];
-
-  for (let i = 0; i < roleNames.length; i++) {
-    const role = roleNames[i];
-    rows.push({ role, permissions: defaultRoles[role] });
-  }
-
-  return makeRoleState(rows);
-}
-
 function RoleManagement() {
   const { user } = useSelector((state) => state.auth);
   const [roles, setRoles] = useState(null);
+  const [roleRows, setRoleRows] = useState([]);
+  const [permissionList, setPermissionList] = useState([]);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canAssign, setCanAssign] = useState(false);
+  const [people, setPeople] = useState([]);
+  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [expandedRole, setExpandedRole] = useState("Manager");
   const [searchText, setSearchText] = useState("");
   const [showSavePopup, setShowSavePopup] = useState(false);
@@ -98,8 +69,7 @@ function RoleManagement() {
       }
 
       try {
-        const savedRoles = await adminService.getPermissions(user.token);
-        setRoles(makeRoleState(savedRoles));
+        await loadRoles();
       } catch (error) {
         setErrorMessage(getErrorMessage(error));
       } finally {
@@ -109,6 +79,72 @@ function RoleManagement() {
 
     loadPermissions();
   }, [allowed, user]);
+
+  async function loadRoles() {
+    const data = await adminService.getRoles(user.token);
+    setRoleRows(data.roles);
+    setPermissionList(data.permissionNames);
+    setRoles(makeRoleState(data.roles, data.permissionNames));
+    setCanEdit(data.canManageRoles);
+    setCanAssign(data.canManageUsers);
+    if (data.canManageUsers) {
+      const users = await adminService.getUsers(user.token);
+      setPeople(users);
+      setSelectedRole(
+        users.find((person) => person._id === selectedUser)?.okrRole || "",
+      );
+    }
+  }
+
+  async function changeRole(action, role) {
+    if (isSaving || !canEdit) return;
+    let name;
+    if (action !== "delete") {
+      name = window.prompt(
+        action === "create"
+          ? "Enter a name for the new role:"
+          : "Enter the new role name:",
+        role || "",
+      );
+      if (!name || !name.trim()) return;
+    } else if (
+      !window.confirm(`Delete ${role}? Users must be reassigned first.`)
+    )
+      return;
+    setIsSaving(true);
+    try {
+      if (action === "create") await adminService.createRole(name, user.token);
+      if (action === "rename")
+        await adminService.renameRole(role, name, user.token);
+      if (action === "delete") await adminService.deleteRole(role, user.token);
+      await loadRoles();
+      setStatusMessage("Role changes saved.");
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function assignRole() {
+    if (!selectedUser || isSaving || !canAssign) return;
+    setIsSaving(true);
+    try {
+      await adminService.assignRole(
+        selectedUser,
+        selectedRole || null,
+        user.token,
+      );
+      await loadRoles();
+      setStatusMessage("User role saved.");
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   function toggleExpand(roleName) {
     if (expandedRole === roleName) {
@@ -130,13 +166,17 @@ function RoleManagement() {
 
   function resetRole(roleName) {
     setRoles((previous) => {
-      const defaults = makeDefaultRoleState();
+      const row = roleRows.find((row) => row.role === roleName);
+      const defaults = makeRoleState(
+        [{ role: roleName, permissions: row.defaultPermissions }],
+        permissionList,
+      );
       return { ...previous, [roleName]: defaults[roleName] };
     });
   }
 
   async function saveRole(roleName) {
-    if (!roles || isSaving) {
+    if (!roles || isSaving || !canEdit) {
       return;
     }
 
@@ -155,13 +195,17 @@ function RoleManagement() {
       const saved = await adminService.updatePermissions(
         roleName,
         permissions,
-        user.token
+        user.token,
       );
 
       setRoles((previous) => ({
         ...previous,
-        [roleName]: makeRoleState([saved])[roleName],
+        [roleName]: makeRoleState([saved], permissionList)[roleName],
       }));
+      if (roleName === "Admin") {
+        setCanEdit(saved.permissions.includes("Manage Roles"));
+        setCanAssign(saved.permissions.includes("Manage Users"));
+      }
       setSavedRole(roleName);
       setShowSavePopup(true);
       setErrorMessage("");
@@ -172,9 +216,9 @@ function RoleManagement() {
     }
   }
 
-  const visibleRoles = roleNames.filter((name) =>
-    name.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const visibleRoles = roleRows
+    .map((row) => row.role)
+    .filter((name) => name.toLowerCase().includes(searchText.toLowerCase()));
 
   if (!allowed) {
     return (
@@ -207,7 +251,14 @@ function RoleManagement() {
       </div>
 
       {errorMessage && (
-        <div role="alert" className="role-status role-error">{errorMessage}</div>
+        <div role="alert" className="role-status role-error">
+          {errorMessage}
+        </div>
+      )}
+      {statusMessage && (
+        <div role="status" className="role-status">
+          {statusMessage}
+        </div>
       )}
 
       <div className="role-search-row">
@@ -223,6 +274,13 @@ function RoleManagement() {
       </div>
 
       <div className="role-content-box">
+        <button
+          className="role-edit-button"
+          disabled={isLoading || isSaving || !canEdit}
+          onClick={() => changeRole("create")}
+        >
+          Add Role
+        </button>
         {isLoading && <div className="role-status">Loading permissions...</div>}
 
         {!isLoading && roles && (
@@ -241,6 +299,22 @@ function RoleManagement() {
                 <div className="role-table-row">
                   <div className="role-name">{roleName}</div>
                   <div>
+                    {!roleRows.find((row) => row.role === roleName).system && (
+                      <>
+                        <button
+                          disabled={isSaving || !canEdit}
+                          onClick={() => changeRole("rename", roleName)}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          disabled={isSaving || !canEdit}
+                          onClick={() => changeRole("delete", roleName)}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => toggleExpand(roleName)}
                       disabled={isSaving}
@@ -266,12 +340,23 @@ function RoleManagement() {
                         const isChecked = roles[roleName][permission];
 
                         return (
-                          <label key={permission} className="role-permission-label">
+                          <label
+                            key={permission}
+                            className="role-permission-label"
+                          >
                             <input
                               type="checkbox"
-                              disabled={isSaving}
+                              disabled={
+                                isSaving ||
+                                !canEdit ||
+                                !roleRows
+                                  .find((row) => row.role === roleName)
+                                  .allowedPermissions.includes(permission)
+                              }
                               checked={isChecked}
-                              onChange={() => togglePermission(roleName, permission)}
+                              onChange={() =>
+                                togglePermission(roleName, permission)
+                              }
                               className="role-permission-checkbox-input"
                             />
                             <span
@@ -281,7 +366,9 @@ function RoleManagement() {
                             >
                               {isChecked ? "✓" : ""}
                             </span>
-                            <span className="role-permission-name">{permission}</span>
+                            <span className="role-permission-name">
+                              {permission}
+                            </span>
                           </label>
                         );
                       })}
@@ -290,14 +377,14 @@ function RoleManagement() {
                     <div className="role-action-buttons">
                       <button
                         onClick={() => resetRole(roleName)}
-                        disabled={isSaving}
+                        disabled={isSaving || !canEdit}
                         className="role-reset-button"
                       >
                         Reset to defaults
                       </button>
                       <button
                         onClick={() => saveRole(roleName)}
-                        disabled={isSaving}
+                        disabled={isSaving || !canEdit}
                         className="role-save-button"
                       >
                         {isSaving ? "Saving..." : "Save Changes"}
@@ -311,20 +398,78 @@ function RoleManagement() {
         )}
       </div>
 
+      {canAssign && (
+        <div className="role-reference-section">
+          <h2>Assign an OKR role</h2>
+          <label>
+            User{" "}
+            <select
+              aria-label="User for OKR role"
+              value={selectedUser}
+              disabled={isSaving}
+              onChange={(event) => {
+                setSelectedUser(event.target.value);
+                setSelectedRole(
+                  people.find((person) => person._id === event.target.value)
+                    ?.okrRole || "",
+                );
+              }}
+            >
+              <option value="">Select a user</option>
+              {people
+                .filter((person) => !canManageAdmin(person))
+                .map((person) => (
+                  <option key={person._id} value={person._id}>
+                    {person.firstName} {person.lastName}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            OKR role{" "}
+            <select
+              aria-label="Assigned OKR role"
+              value={selectedRole}
+              disabled={isSaving}
+              onChange={(event) => setSelectedRole(event.target.value)}
+            >
+              <option value="">Use account and company role</option>
+              {roleRows
+                .filter((row) => !row.system)
+                .map((row) => (
+                  <option key={row.role} value={row.role}>
+                    {row.role}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <button disabled={!selectedUser || isSaving} onClick={assignRole}>
+            Save user role
+          </button>
+        </div>
+      )}
+
       <div className="role-reference-section">
         <div className="role-reference-box">
           <div className="role-reference-title">PERMISSION REFERENCE</div>
-          <p>Admin pages are available only to administrators and executives.</p>
+          <p>
+            Admin pages are available only to administrators and executives.
+          </p>
           <p>
             Objective creation follows the saved Create Objectives permission.
             Editing and deleting follow Edit Objectives, while objective owners
-            can manage their own objectives. Group managers can manage objectives
-            in their assigned groups using the Manager permissions.
+            can manage their own objectives. Group managers can manage
+            objectives in their assigned groups using the Manager permissions.
           </p>
           <p>
-            The other permission settings are saved, but do not currently control
-            access to their named features. Reset to defaults changes the draft;
-            select Save Changes to apply it.
+            Key-result creation, approval, reports, and admin actions follow
+            their named permissions. Admin-only settings cannot be delegated
+            here. Custom roles control OKR work and can be assigned to users.
+            System roles cannot be renamed or deleted. Removing Manage Roles
+            also removes access to this editor; a database operator can restore
+            it with the admin access recovery script. Employee objective access
+            remains limited to ownership and managed groups. Reset to defaults
+            changes the draft; select Save Changes to apply it.
           </p>
         </div>
       </div>

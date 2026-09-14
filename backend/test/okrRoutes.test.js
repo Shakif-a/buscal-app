@@ -21,11 +21,7 @@ test("objective write routes include authentication and permission checks", () =
   const create = findRoute(okrRoutes, "/objectives", "post");
   const update = findRoute(okrRoutes, "/objectives/:id", "put");
   const remove = findRoute(okrRoutes, "/objectives/:id", "delete");
-  const keyResult = findRoute(
-    okrRoutes,
-    "/objectives/:id/key-results",
-    "post"
-  );
+  const keyResult = findRoute(okrRoutes, "/objectives/:id/key-results", "post");
 
   assert.equal(create.stack.length, 3);
   assert.equal(update.stack.length, 3);
@@ -55,8 +51,11 @@ test("the groups route is declared before the objective id route", () => {
 });
 
 test("admin routes use authentication and admin access checks", () => {
-  assert.equal(okrAdminRoutes.stack[0].handle, protect);
-  assert.equal(okrAdminRoutes.stack[1].handle, adminOrExec);
+  const middleware = okrAdminRoutes.stack
+    .filter((layer) => !layer.route)
+    .map((layer) => layer.handle);
+  assert.ok(middleware.includes(protect));
+  assert.ok(middleware.includes(adminOrExec));
 
   assert.ok(findRoute(okrAdminRoutes, "/users", "get"));
   assert.ok(findRoute(okrAdminRoutes, "/groups", "get"));

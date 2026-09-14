@@ -8,22 +8,26 @@ const {
   hasRolePermission,
 } = require("./adminPermissions");
 
-async function managesGroup(user, groupName) {
-  if (!groupName) {
+async function managesGroup(user, groupName, session) {
+  if (typeof groupName !== "string" || !groupName.trim()) {
     return false;
   }
 
-  const group = await OkrGroup.findOne({
-    name: groupName,
-    manager: user._id,
-  });
+  const group = await OkrGroup.findOne(
+    {
+      name: groupName.trim(),
+      manager: user._id,
+    },
+    null,
+    { session },
+  );
 
   return Boolean(group);
 }
 
-async function canUserManageObjective(user, objective) {
-  const ownerId = objective.owner._id || objective.owner;
-  const isOwner = ownerId.toString() === user._id.toString();
+async function canUserManageObjective(user, objective, session) {
+  const ownerId = objective.owner && (objective.owner._id || objective.owner);
+  const isOwner = ownerId && ownerId.toString() === user._id.toString();
 
   if (isOwner) {
     return true;
@@ -32,42 +36,28 @@ async function canUserManageObjective(user, objective) {
   const role = getRoleName(user);
 
   if (role === "Employee") {
-    const isGroupManager = await managesGroup(user, objective.group);
+    const isGroupManager = await managesGroup(user, objective.group, session);
 
     if (!isGroupManager) {
       return false;
     }
 
-    return hasRolePermission("Manager", "Edit Objectives");
+    return hasRolePermission("Manager", "Edit Objectives", session);
   }
 
-  return hasPermission(user, "Edit Objectives");
+  return hasPermission(user, "Edit Objectives", session);
 }
 
 const canCreateObjective = asyncHandler(async (req, res, next) => {
-  const role = getRoleName(req.user);
-
-  if (role === "Employee") {
-    const groupName = req.body ? req.body.group : "";
-    const isGroupManager = await managesGroup(req.user, groupName);
-
-    if (!isGroupManager) {
-      res.status(403);
-      throw new Error("You do not have permission to create objectives");
-    }
-
-    const allowed = await hasRolePermission("Manager", "Create Objectives");
-
-    if (!allowed) {
-      res.status(403);
-      throw new Error("You do not have permission to create objectives");
-    }
-
-    next();
-    return;
+  if (
+    req.body &&
+    req.body.group !== undefined &&
+    typeof req.body.group !== "string"
+  ) {
+    res.status(400);
+    throw new Error("Please select a valid group");
   }
-
-  const allowed = await hasPermission(req.user, "Create Objectives");
+  const allowed = await canUserCreateObjective(req.user, req.body?.group);
 
   if (!allowed) {
     res.status(403);
@@ -77,62 +67,85 @@ const canCreateObjective = asyncHandler(async (req, res, next) => {
   next();
 });
 
-const canManageObjective = asyncHandler(async (req, res, next) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
-    res.status(404);
-    throw new Error("Objective not found");
+async function canUserCreateObjective(user, groupName, session) {
+  const role = getRoleName(user);
+
+  if (role === "Employee") {
+    const isGroupManager = await managesGroup(user, groupName, session);
+
+    if (!isGroupManager) {
+      return false;
+    }
+
+    return hasRolePermission("Manager", "Create Objectives", session);
   }
 
-  const objective = await OkrObjective.findById(req.params.id);
+  return hasPermission(user, "Create Objectives", session);
+}
 
-  if (!objective) {
-    res.status(404);
-    throw new Error("Objective not found");
+async function hasObjectivePermission(user, objective, permission, session) {
+  let role = getRoleName(user);
+  if (
+    role === "Employee" &&
+    (await managesGroup(user, objective.group, session))
+  ) {
+    role = "Manager";
   }
+  return hasRolePermission(role, permission, session);
+}
 
-  const ownerId = objective.owner._id || objective.owner;
-  const isOwner = ownerId.toString() === req.user._id.toString();
-
-  if (isOwner) {
-    next();
-    return;
-  }
-
-  const allowed = await canUserManageObjective(req.user, objective);
-
-  if (!allowed) {
+async function assertObjectiveAccess(req, res, objective, session, permission) {
+  const allowed = await canUserManageObjective(req.user, objective, session);
+  if (
+    !allowed ||
+    (permission &&
+      !(await hasObjectivePermission(req.user, objective, permission, session)))
+  ) {
     res.status(403);
     throw new Error("You do not have permission to manage this objective");
   }
-
-  const role = getRoleName(req.user);
-
-  if (role === "Employee") {
-    if (
-      req.body &&
-      typeof req.body.group === "string" &&
-      req.body.group.trim() !== objective.group
-    ) {
-      const managesNewGroup = await managesGroup(
-        req.user,
-        req.body.group.trim()
-      );
-
-      if (!managesNewGroup) {
-        res.status(403);
-        throw new Error("You do not have permission to move this objective");
-      }
-    }
-
-    next();
-    return;
+  const ownerId = objective.owner && (objective.owner._id || objective.owner);
+  const isOwner = ownerId && ownerId.toString() === req.user._id.toString();
+  if (
+    !isOwner &&
+    getRoleName(req.user) === "Employee" &&
+    req.body &&
+    typeof req.body.group === "string" &&
+    req.body.group.trim() !== objective.group &&
+    !(await managesGroup(req.user, req.body.group, session))
+  ) {
+    res.status(403);
+    throw new Error("You do not have permission to move this objective");
   }
+}
 
-  next();
-});
+function objectiveAccess(permission) {
+  return asyncHandler(async (req, res, next) => {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    const objective = await OkrObjective.findById(req.params.id);
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    await assertObjectiveAccess(req, res, objective, undefined, permission);
+    next();
+  });
+}
+
+const canManageObjective = objectiveAccess();
+const canCreateKeyResult = objectiveAccess("Create Key Results");
+const canApproveKeyResult = objectiveAccess("Approve Key Results");
 
 module.exports = {
+  assertObjectiveAccess,
+  hasObjectivePermission,
   canUserManageObjective,
+  canUserCreateObjective,
   canCreateObjective,
   canManageObjective,
+  canCreateKeyResult,
+  canApproveKeyResult,
 };

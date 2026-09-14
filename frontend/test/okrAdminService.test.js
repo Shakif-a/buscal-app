@@ -31,13 +31,13 @@ test("admin pages use the correct protected API requests", async () => {
     await adminService.updateGroup(
       "group-1",
       { manager: "user-1", members: ["user-2"] },
-      "test-token"
+      "test-token",
     );
     await adminService.getPermissions("test-token");
     await adminService.updatePermissions(
       "Manager",
       ["Create Objectives"],
-      "test-token"
+      "test-token",
     );
 
     assert.deepEqual(
@@ -49,13 +49,13 @@ test("admin pages use the correct protected API requests", async () => {
         "PUT http://localhost:5000/api/okr/admin/groups/group-1",
         "GET http://localhost:5000/api/okr/admin/permissions",
         "PUT http://localhost:5000/api/okr/admin/permissions/Manager",
-      ]
+      ],
     );
 
     for (let i = 0; i < requests.length; i++) {
       assert.equal(
         requests[i].config.headers.Authorization,
-        "Bearer test-token"
+        "Bearer test-token",
       );
     }
 
@@ -71,5 +71,62 @@ test("admin pages use the correct protected API requests", async () => {
     axios.get = originalGet;
     axios.post = originalPost;
     axios.put = originalPut;
+  }
+});
+
+test("role lifecycle, user assignment and group deletion use authenticated API contracts", async () => {
+  const originals = {
+    get: axios.get,
+    post: axios.post,
+    put: axios.put,
+    delete: axios.delete,
+  };
+  const calls = [];
+  for (const method of ["get", "post", "put", "delete"]) {
+    axios[method] = async (url, body, config) => {
+      calls.push({
+        method,
+        url,
+        body: ["get", "delete"].includes(method) ? undefined : body,
+        config: config || body,
+      });
+      return { data: { saved: true } };
+    };
+  }
+  try {
+    await adminService.getRoles("token");
+    await adminService.createRole("Sales Lead", "token");
+    await adminService.renameRole("Sales Lead", "Reviewer", "token");
+    await adminService.assignRole("user-1", "Reviewer", "token");
+    await adminService.assignRole("user-1", null, "token");
+    await adminService.deleteRole("Sales Lead", "token");
+    await adminService.deleteGroup("group-1", "token");
+    assert.deepEqual(
+      calls.map((call) => [
+        call.method,
+        call.url.replace("http://localhost:5000/api/okr/admin", ""),
+        call.body,
+      ]),
+      [
+        ["get", "/roles", undefined],
+        ["post", "/roles", { role: "Sales Lead" }],
+        ["put", "/roles/Sales%20Lead", { role: "Reviewer" }],
+        ["put", "/users/user-1/role", { role: "Reviewer" }],
+        ["put", "/users/user-1/role", { role: null }],
+        ["delete", "/roles/Sales%20Lead", undefined],
+        ["delete", "/groups/group-1", undefined],
+      ],
+    );
+    for (const call of calls)
+      assert.equal(call.config.headers.Authorization, "Bearer token");
+    axios.delete = async () => {
+      throw new Error("Deletion blocked");
+    };
+    await assert.rejects(
+      adminService.deleteRole("Reviewer", "token"),
+      /Deletion blocked/,
+    );
+  } finally {
+    Object.assign(axios, originals);
   }
 });

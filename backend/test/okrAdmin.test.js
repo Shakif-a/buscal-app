@@ -1,5 +1,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const writes = require("../services/okrWrites");
+const originalTransaction = writes.transaction;
+test.beforeEach(() => {
+  writes.transaction = async (work) => work(undefined);
+});
+test.afterEach(() => {
+  writes.transaction = originalTransaction;
+});
 const mongoose = require("mongoose");
 const OkrGroup = require("../models/okrGroupModel");
 const OkrRolePermission = require("../models/okrRolePermissionModel");
@@ -38,7 +46,7 @@ function runHandler(handler, req) {
     };
 
     function next(error) {
-      resolve({ error, statusCode: res.statusCode });
+      resolve({ error, statusCode: error?.statusCode || res.statusCode });
     }
 
     try {

@@ -35,6 +35,7 @@ function GroupManagement() {
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [draftMembers, setDraftMembers] = useState([]);
   const [draftManager, setDraftManager] = useState("");
+  const [draftName, setDraftName] = useState("");
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -84,6 +85,7 @@ function GroupManagement() {
     }
 
     setDraftMembers(memberIds);
+    setDraftName(group.name);
     setDraftManager(group.manager ? group.manager._id || group.manager : "");
     setExpandedGroup(group._id);
     setErrorMessage("");
@@ -108,16 +110,15 @@ function GroupManagement() {
       const updatedGroup = await adminService.updateGroup(
         groupId,
         {
+          name: draftName,
           manager: draftManager || null,
           members: draftMembers,
         },
-        user.token
+        user.token,
       );
 
-      setGroups(
-        (previous) => previous.map((group) =>
-          group._id === groupId ? updatedGroup : group
-        )
+      setGroups((previous) =>
+        previous.map((group) => (group._id === groupId ? updatedGroup : group)),
       );
       setExpandedGroup(null);
       setSuccessMessage("Group changes saved.");
@@ -134,6 +135,32 @@ function GroupManagement() {
     setDraftMembers([]);
     setDraftManager("");
     setExpandedGroup(null);
+  }
+
+  async function deleteGroup(group) {
+    if (
+      !hasLoaded ||
+      isSaving ||
+      !window.confirm(
+        `Delete ${group.name}? Groups with objectives cannot be deleted.`,
+      )
+    )
+      return;
+    setIsSaving(true);
+    try {
+      await adminService.deleteGroup(group._id, user.token);
+      setGroups((previous) =>
+        previous.filter((item) => item._id !== group._id),
+      );
+      setExpandedGroup(null);
+      setSuccessMessage("Group deleted.");
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+      setSuccessMessage("");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function addGroup() {
@@ -162,7 +189,7 @@ function GroupManagement() {
   }
 
   const visibleGroups = groups.filter((group) =>
-    group.name.toLowerCase().includes(searchText.toLowerCase())
+    group.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   if (!allowed) {
@@ -194,10 +221,14 @@ function GroupManagement() {
       </div>
 
       {errorMessage && (
-        <div role="alert" className="group-status group-error">{errorMessage}</div>
+        <div role="alert" className="group-status group-error">
+          {errorMessage}
+        </div>
       )}
       {successMessage && (
-        <div role="status" className="group-status group-success">{successMessage}</div>
+        <div role="status" className="group-status group-success">
+          {successMessage}
+        </div>
       )}
 
       <div className="group-search-row">
@@ -214,7 +245,11 @@ function GroupManagement() {
 
       <div className="group-content-box">
         <div className="group-add-section">
-          <button onClick={addGroup} disabled={!hasLoaded || isSaving} className="group-add-button">
+          <button
+            onClick={addGroup}
+            disabled={!hasLoaded || isSaving}
+            className="group-add-button"
+          >
             (+) Add Group
           </button>
         </div>
@@ -234,11 +269,12 @@ function GroupManagement() {
         {visibleGroups.map((group) => (
           <div key={group._id}>
             <div className="group-table-row">
-              <div className="group-name">
-                {group.name}
-              </div>
+              <div className="group-name">{group.name}</div>
               <div className="group-member-count">{group.members.length}</div>
               <div>
+                <button disabled={isSaving} onClick={() => deleteGroup(group)}>
+                  Delete
+                </button>
                 <button
                   onClick={() => openEditor(group)}
                   disabled={isSaving}
@@ -255,6 +291,15 @@ function GroupManagement() {
 
             {expandedGroup === group._id && (
               <div className="group-member-panel">
+                <label>
+                  Group name{" "}
+                  <input
+                    aria-label="Group name"
+                    value={draftName}
+                    disabled={isSaving}
+                    onChange={(event) => setDraftName(event.target.value)}
+                  />
+                </label>
                 <label
                   className="group-manager-label"
                   htmlFor={`manager-${group._id}`}
@@ -310,7 +355,11 @@ function GroupManagement() {
                     Select existing users as members of this group.
                   </span>
                   <div className="group-action-buttons">
-                    <button onClick={cancelEdit} disabled={isSaving} className="group-cancel-button">
+                    <button
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                      className="group-cancel-button"
+                    >
                       Cancel
                     </button>
                     <button
