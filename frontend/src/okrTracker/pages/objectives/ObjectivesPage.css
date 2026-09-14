@@ -466,3 +466,153 @@
 .popup-delete-button:hover{
     background-color: #b52b27;
 }
+
+.objective-action-error{
+  margin: 18px 0 0;
+  color: #b52b27;
+  font-size: 14px;
+  text-align: center;
+}
+
+.popup-cancel-button:disabled,
+.popup-delete-button:disabled,
+.edit-popup-close:disabled,
+.edit-cancel-button:disabled,
+.edit-save-button:disabled{
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.edit-popup-overlay{
+  position: fixed;
+  inset: 0;
+  background-color: rgba(31, 30, 64, 0.25);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 90px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.edit-objective-popup{
+  width: 850px;
+  max-width: 90%;
+  max-height: calc(100vh - 120px);
+  padding: 28px 32px;
+  border: 1px solid #d9dfea;
+  border-radius: 15px;
+  background-color: white;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.edit-popup-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.edit-popup-header h2{
+  margin: 0;
+  color: #1f1e40;
+  font-family: avenir;
+  font-size: 32px;
+}
+
+.edit-popup-close{
+  padding: 1px 10px 4px;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  background-color: #cc5656;
+  color: #1f1e40;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.edit-objective-form{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+.edit-form-left,
+.edit-form-right{
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-objective-form label{
+  margin-top: 18px;
+  margin-bottom: 8px;
+  color: #1f1e40;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.edit-objective-form input,
+.edit-objective-form select,
+.edit-objective-form textarea{
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d9dfea;
+  border-radius: 10px;
+  background-color: white;
+  color: #1f1e40;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.edit-objective-form textarea{
+  height: 340px;
+  resize: vertical;
+  font-family: sans-serif;
+}
+
+.edit-popup-buttons{
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.edit-cancel-button,
+.edit-save-button{
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.edit-cancel-button{
+  border: 1px solid #d9dfea;
+  background-color: #f2f2f2;
+  color: #1f1e40;
+}
+
+.edit-cancel-button:hover{
+  background-color: #cfe2f0;
+}
+
+.edit-save-button{
+  border: none;
+  background-color: #2e9e6b;
+  color: white;
+  font-weight: 600;
+}
+
+.edit-save-button:hover{
+  background-color: #32785d;
+}
+
+@media (max-width: 700px){
+  .edit-objective-form{
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .edit-objective-form textarea{
+    height: 180px;
+  }
+}
