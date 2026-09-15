@@ -651,3 +651,47 @@ h3 {
   border-color: #dc3545 !important;
   box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
 }
+
+/* ------- OKR Buttons ------- */
+
+.cancel-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  background: #eef2f7;
+  color: #1f1e40;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-button:hover {
+  background-color: #cfe2fc;
+}
+
+.save-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  background: #72cdf4;
+  color: #20203f;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.save-button:hover{
+  background-color: #2e9e6b;
+}
+
+.save-button:disabled{
+  background-color: #d9dfea;
+  color: #8a8f9c;
+  cursor: not-allowed;
+}
+
+.save-button:disabled:hover{
+  background-color: #79808e;
+}
