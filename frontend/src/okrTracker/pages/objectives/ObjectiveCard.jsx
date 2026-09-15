@@ -61,7 +61,7 @@ function ObjectiveCard({ objective }) {
   }
 
   // KR Save Validity Check
-  const keyResultsValid = 
+  const keyResultsValid =
     keyResults.length > 0 &&
     keyResults.every((keyResult) =>
       keyResult.name.trim() !== "" &&
@@ -84,14 +84,14 @@ function ObjectiveCard({ objective }) {
     setShowWeightPopup(true);
   };
 
-  {/*Weighting Popup*/}
+  {/*Weighting Popup*/ }
   const handleWeightChange = (id, newWeight) => {
     const weight = Math.max(0, Math.min(100, Number(newWeight)));
 
     setWeightDrafts((previousWeights) =>
       previousWeights.map((item) =>
         item.id === id
-          ? {...item, weight:weight }
+          ? { ...item, weight: weight }
           : item
       )
     );
@@ -103,8 +103,8 @@ function ObjectiveCard({ objective }) {
   );
 
   const closeWeightPopup = () => {
-                  setShowWeightPopup(false);
-                  setWeightDrafts([]);
+    setShowWeightPopup(false);
+    setWeightDrafts([]);
   };
 
   const saveWeights = () => {
@@ -117,7 +117,7 @@ function ObjectiveCard({ objective }) {
         );
 
         return draft
-          ? {...keyResult, weight: draft.weight}
+          ? { ...keyResult, weight: draft.weight }
           : keyResult
       })
     );
@@ -190,11 +190,11 @@ function ObjectiveCard({ objective }) {
           <table className="key-results-table">
             <thead>
               <tr>
-                <th>KEY RESULTS</th>
-                <th>WEIGHT</th>
-                <th>ASSIGNED</th>
-                <th>PROGRESS</th>
-                <th>DUE DATE</th>
+                <th>KEY RESULTS <span className="required">*</span></th>
+                <th>WEIGHT <span className="required">*</span></th>
+                <th>ASSIGNED <span className="required">*</span></th>
+                <th>PROGRESS <span className="required">*</span></th>
+                <th>DUE DATE <span className="required">*</span></th>
                 <th>STATUS</th>
                 <th>EVIDENCE</th>
                 <th>APPROVAL</th>
@@ -209,8 +209,8 @@ function ObjectiveCard({ objective }) {
                   </td>
                 </tr>
               ) : (
-                    keyResults.map((keyResult) => (
-                    <tr key={keyResult.id}>
+                keyResults.map((keyResult) => (
+                  <tr key={keyResult.id}>
 
                     {/* Key Result name */}
                     <td>
@@ -252,7 +252,7 @@ function ObjectiveCard({ objective }) {
                           onClick={openWeightPopup}
                         >
                           <span>{keyResult.weight}%</span>
-                          <EditIcon className="weight-edit-icon"/>
+                          <EditIcon className="weight-edit-icon" />
                         </button>
                       ) : (
                         <span>{keyResult.weight}%</span>
@@ -309,7 +309,7 @@ function ObjectiveCard({ objective }) {
                     {/* Due Date */}
                     <td>
                       {editMode ? (
-                       <input
+                        <input
                           className="date-input"
                           type="date"
                           value={keyResult.dueDate}
@@ -430,19 +430,20 @@ function ObjectiveCard({ objective }) {
                 </p>
               )}
             </div>
-
             <div className="footer-buttons">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => {
-                  setEditMode(false);
-                  setShowKeyResults(false);
-                  setShowWeightPopup(false);
-                }}
-              >
-                Cancel
-              </button>
+
+              {editMode && (
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={() => {
+                    setEditMode(false);
+                    setShowWeightPopup(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
 
               <button
                 type="button"
@@ -452,6 +453,7 @@ function ObjectiveCard({ objective }) {
               >
                 {editMode ? "Save Key Results" : "Edit Key Results"}
               </button>
+
             </div>
           </div>
         </div>
@@ -472,17 +474,17 @@ function ObjectiveCard({ objective }) {
               >
                 x
               </button>
-                
-              <p className="weight-popup-objective">Objective: 
-                  <strong> {objective.title}</strong>
+
+              <p className="weight-popup-objective">Objective:
+                <strong> {objective.title}</strong>
               </p>
 
               <p className="weight-popup-description">
-                  Combined Weighting Must Equal 100%
+                Combined Weighting Must Equal 100%
               </p>
 
             </div>
-            
+
             {/*Weight Popup Content*/}
             <div className="weight-popup-content">
               {/*Sliders here */}
@@ -493,7 +495,7 @@ function ObjectiveCard({ objective }) {
 
                 const currentWeight = draft?.weight ?? keyResult.weight;
 
-                return(
+                return (
                   <div className="weight-slider-item"
                     key={keyResult.id}
                   >
@@ -508,25 +510,10 @@ function ObjectiveCard({ objective }) {
 
                     <div className="weight-slider-controls">
                       <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={currentWeight}
-                      onChange={(e) =>
-                        handleWeightChange(
-                          keyResult.id,
-                          e.target.value
-                        )
-                      }
-                      className="weight-slider"
-                      />
-
-                      <div className="weight-slider-percentage">
-                        <input
-                        type="number"
+                        type="range"
                         min="0"
                         max="100"
+                        step="1"
                         value={currentWeight}
                         onChange={(e) =>
                           handleWeightChange(
@@ -534,6 +521,21 @@ function ObjectiveCard({ objective }) {
                             e.target.value
                           )
                         }
+                        className="weight-slider"
+                      />
+
+                      <div className="weight-slider-percentage">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={currentWeight}
+                          onChange={(e) =>
+                            handleWeightChange(
+                              keyResult.id,
+                              e.target.value
+                            )
+                          }
                         />
 
                         <span>%</span>
@@ -552,7 +554,7 @@ function ObjectiveCard({ objective }) {
                 totalWeight === 100
                   ? "weight-total-valid"
                   : "weight-total-invalid"
-                }
+              }
               >
                 {totalWeight}%
               </strong>

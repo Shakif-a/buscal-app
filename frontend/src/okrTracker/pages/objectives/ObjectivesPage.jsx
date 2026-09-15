@@ -14,6 +14,11 @@ function ObjectivesPage() {
   const [selectedType, setSelectedType] = useState("");
   const [selectedObjectives, setSelectedObjectives] = useState("");
 
+  // Pagination - 5 objectives limit
+  const [currentPage, setCurrentPage] = useState(1);
+  const objectivesPerPage = 5;
+
+
   // Connect to global Redux state
   const { objectives, isLoading, isError, message } = useSelector(
     (state) => state.okr
@@ -86,6 +91,18 @@ function ObjectivesPage() {
     selectedOwner,
     selectedType,
   ]);
+
+  // Pagination
+  const totalPages = Math.ceil(
+    filteredObjectives.length / objectivesPerPage
+  );
+
+  const startIndex = (currentPage - 1) * objectivesPerPage;
+
+  const currentObjectives = filteredObjectives.slice(
+    startIndex,
+    startIndex + objectivesPerPage
+  );
 
   // Early Return 1: Still fetching from Node server
   if (isLoading) {
@@ -195,7 +212,7 @@ function ObjectivesPage() {
           No matching objectives found in database.
         </div>
       ) : (
-        filteredObjectives.map((objective) => (
+        currentObjectives.map((objective) => (
           <ObjectiveCard
             key={objective._id || objective.id}
             objective={objective}
@@ -203,17 +220,26 @@ function ObjectivesPage() {
         ))
       )}
 
-      {/* Footer */}
+
+      {/* Pagination controls */}
       <div className="objectives-footer">
-        <button className="page-button">
+        <button
+          className="page-button"
+          onClick={() => setCurrentPage(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
           ← Previous
         </button>
 
         <span className="page-count">
-          1 of 1
+          {currentPage} of {totalPages}
         </span>
 
-        <button className="page-button">
+        <button
+          className="page-button"
+          onClick={() => setCurrentPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
           Next →
         </button>
       </div>

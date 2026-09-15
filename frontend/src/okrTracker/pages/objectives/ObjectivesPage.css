@@ -286,15 +286,12 @@
   font-size: 14px;
 }
 
-/* ---------------- Editable Key Results ---------------- */
-
-.key-result-input {
-  width: 110px;
-  padding: 8px;
-  border: 1px solid #d9dfea;
-  border-radius: 7px;
-  font-size: 13px;
+.key-results-table th .required {
+  color: #d9534f !important;
+  font-weight: bold;
 }
+
+/* ---------------- Editable Key Results ---------------- */
 
 .date-input {
   width: 135px;
