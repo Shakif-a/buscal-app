@@ -2,9 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import adminService from "../../features/admin/adminService";
 import "./RoleManagement.css";
-const API_BASE =
-  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/okr/admin`;
-
 const permissionList = [
   "Create Objectives",
   "Edit Objectives",
@@ -82,6 +79,7 @@ function makeDefaultRoleState() {
 function RoleManagement() {
   const { user } = useSelector((state) => state.auth);
   const [roles, setRoles] = useState(makeDefaultRoleState());
+  const [savedRoles, setSavedRoles] = useState(makeDefaultRoleState());
   const [expandedRole, setExpandedRole] = useState("Manager");
   const [searchText, setSearchText] = useState("");
   const [showSavePopup, setShowSavePopup] = useState(false);
@@ -99,8 +97,10 @@ function RoleManagement() {
       }
 
       try {
-        const savedRoles = await adminService.getPermissions(user.token);
-        setRoles(makeRoleState(savedRoles));
+        const loadedRoles = await adminService.getPermissions(user.token);
+        const roleState = makeRoleState(loadedRoles);
+        setRoles(roleState);
+        setSavedRoles(roleState);
       } catch (error) {
         setErrorMessage(getErrorMessage(error));
       } finally {
@@ -128,11 +128,12 @@ function RoleManagement() {
       },
     }));
   }
-
   function resetRole(roleName) {
     setRoles((previous) => {
-      const defaults = makeDefaultRoleState();
-      return { ...previous, [roleName]: defaults[roleName] };
+      return {
+        ...previous,
+        [roleName]: { ...savedRoles[roleName] },
+      };
     });
   }
 
@@ -153,10 +154,17 @@ function RoleManagement() {
         permissions,
         user.token
       );
-
+      
+      const savedRoleState = makeRoleState([saved])[roleName];
+      
       setRoles((previous) => ({
         ...previous,
-        [roleName]: makeRoleState([saved])[roleName],
+        [roleName]: savedRoleState,
+      }));
+      
+      setSavedRoles((previous) => ({
+        ...previous,
+        [roleName]: savedRoleState,
       }));
       setSavedRole(roleName);
       setShowSavePopup(true);
