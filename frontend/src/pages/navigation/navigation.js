@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 
 function Navbar() {
@@ -9,6 +10,9 @@ function Navbar() {
   const [hoverTab, setHoverTab] = useState(null);
   const [hoverItem, setHoverItem] = useState(null);
   const location = useLocation();
+  const { user } = useSelector((state) => state.auth);
+  const isAdmin = user && user.roles && user.roles.includes("admin");
+  const canManageAdmin = isAdmin || (user && user.exec === "yes");
   function isActive(path) {
     return location.pathname.startsWith(path);
   }
@@ -43,7 +47,21 @@ function Navbar() {
         }}
         style={{ position: "relative" }}
       >
-        <span style={tabStyle(name, active)}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpenMenu(name)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpenMenu(name);
+            }
+            if (event.key === "Escape") {
+              setOpenMenu(null);
+            }
+          }}
+          style={{ ...tabStyle(name, active), border: "none", fontFamily: "inherit" }}
+        >
           {label}
           {/* A small arrow that flips up when the menu is open */}
           <span
@@ -57,7 +75,7 @@ function Navbar() {
           >
             &#9662;
           </span>
-        </span>
+        </button>
 
         {open && (
           <div
@@ -189,30 +207,12 @@ function Navbar() {
         Reports
       </Link>
 
-      {/* Admin dropdown */}
-      {dropdown("admin", "Admin", "/dashboard/okrtracker/admin", [
-        { label: "Role Management", path: "/dashboard/okrtracker/admin/roles" },
-        { label: "Group Management", path: "/dashboard/okrtracker/admin/groups" },
-      ])}
+      {canManageAdmin &&
+        dropdown("admin", "Admin", "/dashboard/okrtracker/admin", [
+          { label: "Role Management", path: "/dashboard/okrtracker/admin/roles" },
+          { label: "Group Management", path: "/dashboard/okrtracker/admin/groups" },
+        ])}
 
-      {/* Profile icon */}
-      <div style={{ marginLeft: "auto" }}>
-        <div
-          style={{
-            width: "42px",
-            height: "42px",
-            borderRadius: "50%",
-            backgroundColor: "#e8ebf0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "20px",
-            cursor: "pointer",
-          }}
-        >
-          &#128100;
-        </div>
-      </div>
     </div>
   );
 }

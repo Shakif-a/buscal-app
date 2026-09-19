@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const objectiveSchema = new mongoose.Schema(
   {
+    calendarEntry: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CalendarEntry",
+    },
     title: {
       type: String,
       required: [true, "Please add an objective title"],
@@ -40,7 +44,17 @@ const objectiveSchema = new mongoose.Schema(
       default: "on-track",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
+);
+
+objectiveSchema.index(
+  { calendarEntry: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      calendarEntry: { $type: "objectId" },
+    },
+  },
 );
 
 module.exports = mongoose.model("OkrObjective", objectiveSchema);
