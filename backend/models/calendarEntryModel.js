@@ -58,54 +58,24 @@ const calendarEntrySchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-// Post-save middleware
-calendarEntrySchema.post("save", async function (doc) {
-  try {
-    // Find or create the calendarschedule document in Scheduler
-    let scheduler = await Scheduler.findOne({ name: "calendarschedule" });
-    if (!scheduler) {
-      scheduler = new Scheduler({
-        name: "calendarschedule",
-        toschedule: [],
-        tocancel: [],
-      });
-    }
+async function queueCalendarChange(entryId, field, session) {
+  await Scheduler.updateOne(
+    { name: "calendarschedule" },
+    { $addToSet: { [field]: entryId } },
+    { upsert: true, session },
+  );
+}
 
-    // Add the saved calendar entry ID to the toschedule array
-    if (!scheduler.toschedule.includes(doc._id)) {
-      scheduler.toschedule.push(doc._id);
-      await scheduler.save();
-    }
-  } catch (error) {
-    console.error("Error in post-save middleware:", error);
-  }
+calendarEntrySchema.post("save", async function (doc) {
+  await queueCalendarChange(doc._id, "toschedule", doc.$session());
 });
 
-// Post-delete middleware
 calendarEntrySchema.post("findOneAndDelete", async function (doc) {
-  try {
-    if (doc) {
-      // Find or create the calendarschedule document in Scheduler
-      let scheduler = await Scheduler.findOne({ name: "calendarschedule" });
-      if (!scheduler) {
-        scheduler = new Scheduler({
-          name: "calendarschedule",
-          toschedule: [],
-          tocancel: [],
-        });
-      }
-
-      // Add the deleted calendar entry ID to the tocancel array
-      if (!scheduler.tocancel.includes(doc._id)) {
-        scheduler.tocancel.push(doc._id);
-        await scheduler.save();
-      }
-    }
-  } catch (error) {
-    console.error("Error in post-delete middleware:", error);
+  if (doc) {
+    await queueCalendarChange(doc._id, "tocancel", this.getOptions().session);
   }
 });
 

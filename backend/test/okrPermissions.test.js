@@ -7,6 +7,7 @@ const OkrRolePermission = require("../models/okrRolePermissionModel");
 const {
   adminOrExec,
   getRoleName,
+  hasRolePermission,
 } = require("../middleware/adminPermissions");
 const {
   canUserManageObjective,
@@ -74,6 +75,37 @@ test("role names match the user access level", () => {
   assert.equal(getRoleName(makeUser("exec")), "Admin");
   assert.equal(getRoleName(makeUser("manager")), "Manager");
   assert.equal(getRoleName(makeUser("employee")), "Employee");
+});
+
+test("assigned OKR roles take precedence over company roles but not system administrators", () => {
+  assert.equal(
+    getRoleName({ ...makeUser("manager"), okrRole: "Reviewer" }),
+    "Reviewer",
+  );
+  assert.equal(
+    getRoleName({ ...makeUser("admin"), okrRole: "Reviewer" }),
+    "Admin",
+  );
+  assert.equal(
+    getRoleName({ ...makeUser("exec"), okrRole: "Reviewer" }),
+    "Admin",
+  );
+});
+
+test("custom roles use saved permissions and cannot acquire account administration", async () => {
+  OkrRolePermission.findOne = async () => ({
+    permissions: ["Create Objectives", "Manage Users"],
+  });
+  assert.equal(await hasRolePermission("Reviewer", "Create Objectives"), true);
+  assert.equal(await hasRolePermission("Reviewer", "Edit Objectives"), false);
+  assert.equal(await hasRolePermission("Reviewer", "Manage Users"), false);
+  OkrRolePermission.findOne = async () => null;
+  assert.equal(await hasRolePermission("Missing", "View Reports"), false);
+});
+
+test("saved Admin permissions can revoke Manage Roles", async () => {
+  OkrRolePermission.findOne = async () => ({ permissions: [] });
+  assert.equal(await hasRolePermission("Admin", "Manage Roles"), false);
 });
 
 test("only admins and executives can use admin routes", async () => {
@@ -200,13 +232,19 @@ test("the objective access flag matches every user role", async () => {
   OkrRolePermission.findOne = async () => null;
   OkrGroup.findOne = async () => null;
 
-  assert.equal(await canUserManageObjective(makeUser("admin"), objective), true);
+  assert.equal(
+    await canUserManageObjective(makeUser("admin"), objective),
+    true,
+  );
   assert.equal(await canUserManageObjective(makeUser("exec"), objective), true);
-  assert.equal(await canUserManageObjective(makeUser("manager"), objective), true);
+  assert.equal(
+    await canUserManageObjective(makeUser("manager"), objective),
+    true,
+  );
   assert.equal(await canUserManageObjective(owner, objective), true);
   assert.equal(
     await canUserManageObjective(makeUser("employee"), objective),
-    false
+    false,
   );
 
   const groupManager = makeUser("employee");

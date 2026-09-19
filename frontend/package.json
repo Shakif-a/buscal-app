@@ -9,6 +9,7 @@
     "build": "vite build",
     "test": "node --test test/*.test.js",
     "preview": "vite preview",
+    "test:ui": "cypress run",
     "lint": "eslint ."
   },
   "dependencies": {

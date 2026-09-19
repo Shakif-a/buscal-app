@@ -35,10 +35,17 @@ function GroupManagement() {
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [draftMembers, setDraftMembers] = useState([]);
   const [draftManager, setDraftManager] = useState("");
+  const [draftName, setDraftName] = useState("");
   const [searchText, setSearchText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [openGroupMenu, setOpenGroupMenu] = useState(null);
+  const [groupModalAction, setGroupModalAction] = useState("");
+  const [groupModalGroup, setGroupModalGroup] = useState(null);
+  const [groupModalName, setGroupModalName] = useState("");
 
   const allowed = canManageAdmin(user);
 
@@ -54,6 +61,7 @@ function GroupManagement() {
         const savedGroups = await adminService.getGroups(user.token);
         setPeople(users);
         setGroups(savedGroups);
+        setHasLoaded(true);
       } catch (error) {
         setErrorMessage(getErrorMessage(error));
       } finally {
@@ -65,6 +73,10 @@ function GroupManagement() {
   }, [allowed, user]);
 
   function openEditor(group) {
+    if (isSaving) {
+      return;
+    }
+
     if (expandedGroup === group._id) {
       cancelEdit();
       return;
@@ -77,6 +89,7 @@ function GroupManagement() {
     }
 
     setDraftMembers(memberIds);
+    setDraftName(group.name);
     setDraftManager(group.manager ? group.manager._id || group.manager : "");
     setExpandedGroup(group._id);
     setErrorMessage("");
@@ -92,20 +105,24 @@ function GroupManagement() {
   }
 
   async function saveChanges(groupId) {
+    if (!hasLoaded || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const updatedGroup = await adminService.updateGroup(
         groupId,
         {
+          name: draftName,
           manager: draftManager || null,
           members: draftMembers,
         },
-        user.token
+        user.token,
       );
 
-      setGroups(
-        groups.map((group) =>
-          group._id === groupId ? updatedGroup : group
-        )
+      setGroups((previous) =>
+        previous.map((group) => (group._id === groupId ? updatedGroup : group)),
       );
       setExpandedGroup(null);
       setSuccessMessage("Group changes saved.");
@@ -113,6 +130,8 @@ function GroupManagement() {
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
       setSuccessMessage("");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -122,32 +141,131 @@ function GroupManagement() {
     setExpandedGroup(null);
   }
 
-  async function addGroup() {
-    const name = window.prompt("Enter a name for the new group:");
+  function openGroupModal(action, group) {
+    if (isSaving) return;
 
-    if (!name || !name.trim()) {
+    setGroupModalAction(action);
+    setGroupModalGroup(group);
+    setGroupModalName(action === "rename" ? group.name : "");
+    setOpenGroupMenu(null);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  function closeGroupModal() {
+    if (isSaving) return;
+
+    setGroupModalAction("");
+    setGroupModalGroup(null);
+    setGroupModalName("");
+  }
+
+  async function changeGroup() {
+    if (isSaving) return;
+
+    if (
+      (groupModalAction === "rename" ||
+        groupModalAction === "delete") &&
+      !groupModalGroup
+    ) {
       return;
     }
 
+    const group = groupModalGroup;
+    const action = groupModalAction;
+    const name = groupModalName.trim();
+
+    if (
+      (action === "create" || action === "rename") &&
+      !name
+    ) {
+      return;
+    }
+
+    setIsSaving(true);
+
     try {
-      const newGroup = await adminService.createGroup(name.trim(), user.token);
-      setGroups([...groups, newGroup]);
-      setSuccessMessage("Group created.");
+      if (action === "create") {
+        const newGroup = await adminService.createGroup(name, user.token);
+
+        setGroups((previous) => [...previous, newGroup]);
+      }
+      if (action === "rename") {
+        const memberIds = group.members.map(
+          (member) => member._id || member
+        );
+
+        const managerId = group.manager
+          ? group.manager._id || group.manager
+          : null;
+
+        const updatedGroup = await adminService.updateGroup(
+          group._id,
+          {
+            name,
+            manager: managerId,
+            members: memberIds,
+          },
+          user.token
+        );
+
+        setGroups((previous) =>
+          previous.map((item) =>
+            item._id === group._id ? updatedGroup : item
+          )
+        );
+
+        setSuccessMessage("Group renamed.");
+      }
+
+      if (action === "delete") {
+        await adminService.deleteGroup(group._id, user.token);
+
+        setGroups((previous) =>
+          previous.filter((item) => item._id !== group._id)
+        );
+
+        if (expandedGroup === group._id) {
+          setExpandedGroup(null);
+        }
+
+        setSuccessMessage("Group deleted.");
+      }
+
       setErrorMessage("");
+
+      setGroupModalAction("");
+      setGroupModalGroup(null);
+      setGroupModalName("");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
       setSuccessMessage("");
+    } finally {
+      setIsSaving(false);
     }
   }
 
+  function addGroup() {
+    if (!hasLoaded || isSaving) {
+      return;
+    }
+
+    setGroupModalAction("create");
+    setGroupModalGroup(null);
+    setGroupModalName("");
+    setOpenGroupMenu(null);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
   const visibleGroups = groups.filter((group) =>
-    group.name.toLowerCase().includes(searchText.toLowerCase())
+    group.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   if (!allowed) {
     return (
       <div className="group-management">
-        <div className="group-status group-error">
+        <div role="alert" className="group-status group-error">
           Admin or executive access is required.
         </div>
       </div>
@@ -173,10 +291,26 @@ function GroupManagement() {
       </div>
 
       {errorMessage && (
-        <div className="group-status group-error">{errorMessage}</div>
+        <div role="alert" className="group-status group-error">
+          {errorMessage}
+        </div>
       )}
       {successMessage && (
-        <div className="group-status group-success">{successMessage}</div>
+        <div className="group-popup-overlay">
+          <div className="group-popup">
+            <h2>Changes Saved</h2>
+
+            <p>{successMessage}</p>
+
+            <button
+              type="button"
+              className="group-modal-primary-button"
+              onClick={() => setSuccessMessage("")}
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="group-search-row">
@@ -184,6 +318,8 @@ function GroupManagement() {
           type="text"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
+          aria-label="Search groups"
+          disabled={isSaving}
           placeholder="Search group..."
           className="group-search-input"
         />
@@ -191,7 +327,11 @@ function GroupManagement() {
 
       <div className="group-content-box">
         <div className="group-add-section">
-          <button onClick={addGroup} className="group-add-button">
+          <button
+            onClick={addGroup}
+            disabled={!hasLoaded || isSaving}
+            className="group-add-button"
+          >
             (+) Add Group
           </button>
         </div>
@@ -204,28 +344,20 @@ function GroupManagement() {
 
         {isLoading && <div className="group-status">Loading groups...</div>}
 
-        {!isLoading && visibleGroups.length === 0 && (
+        {!isLoading && hasLoaded && visibleGroups.length === 0 && (
           <div className="group-status">No groups found.</div>
         )}
 
         {visibleGroups.map((group) => (
           <div key={group._id}>
             <div className="group-table-row">
-              <div className="group-name">
-                {expandedGroup === group._id && (
-                  <span
-                    onClick={() => openEditor(group)}
-                    className="group-collapse-icon"
-                  >
-                    ⊖
-                  </span>
-                )}
-                {group.name}
-              </div>
+              <div className="group-name">{group.name}</div>
               <div className="group-member-count">{group.members.length}</div>
-              <div>
+              <div className="group-row-actions">
                 <button
                   onClick={() => openEditor(group)}
+                  disabled={isSaving}
+                  aria-expanded={expandedGroup === group._id}
                   className="group-edit-button"
                 >
                   Edit
@@ -233,11 +365,60 @@ function GroupManagement() {
                     {expandedGroup === group._id ? "▴" : "▾"}
                   </span>
                 </button>
+
+                <div className="group-more-menu-wrapper">
+                  <button
+                    type="button"
+                    className="group-more-button"
+                    aria-label={`More actions for ${group.name}`}
+                    aria-expanded={openGroupMenu === group._id}
+                    onClick={() =>
+                      setOpenGroupMenu(
+                        openGroupMenu === group._id ? null : group._id
+                      )
+                    }
+                  >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </button>
+
+                  {openGroupMenu === group._id && (
+                    <div className="group-more-menu">
+                      <button
+                        type="button"
+                        onClick={() => openGroupModal("rename", group)}
+                      >
+                        Rename
+                      </button>
+
+                      <button
+                        type="button"
+                        className="group-more-menu-delete"
+                        onClick={() => openGroupModal("delete", group)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {expandedGroup === group._id && (
               <div className="group-member-panel">
+                <label className="group-name-field">
+                  <span className="group-manager-label">Group Name</span>
+
+                  <input
+                    type="text"
+                    aria-label="Group name"
+                    className="group-name-input"
+                    value={draftName}
+                    disabled={isSaving}
+                    onChange={(event) => setDraftName(event.target.value)}
+                  />
+                </label>
                 <label
                   className="group-manager-label"
                   htmlFor={`manager-${group._id}`}
@@ -247,6 +428,7 @@ function GroupManagement() {
                 <select
                   id={`manager-${group._id}`}
                   className="group-manager-select"
+                  disabled={isSaving}
                   value={draftManager}
                   onChange={(event) => setDraftManager(event.target.value)}
                 >
@@ -267,14 +449,14 @@ function GroupManagement() {
                       <label key={person._id} className="group-member-label">
                         <input
                           type="checkbox"
+                          disabled={isSaving}
                           checked={isChecked}
                           onChange={() => toggleMember(person._id)}
                           className="group-member-checkbox-input"
                         />
                         <span
-                          className={`group-member-checkbox ${
-                            isChecked ? "checked" : ""
-                          }`}
+                          className={`group-member-checkbox ${isChecked ? "checked" : ""
+                            }`}
                         >
                           {isChecked ? "✓" : ""}
                         </span>
@@ -291,14 +473,19 @@ function GroupManagement() {
                     Select existing users as members of this group.
                   </span>
                   <div className="group-action-buttons">
-                    <button onClick={cancelEdit} className="group-cancel-button">
+                    <button
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                      className="group-cancel-button"
+                    >
                       Cancel
                     </button>
                     <button
                       onClick={() => saveChanges(group._id)}
+                      disabled={isSaving}
                       className="group-save-button"
                     >
-                      Save Changes
+                      {isSaving ? "Saving..." : "Save Changes"}
                     </button>
                   </div>
                 </div>
@@ -307,8 +494,87 @@ function GroupManagement() {
           </div>
         ))}
       </div>
+
+
+      {groupModalAction && (
+        <div className="group-popup-overlay">
+          <div
+            className="group-popup"
+            role="dialog"
+            aria-modal="true"
+          >
+            <h2>
+              {groupModalAction === "create" && "Add Group"}
+              {groupModalAction === "rename" && "Rename Group"}
+              {groupModalAction === "delete" && "Delete Group"}
+            </h2>
+
+            {groupModalAction === "delete" ? (
+              <p>
+                Are you sure you want to delete{" "}
+                <strong>{groupModalGroup?.name}</strong>?
+              </p>
+            ) : (
+              <>
+                <p>
+                  {groupModalAction === "create"
+                    ? "Enter a name for the new group."
+                    : "Enter the new group name."}
+                </p>
+
+                <input
+                  type="text"
+                  className="group-modal-input"
+                  value={groupModalName}
+                  onChange={(event) =>
+                    setGroupModalName(event.target.value)
+                  }
+                  autoFocus
+                />
+              </>
+            )}
+
+            <div className="group-modal-actions">
+              <button
+                type="button"
+                className="group-modal-cancel-button"
+                onClick={closeGroupModal}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={
+                  groupModalAction === "delete"
+                    ? "group-modal-delete-button"
+                    : "group-modal-primary-button"
+                }
+                onClick={changeGroup}
+                disabled={
+                  isSaving ||
+                  ((groupModalAction === "create" ||
+                    groupModalAction === "rename") &&
+                    !groupModalName.trim())
+                }
+              >
+                {isSaving
+                  ? "Saving..."
+                  : groupModalAction === "create"
+                    ? "Add Group"
+                    : groupModalAction === "rename"
+                      ? "Rename"
+                      : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 export default GroupManagement;
+

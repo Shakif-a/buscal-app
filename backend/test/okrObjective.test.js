@@ -3,7 +3,14 @@ const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const User = require("../models/userModel");
+const originalUserExists = User.exists;
 const OkrGroup = require("../models/okrGroupModel");
+const writes = require("../services/okrWrites");
+const Permission = require("../models/okrRolePermissionModel");
+const originalWrites = { ...writes };
+const originalPermission = Permission.findOne;
+const originalKeySave = OkrKeyResult.prototype.save;
 const CalendarEntry = require("../models/calendarEntryModel");
 const {
   getObjectives,
@@ -23,7 +30,27 @@ const originalFindGroup = OkrGroup.findOne;
 const originalCreateObjective = OkrObjective.create;
 const originalCreateCalendarEntry = CalendarEntry.create;
 
+test.beforeEach(() => {
+  OkrGroup.findOne = async () => null;
+  Permission.findOne = async () => null;
+  writes.transaction = async (work) => work(undefined);
+  writes.lockObjective = async (id) => OkrObjective.findById(id);
+  writes.syncCalendar = async (objective) => {
+    if (objective.saveCount !== undefined) await objective.save();
+  };
+  writes.removeCalendar = async () => {};
+  writes.requireGroup = async () => {};
+  writes.linkLegacyCalendar = async () => {};
+  OkrKeyResult.prototype.save = async function () {
+    return OkrKeyResult.create(this);
+  };
+});
+
 test.afterEach(() => {
+  Object.assign(writes, originalWrites);
+  Permission.findOne = originalPermission;
+  OkrKeyResult.prototype.save = originalKeySave;
+  User.exists = originalUserExists;
   OkrObjective.find = originalFindObjectives;
   OkrObjective.findById = originalFindObjective;
   OkrKeyResult.find = originalFindKeyResults;
@@ -35,6 +62,10 @@ test.afterEach(() => {
 });
 
 function runController(controller, req) {
+  req.user = req.user || {
+    _id: new mongoose.Types.ObjectId(),
+    roles: ["admin"],
+  };
   return new Promise((resolve) => {
     const res = {
       statusCode: 200,
@@ -70,12 +101,11 @@ function makeObjective(options = {}) {
     title: options.title || "Objective",
     description: options.description || "Description",
     group: options.group || "Sales",
-    owner:
-      options.owner || {
-        _id: new mongoose.Types.ObjectId(),
-        firstName: "Alex",
-        lastName: "Smith",
-      },
+    owner: options.owner || {
+      _id: new mongoose.Types.ObjectId(),
+      firstName: "Alex",
+      lastName: "Smith",
+    },
     dueDate: options.dueDate || new Date("2026-12-01"),
     commitmentType: "committed",
     saveCount: 0,
@@ -234,12 +264,13 @@ test("a newly created objective includes its access flag", async () => {
   const ownerId = new mongoose.Types.ObjectId();
   const owner = {
     _id: ownerId,
-    roles: ["employee"],
+    roles: ["admin"],
     exec: "no",
     companyRoles: [],
   };
   const objective = makeObjective({ owner: ownerId });
 
+  User.exists = async () => ({ _id: ownerId });
   OkrObjective.create = async () => objective;
   CalendarEntry.create = async () => ({});
 
@@ -387,7 +418,7 @@ test("objectives are sorted by owner and then due date", async () => {
   assert.equal(result.statusCode, 200);
   assert.deepEqual(
     result.data.map((objective) => objective.title),
-    ["Alice earlier", "Alice later", "Bob objective"]
+    ["Alice earlier", "Alice later", "Bob objective"],
   );
 });
 
@@ -435,6 +466,6 @@ test("a key result can use the remaining weight", async () => {
   });
 
   assert.equal(result.statusCode, 201);
-  assert.equal(savedKeyResult.objective, objective._id);
+  assert.equal(savedKeyResult.objective.toString(), objective._id.toString());
   assert.equal(savedKeyResult.weight, 25);
 });

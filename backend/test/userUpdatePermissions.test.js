@@ -4,6 +4,14 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
+const Permission = require("../models/okrRolePermissionModel");
+const originalPermission = Permission.findOne;
+test.beforeEach(() => {
+  Permission.findOne = async () => null;
+});
+test.afterEach(() => {
+  Permission.findOne = originalPermission;
+});
 const User = require("../models/userModel");
 const { loginUser } = require("../controllers/userController");
 const userRoutes = require("../routes/userRoutes");
@@ -46,7 +54,7 @@ test("login returns the fields used by the admin pages", async () => {
     loginUser(
       { body: { email: "executive@example.com", password: "password" } },
       res,
-      (error) => resolve({ error, statusCode: res.statusCode })
+      (error) => resolve({ error, statusCode: res.statusCode }),
     );
   });
 
@@ -87,7 +95,11 @@ test("user update routes protect roles and preserve profile edits", async () => 
   for (let i = 0; i < userRoutes.stack.length; i++) {
     const route = userRoutes.stack[i].route;
 
-    if (route && route.methods.put && ["/user/:id", "/userOne/:id"].includes(route.path)) {
+    if (
+      route &&
+      route.methods.put &&
+      ["/user/:id", "/userOne/:id"].includes(route.path)
+    ) {
       const handler = route.stack[route.stack.length - 1];
       handlers.push({ handler, original: handler.handle });
       handler.handle = (req, res) => {
@@ -112,7 +124,12 @@ test("user update routes protect roles and preserve profile edits", async () => 
     const baseUrl = "http://127.0.0.1:" + server.address().port;
     const token = jwt.sign({ id: userId }, testSecret);
 
-    async function check(path, body, expectedStatus, authorization = "Bearer " + token) {
+    async function check(
+      path,
+      body,
+      expectedStatus,
+      authorization = "Bearer " + token,
+    ) {
       const callsBefore = controllerCalls;
       const headers = { "Content-Type": "application/json" };
 
@@ -127,8 +144,15 @@ test("user update routes protect roles and preserve profile edits", async () => 
       });
       await response.json();
 
-      assert.equal(response.status, expectedStatus, path + " " + JSON.stringify(body));
-      assert.equal(controllerCalls, callsBefore + (expectedStatus === 200 ? 1 : 0));
+      assert.equal(
+        response.status,
+        expectedStatus,
+        path + " " + JSON.stringify(body),
+      );
+      assert.equal(
+        controllerCalls,
+        callsBefore + (expectedStatus === 200 ? 1 : 0),
+      );
     }
 
     const roles = ["employee", "manager", "admin", "exec"];
@@ -145,17 +169,33 @@ test("user update routes protect roles and preserve profile edits", async () => 
 
       for (const route of ["/user/", "/userOne/"]) {
         const path = "/api/users" + route + userId;
-        const ownProfile = { _id: userId, firstName: "Updated", roles: currentUser.roles };
+        const ownProfile = {
+          _id: userId,
+          firstName: "Updated",
+          roles: currentUser.roles,
+        };
 
         if (route === "/userOne/") {
           ownProfile.password = "";
         }
 
         await check(path, ownProfile, 200);
-        await check(path, { _id: userId, roles: ["admin", "employee"] }, senior ? 200 : 403);
+        await check(
+          path,
+          { _id: userId, roles: ["admin", "employee"] },
+          senior ? 200 : 403,
+        );
         await check(path, { _id: userId, exec: "yes" }, senior ? 200 : 403);
-        await check(path, { _id: userId, companyRoles: [{ managementLevel: 1 }] }, senior ? 200 : 403);
-        await check("/api/users" + route + otherId, { _id: otherId, firstName: "Other" }, senior ? 200 : 403);
+        await check(
+          path,
+          { _id: userId, companyRoles: [{ managementLevel: 1 }] },
+          senior ? 200 : 403,
+        );
+        await check(
+          "/api/users" + route + otherId,
+          { _id: otherId, firstName: "Other" },
+          senior ? 200 : 403,
+        );
         await check(path, { _id: otherId, firstName: "Other" }, 400);
       }
     }
@@ -170,7 +210,11 @@ test("user update routes protect roles and preserve profile edits", async () => 
     for (const route of ["/user/", "/userOne/"]) {
       const path = "/api/users" + route + userId;
       await check(path, { _id: userId, $set: { roles: ["admin"] } }, 403);
-      await check(path, { _id: userId, "companyRoles.0.managementLevel": 1 }, 403);
+      await check(
+        path,
+        { _id: userId, "companyRoles.0.managementLevel": 1 },
+        403,
+      );
       await check(path, { _id: userId, resetPasswordToken: "changed" }, 403);
       await check(path, { _id: userId }, 401, "");
       await check(path, { _id: userId }, 401, "Bearer invalid");
@@ -180,7 +224,11 @@ test("user update routes protect roles and preserve profile edits", async () => 
     await check("/api/users/user/" + userId, { firstName: "Updated" }, 200);
     await check("/api/users/user/" + userId, { password: "unhashed" }, 403);
     await check("/api/users/userOne/" + userId, { firstName: "Updated" }, 400);
-    await check("/api/users/userOne/" + userId, { _id: userId, password: "new-test-password" }, 200);
+    await check(
+      "/api/users/userOne/" + userId,
+      { _id: userId, password: "new-test-password" },
+      200,
+    );
     assert.equal(handlers.length, 2);
   } finally {
     server.closeAllConnections();

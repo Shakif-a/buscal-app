@@ -1,25 +1,11 @@
+const asyncHandler = require("express-async-handler");
 const OkrRolePermission = require("../models/okrRolePermissionModel");
 
-const defaultPermissions = {
-  Admin: [
-    "Create Objectives",
-    "Edit Objectives",
-    "Create Key Results",
-    "Approve Key Results",
-    "View Reports",
-    "Manage Users",
-    "Manage Roles",
-    "Manage Groups",
-  ],
-  Manager: [
-    "Create Objectives",
-    "Edit Objectives",
-    "Create Key Results",
-    "Approve Key Results",
-    "View Reports",
-  ],
-  Employee: ["View Reports"],
-};
+const {
+  defaultPermissions,
+  isSystemRole,
+  allowedPermissions,
+} = require("../config/okrPermissions");
 
 function isAdminOrExec(user) {
   if (user.roles && user.roles.includes("admin")) {
@@ -34,6 +20,8 @@ function getRoleName(user) {
     return "Admin";
   }
 
+  if (user.okrRole) return user.okrRole;
+
   if (user.companyRoles) {
     for (let i = 0; i < user.companyRoles.length; i++) {
       const level = user.companyRoles[i].managementLevel;
@@ -47,19 +35,24 @@ function getRoleName(user) {
   return "Employee";
 }
 
-async function hasRolePermission(role, permission) {
-  const savedRole = await OkrRolePermission.findOne({ role });
+async function hasRolePermission(role, permission, session) {
+  const savedRole = await OkrRolePermission.findOne({ role }, null, {
+    session,
+  });
 
   if (savedRole) {
-    return savedRole.permissions.includes(permission);
+    return (
+      allowedPermissions(role).includes(permission) &&
+      savedRole.permissions.includes(permission)
+    );
   }
 
-  return defaultPermissions[role].includes(permission);
+  return isSystemRole(role) && defaultPermissions[role].includes(permission);
 }
 
-async function hasPermission(user, permission) {
+async function hasPermission(user, permission, session) {
   const role = getRoleName(user);
-  return hasRolePermission(role, permission);
+  return hasRolePermission(role, permission, session);
 }
 
 function adminOrExec(req, res, next) {
@@ -71,7 +64,21 @@ function adminOrExec(req, res, next) {
   next();
 }
 
+function requirePermission(...permissions) {
+  return asyncHandler(async (req, res, next) => {
+    for (const permission of permissions) {
+      if (await hasPermission(req.user, permission)) {
+        next();
+        return;
+      }
+    }
+    res.status(403);
+    throw new Error("Permission required: " + permissions.join(" or "));
+  });
+}
+
 module.exports = {
+  requirePermission,
   adminOrExec,
   defaultPermissions,
   getRoleName,

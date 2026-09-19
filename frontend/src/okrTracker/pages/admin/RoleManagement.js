@@ -1,31 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import adminService from "../../features/admin/adminService";
 import "./RoleManagement.css";
-const permissionList = [
-  "Create Objectives",
-  "Edit Objectives",
-  "Create Key Results",
-  "Approve Key Results",
-  "View Reports",
-  "Manage Users",
-  "Manage Roles",
-  "Manage Groups",
-];
-
-const roleNames = ["Admin", "Manager", "Employee"];
-
-const defaultRoles = {
-  Admin: permissionList,
-  Manager: [
-    "Create Objectives",
-    "Edit Objectives",
-    "Create Key Results",
-    "Approve Key Results",
-    "View Reports",
-  ],
-  Employee: ["View Reports"],
-};
 
 function canManageAdmin(user) {
   if (!user) {
@@ -47,13 +23,12 @@ function getErrorMessage(error) {
   return error.message || "Something went wrong";
 }
 
-function makeRoleState(rows) {
+function makeRoleState(rows, permissionList) {
   const result = {};
 
-  for (let i = 0; i < roleNames.length; i++) {
-    const roleName = roleNames[i];
-    const savedRole = rows.find((row) => row.role === roleName);
-    const savedPermissions = savedRole ? savedRole.permissions : [];
+  for (const savedRole of rows) {
+    const roleName = savedRole.role;
+    const savedPermissions = savedRole.permissions;
     result[roleName] = {};
 
     for (let j = 0; j < permissionList.length; j++) {
@@ -65,28 +40,28 @@ function makeRoleState(rows) {
   return result;
 }
 
-function makeDefaultRoleState() {
-  const rows = [];
-
-  for (let i = 0; i < roleNames.length; i++) {
-    const role = roleNames[i];
-    rows.push({ role, permissions: defaultRoles[role] });
-  }
-
-  return makeRoleState(rows);
-}
-
 function RoleManagement() {
   const { user } = useSelector((state) => state.auth);
-  const [roles, setRoles] = useState(makeDefaultRoleState());
-  const [savedRoles, setSavedRoles] = useState(makeDefaultRoleState());
+  const [roles, setRoles] = useState(null);
+  const [roleRows, setRoleRows] = useState([]);
+  const [permissionList, setPermissionList] = useState([]);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canAssign, setCanAssign] = useState(false);
+  const [people, setPeople] = useState([]);
+  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [expandedRole, setExpandedRole] = useState("Manager");
   const [searchText, setSearchText] = useState("");
   const [showSavePopup, setShowSavePopup] = useState(false);
   const [savedRole, setSavedRole] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
+  const [openRoleMenu, setOpenRoleMenu] = useState(null);
+  const [roleModalAction, setRoleModalAction] = useState("");
+  const [roleModalRole, setRoleModalRole] = useState("");
+  const [roleModalName, setRoleModalName] = useState("");
   const allowed = canManageAdmin(user);
 
   useEffect(() => {
@@ -97,10 +72,7 @@ function RoleManagement() {
       }
 
       try {
-        const loadedRoles = await adminService.getPermissions(user.token);
-        const roleState = makeRoleState(loadedRoles);
-        setRoles(roleState);
-        setSavedRoles(roleState);
+        await loadRoles();
       } catch (error) {
         setErrorMessage(getErrorMessage(error));
       } finally {
@@ -110,6 +82,99 @@ function RoleManagement() {
 
     loadPermissions();
   }, [allowed, user]);
+
+  async function loadRoles() {
+    const data = await adminService.getRoles(user.token);
+    setRoleRows(data.roles);
+    setPermissionList(data.permissionNames);
+    setRoles(makeRoleState(data.roles, data.permissionNames));
+    setCanEdit(data.canManageRoles);
+    setCanAssign(data.canManageUsers);
+    if (data.canManageUsers) {
+      const users = await adminService.getUsers(user.token);
+      setPeople(users);
+      setSelectedRole(
+        users.find((person) => person._id === selectedUser)?.okrRole || "",
+      );
+    }
+  }
+
+  function openRoleModal(action, role = "") {
+    if (isSaving || !canEdit) return;
+
+    setRoleModalAction(action);
+    setRoleModalRole(role);
+    setRoleModalName(action === "rename" ? role : "");
+    setOpenRoleMenu(null);
+  }
+
+  function closeRoleModal() {
+    if (isSaving) return;
+
+    setRoleModalAction("");
+    setRoleModalRole("");
+    setRoleModalName("");
+  }
+
+  async function changeRole() {
+    if (isSaving || !canEdit || !roleModalAction) return;
+
+    const action = roleModalAction;
+    const role = roleModalRole;
+    const name = roleModalName.trim();
+
+    if ((action === "create" || action === "rename") && !name) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      if (action === "create") {
+        await adminService.createRole(name, user.token);
+      }
+
+      if (action === "rename") {
+        await adminService.renameRole(role, name, user.token);
+      }
+
+      if (action === "delete") {
+        await adminService.deleteRole(role, user.token);
+      }
+
+      await loadRoles();
+
+      setStatusMessage("Role changes saved.");
+      setErrorMessage("");
+
+      setRoleModalAction("");
+      setRoleModalRole("");
+      setRoleModalName("");
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function assignRole() {
+    if (!selectedUser || isSaving || !canAssign) return;
+    setIsSaving(true);
+    try {
+      await adminService.assignRole(
+        selectedUser,
+        selectedRole || null,
+        user.token,
+      );
+      await loadRoles();
+      setStatusMessage("User role saved.");
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   function toggleExpand(roleName) {
     if (expandedRole === roleName) {
@@ -130,14 +195,21 @@ function RoleManagement() {
   }
   function resetRole(roleName) {
     setRoles((previous) => {
-      return {
-        ...previous,
-        [roleName]: { ...savedRoles[roleName] },
-      };
+      const row = roleRows.find((row) => row.role === roleName);
+      const defaults = makeRoleState(
+        [{ role: roleName, permissions: row.defaultPermissions }],
+        permissionList,
+      );
+      return { ...previous, [roleName]: defaults[roleName] };
     });
   }
 
   async function saveRole(roleName) {
+    if (!roles || isSaving || !canEdit) {
+      return;
+    }
+
+    setIsSaving(true);
     const permissions = [];
 
     for (let i = 0; i < permissionList.length; i++) {
@@ -152,46 +224,37 @@ function RoleManagement() {
       const saved = await adminService.updatePermissions(
         roleName,
         permissions,
-        user.token
+        user.token,
       );
-      
-      const savedRoleState = makeRoleState([saved])[roleName];
-      
+
+      const savedRoleState = makeRoleState([saved], permissionList)[roleName];
+
       setRoles((previous) => ({
         ...previous,
-        [roleName]: savedRoleState,
+        [roleName]: makeRoleState([saved], permissionList)[roleName],
       }));
-      
-      setSavedRoles((previous) => ({
-        ...previous,
-        [roleName]: savedRoleState,
-      }));
+      if (roleName === "Admin") {
+        setCanEdit(saved.permissions.includes("Manage Roles"));
+        setCanAssign(saved.permissions.includes("Manage Users"));
+      }
       setSavedRole(roleName);
       setShowSavePopup(true);
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
     }
   }
 
-  const visibleRoles = roleNames.filter((name) =>
-    name.toLowerCase().includes(searchText.toLowerCase())
-  );
-
-  const permissionReference = [
-    { area: "Dashboard", manager: "Read", employee: "Read" },
-    { area: "Calendar", manager: "Read", employee: "Read" },
-    { area: "Objectives (all)", manager: "Full Access", employee: "Read" },
-    { area: "Objectives (create)", manager: "Full Access", employee: "No Access" },
-    { area: "Key Results", manager: "Full Access", employee: "Read" },
-    { area: "Reports", manager: "Full Access", employee: "Read, create" },
-    { area: "Admin", manager: "Full Access", employee: "No Access" },
-  ];
+  const visibleRoles = roleRows
+    .map((row) => row.role)
+    .filter((name) => name.toLowerCase().includes(searchText.toLowerCase()));
 
   if (!allowed) {
     return (
       <div className="role-management">
-        <div className="role-status role-error">
+        <div role="alert" className="role-status role-error">
           Admin or executive access is required.
         </div>
       </div>
@@ -219,7 +282,14 @@ function RoleManagement() {
       </div>
 
       {errorMessage && (
-        <div className="role-status role-error">{errorMessage}</div>
+        <div role="alert" className="role-status role-error">
+          {errorMessage}
+        </div>
+      )}
+      {statusMessage && (
+        <div role="status" className="role-status">
+          {statusMessage}
+        </div>
       )}
 
       <div className="role-search-row">
@@ -227,28 +297,46 @@ function RoleManagement() {
           type="text"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
+          aria-label="Search roles"
+          disabled={isSaving}
           placeholder="Search role..."
           className="role-search-input"
         />
       </div>
 
       <div className="role-content-box">
+        <div className="role-add-section">
+          <button
+            className="role-add-button"
+            disabled={isLoading || isSaving || !canEdit}
+            onClick={() => openRoleModal("create")}
+          >
+            (+) Add Role
+          </button>
+        </div>
+
         {isLoading && <div className="role-status">Loading permissions...</div>}
 
-        {!isLoading && (
+        {!isLoading && roles && (
           <>
             <div className="role-table-header">
               <div>ROLE</div>
               <div>ACTIONS</div>
             </div>
 
+            {visibleRoles.length === 0 && (
+              <div className="role-status">No roles found.</div>
+            )}
+
             {visibleRoles.map((roleName) => (
               <div key={roleName}>
                 <div className="role-table-row">
                   <div className="role-name">{roleName}</div>
-                  <div>
+                  <div className="role-row-actions">
                     <button
                       onClick={() => toggleExpand(roleName)}
+                      disabled={isSaving}
+                      aria-expanded={expandedRole === roleName}
                       className="role-edit-button"
                     >
                       Edit
@@ -256,6 +344,45 @@ function RoleManagement() {
                         {expandedRole === roleName ? "▴" : "▾"}
                       </span>
                     </button>
+
+
+                    <div className="role-more-menu-wrapper">
+                      <button
+                        type="button"
+                        className="role-more-button"
+                        aria-label={`More actions for ${roleName}`}
+                        aria-expanded={openRoleMenu === roleName}
+                        onClick={() =>
+                          setOpenRoleMenu(
+                            openRoleMenu === roleName ? null : roleName
+                          )
+                        }
+                      >
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </button>
+
+                      {openRoleMenu === roleName && (
+                        <div className="role-more-menu">
+                          <button
+                            type="button"
+                            onClick={() => openRoleModal("rename", roleName)}
+                          >
+                            Rename
+                          </button>
+
+                          <button
+                            type="button"
+                            className="role-more-menu-delete"
+                            onClick={() => openRoleModal("delete", roleName)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 </div>
 
@@ -270,21 +397,34 @@ function RoleManagement() {
                         const isChecked = roles[roleName][permission];
 
                         return (
-                          <label key={permission} className="role-permission-label">
+                          <label
+                            key={permission}
+                            className="role-permission-label"
+                          >
                             <input
                               type="checkbox"
+                              disabled={
+                                isSaving ||
+                                !canEdit ||
+                                !roleRows
+                                  .find((row) => row.role === roleName)
+                                  .allowedPermissions.includes(permission)
+                              }
                               checked={isChecked}
-                              onChange={() => togglePermission(roleName, permission)}
+                              onChange={() =>
+                                togglePermission(roleName, permission)
+                              }
                               className="role-permission-checkbox-input"
                             />
                             <span
-                              className={`role-permission-checkbox ${
-                                isChecked ? "checked" : ""
-                              }`}
+                              className={`role-permission-checkbox ${isChecked ? "checked" : ""
+                                }`}
                             >
                               {isChecked ? "✓" : ""}
                             </span>
-                            <span className="role-permission-name">{permission}</span>
+                            <span className="role-permission-name">
+                              {permission}
+                            </span>
                           </label>
                         );
                       })}
@@ -293,15 +433,17 @@ function RoleManagement() {
                     <div className="role-action-buttons">
                       <button
                         onClick={() => resetRole(roleName)}
+                        disabled={isSaving || !canEdit}
                         className="role-reset-button"
                       >
-                        Reset
+                        Reset to defaults
                       </button>
                       <button
                         onClick={() => saveRole(roleName)}
+                        disabled={isSaving || !canEdit}
                         className="role-save-button"
                       >
-                        Save Changes
+                        {isSaving ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
                   </div>
@@ -312,27 +454,86 @@ function RoleManagement() {
         )}
       </div>
 
-      <div className="role-reference-section">
-        <div className="role-reference-box">
-          <div className="role-reference-title">PERMISSION REFERENCE</div>
-          <div className="role-reference-table-header">
-            <div>AREA</div>
-            <div>MANAGER / EXECUTIVE / ADMIN</div>
-            <div>EMPLOYEE</div>
-          </div>
+     
+    
+      {roleModalAction && (
+        <div className="role-popup-overlay">
+          <div
+            className="role-popup"
+            role="dialog"
+            aria-modal="true"
+          >
+            <h2>
+              {roleModalAction === "create" && "Add Role"}
+              {roleModalAction === "rename" && "Rename Role"}
+              {roleModalAction === "delete" && "Delete Role"}
+            </h2>
 
-          {permissionReference.map((row) => (
-            <div key={row.area} className="role-reference-table-row">
-              <div className="role-reference-area">{row.area}</div>
-              <div className="role-reference-value">{row.manager}</div>
-              <div className="role-reference-value">{row.employee}</div>
+            {roleModalAction === "delete" ? (
+              <p>
+                Are you sure you want to delete{" "}
+                <strong>{roleModalRole}</strong>?
+              </p>
+            ) : (
+              <>
+                <p>
+                  {roleModalAction === "create"
+                    ? "Enter a name for the new role."
+                    : "Enter the new role name."}
+                </p>
+
+                <input
+                  type="text"
+                  className="role-modal-input"
+                  value={roleModalName}
+                  onChange={(event) =>
+                    setRoleModalName(event.target.value)
+                  }
+                  autoFocus
+                />
+              </>
+            )}
+
+            <div className="role-modal-actions">
+              <button
+                type="button"
+                className="role-modal-cancel-button"
+                onClick={closeRoleModal}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={
+                  roleModalAction === "delete"
+                    ? "role-modal-delete-button"
+                    : "role-modal-primary-button"
+                }
+                onClick={changeRole}
+                disabled={
+                  isSaving ||
+                  ((roleModalAction === "create" ||
+                    roleModalAction === "rename") &&
+                    !roleModalName.trim())
+                }
+              >
+                {isSaving
+                  ? "Saving..."
+                  : roleModalAction === "create"
+                    ? "Add Role"
+                    : roleModalAction === "rename"
+                      ? "Rename"
+                      : "Delete"}
+              </button>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {showSavePopup && (
-        <div className="popup-overlay">
+        <div className="role-popup-overlay">
           <div className="role-popup">
             <h2>Changes Saved</h2>
             <p>

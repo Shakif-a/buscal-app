@@ -47,7 +47,21 @@ function Navbar() {
         }}
         style={{ position: "relative" }}
       >
-        <span style={tabStyle(name, active)}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpenMenu(name)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpenMenu(name);
+            }
+            if (event.key === "Escape") {
+              setOpenMenu(null);
+            }
+          }}
+          style={{ ...tabStyle(name, active), border: "none", fontFamily: "inherit" }}
+        >
           {label}
           {/* A small arrow that flips up when the menu is open */}
           <span
@@ -61,7 +75,7 @@ function Navbar() {
           >
             &#9662;
           </span>
-        </span>
+        </button>
 
         {open && (
           <div

@@ -5,7 +5,43 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const User = require("../models/userModel");
 const OkrGroup = require("../models/okrGroupModel");
-const { canUserManageObjective } = require("../middleware/okrPermissions");
+const writes = require("../services/okrWrites");
+const {
+  assertObjectiveAccess,
+  hasObjectivePermission,
+  canUserCreateObjective,
+  canUserManageObjective,
+} = require("../middleware/okrPermissions");
+
+function requireText(value, message, res) {
+  if (typeof value !== "string" || !value.trim()) {
+    res.status(400);
+    throw new Error(message);
+  }
+  return value.trim();
+}
+
+function validateDueDate(value, res) {
+  if (
+    typeof value !== "string" ||
+    !value.trim() ||
+    isNaN(new Date(value).getTime())
+  ) {
+    res.status(400);
+    throw new Error("Please add a valid due date");
+  }
+}
+
+async function validateUser(value, label, res) {
+  if (typeof value !== "string" || !mongoose.isObjectIdOrHexString(value)) {
+    res.status(400);
+    throw new Error("Please select a valid " + label);
+  }
+  if (!(await User.exists({ _id: value }))) {
+    res.status(400);
+    throw new Error("Selected " + label + " was not found");
+  }
+}
 
 function getName(user) {
   let name = "";
@@ -72,6 +108,12 @@ async function loadObjective(objective, user) {
 
   if (user) {
     objectiveData.canManage = await canUserManageObjective(user, objective);
+    objectiveData.canCreateKeyResult =
+      objectiveData.canManage &&
+      (await hasObjectivePermission(user, objective, "Create Key Results"));
+    objectiveData.canApproveKeyResult =
+      objectiveData.canManage &&
+      (await hasObjectivePermission(user, objective, "Approve Key Results"));
   }
 
   return {
@@ -101,7 +143,7 @@ function compareObjectives(firstObjective, secondObjective) {
 const getObjectives = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find().populate(
     "owner",
-    "firstName lastName"
+    "firstName lastName",
   );
 
   const result = [];
@@ -135,9 +177,14 @@ const getObjectiveGroups = asyncHandler(async (req, res) => {
 });
 
 const getObjective = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
   const objective = await OkrObjective.findById(req.params.id).populate(
     "owner",
-    "firstName lastName"
+    "firstName lastName",
   );
 
   if (!objective) {
@@ -150,51 +197,49 @@ const getObjective = asyncHandler(async (req, res) => {
 });
 
 const createObjective = asyncHandler(async (req, res) => {
-  if (!req.body.title) {
+  const title = requireText(req.body.title, "Please add a title", res);
+  await validateUser(req.body.owner, "owner", res);
+  validateDueDate(req.body.dueDate, res);
+
+  if (
+    req.body.description !== undefined &&
+    typeof req.body.description !== "string"
+  ) {
     res.status(400);
-    throw new Error("Please add a title");
+    throw new Error("Please add a valid description");
   }
 
-  if (!req.body.owner) {
+  let group = "none";
+  if (req.body.group !== undefined) {
+    group = requireText(req.body.group, "Please select a valid group", res);
+  }
+
+  const commitmentType =
+    req.body.commitmentType === undefined
+      ? "committed"
+      : req.body.commitmentType;
+  if (!["committed", "aspirational"].includes(commitmentType)) {
     res.status(400);
-    throw new Error("Please add an owner");
+    throw new Error("Please select a valid objective type");
   }
 
-  if (!req.body.dueDate) {
-    res.status(400);
-    throw new Error("Please add a due date");
-  }
-
-  let commitmentType = req.body.commitmentType;
-
-  if (!commitmentType) {
-    commitmentType = "committed";
-  }
-
-  const objective = await OkrObjective.create({
-    title: req.body.title,
-    description: req.body.description,
-    group: req.body.group,
-    owner: req.body.owner,
-    dueDate: req.body.dueDate,
-    commitmentType: commitmentType,
-  });
-
-  // Best effort to create a calander entry to match the objective
-  try {
-    await CalendarEntry.create({
-      title: objective.title,
-      description: objective.description,
-      userOwner: req.user.id,
-      userAssigned: [objective.owner],
-      endTime: objective.dueDate,
-      completionStatus: "not started",
-      category: "OKR Objective",
-      priority: "normal",
+  const objective = await writes.transaction(async (session) => {
+    await writes.requireGroup(group, session);
+    if (!(await canUserCreateObjective(req.user, group, session))) {
+      res.status(403);
+      throw new Error("You do not have permission to create objectives");
+    }
+    const created = new OkrObjective({
+      title,
+      description: req.body.description,
+      group,
+      owner: req.body.owner,
+      dueDate: req.body.dueDate,
+      commitmentType,
     });
-  } catch (error) {
-    console.error("Could not create linked calendar entry for objective:", error);
-  }
+    await writes.syncCalendar(created, req.user, session);
+    return created;
+  });
 
   const objectiveData = objective.toObject();
   objectiveData.canManage = await canUserManageObjective(req.user, objective);
@@ -203,109 +248,120 @@ const createObjective = asyncHandler(async (req, res) => {
 });
 
 const updateObjective = asyncHandler(async (req, res) => {
-  const objective = await OkrObjective.findById(req.params.id);
+  const objective = await writes.transaction(async (session) => {
+    const objective = await writes.lockObjective(req.params.id, session);
 
-  if (!objective) {
-    res.status(404);
-    throw new Error("Objective not found");
-  }
-
-  if (req.body.title !== undefined) {
-    if (typeof req.body.title !== "string") {
-      res.status(400);
-      throw new Error("Please add a valid title");
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
     }
 
-    const title = req.body.title.trim();
+    await assertObjectiveAccess(req, res, objective, session);
+    await writes.linkLegacyCalendar(objective, session);
 
-    if (!title) {
-      res.status(400);
-      throw new Error("Please add a title");
+    if (req.body.title !== undefined) {
+      if (typeof req.body.title !== "string") {
+        res.status(400);
+        throw new Error("Please add a valid title");
+      }
+
+      const title = req.body.title.trim();
+
+      if (!title) {
+        res.status(400);
+        throw new Error("Please add a title");
+      }
+
+      objective.title = title;
     }
 
-    objective.title = title;
-  }
+    if (req.body.description !== undefined) {
+      if (typeof req.body.description !== "string") {
+        res.status(400);
+        throw new Error("Please add a valid description");
+      }
 
-  if (req.body.description !== undefined) {
-    if (typeof req.body.description !== "string") {
-      res.status(400);
-      throw new Error("Please add a valid description");
+      objective.description = req.body.description;
     }
 
-    objective.description = req.body.description;
-  }
+    if (req.body.group !== undefined) {
+      if (typeof req.body.group !== "string") {
+        res.status(400);
+        throw new Error("Please select a valid group");
+      }
 
-  if (req.body.group !== undefined) {
-    if (typeof req.body.group !== "string") {
-      res.status(400);
-      throw new Error("Please select a valid group");
+      const group = req.body.group.trim();
+
+      if (!group) {
+        res.status(400);
+        throw new Error("Please select a group");
+      }
+
+      await writes.requireGroup(group, session);
+      objective.group = group;
     }
 
-    const group = req.body.group.trim();
+    if (req.body.owner !== undefined) {
+      if (
+        typeof req.body.owner !== "string" ||
+        !mongoose.isObjectIdOrHexString(req.body.owner)
+      ) {
+        res.status(400);
+        throw new Error("Please select a valid owner");
+      }
 
-    if (!group) {
-      res.status(400);
-      throw new Error("Please select a group");
+      const ownerExists = await User.exists({ _id: req.body.owner });
+
+      if (!ownerExists) {
+        res.status(400);
+        throw new Error("Selected owner was not found");
+      }
+
+      objective.owner = req.body.owner;
     }
 
-    objective.group = group;
-  }
+    if (req.body.dueDate !== undefined) {
+      validateDueDate(req.body.dueDate, res);
+      if (!req.body.dueDate) {
+        res.status(400);
+        throw new Error("Please add a valid due date");
+      }
 
-  if (req.body.owner !== undefined) {
-    if (!mongoose.isValidObjectId(req.body.owner)) {
-      res.status(400);
-      throw new Error("Please select a valid owner");
+      const dueDate = new Date(req.body.dueDate);
+
+      if (isNaN(dueDate.getTime())) {
+        res.status(400);
+        throw new Error("Please add a valid due date");
+      }
+
+      objective.dueDate = dueDate;
     }
 
-    const ownerExists = await User.exists({ _id: req.body.owner });
+    let type = req.body.commitmentType;
 
-    if (!ownerExists) {
-      res.status(400);
-      throw new Error("Selected owner was not found");
+    if (req.body.type !== undefined) {
+      type = req.body.type;
     }
 
-    objective.owner = req.body.owner;
-  }
+    if (type !== undefined) {
+      if (typeof type !== "string") {
+        res.status(400);
+        throw new Error("Please select a valid objective type");
+      }
 
-  if (req.body.dueDate !== undefined) {
-    if (!req.body.dueDate) {
-      res.status(400);
-      throw new Error("Please add a valid due date");
+      type = type.toLowerCase();
+
+      if (type !== "committed" && type !== "aspirational") {
+        res.status(400);
+        throw new Error("Please select a valid objective type");
+      }
+
+      objective.commitmentType = type;
     }
 
-    const dueDate = new Date(req.body.dueDate);
-
-    if (isNaN(dueDate.getTime())) {
-      res.status(400);
-      throw new Error("Please add a valid due date");
-    }
-
-    objective.dueDate = dueDate;
-  }
-
-  let type = req.body.commitmentType;
-
-  if (req.body.type !== undefined) {
-    type = req.body.type;
-  }
-
-  if (type !== undefined) {
-    if (typeof type !== "string") {
-      res.status(400);
-      throw new Error("Please select a valid objective type");
-    }
-
-    type = type.toLowerCase();
-
-    if (type !== "committed" && type !== "aspirational") {
-      res.status(400);
-      throw new Error("Please select a valid objective type");
-    }
-
-    objective.commitmentType = type;
-  }
-
-  await objective.save();
+    await writes.syncCalendar(objective, req.user, session);
+    return objective;
+  });
   await objective.populate("owner", "firstName lastName");
 
   const data = await loadObjective(objective, req.user);
@@ -315,70 +371,211 @@ const updateObjective = asyncHandler(async (req, res) => {
 });
 
 const deleteObjective = asyncHandler(async (req, res) => {
-  const objective = await OkrObjective.findById(req.params.id);
-
-  if (!objective) {
-    res.status(404);
-    throw new Error("Objective not found");
-  }
-
-  await OkrKeyResult.deleteMany({ objective: objective._id });
-  await objective.deleteOne();
-
+  await writes.transaction(async (session) => {
+    const objective = await writes.lockObjective(req.params.id, session);
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    await assertObjectiveAccess(req, res, objective, session);
+    await writes.linkLegacyCalendar(objective, session);
+    await OkrKeyResult.deleteMany({ objective: objective._id }, { session });
+    await writes.removeCalendar(objective, session);
+    await objective.deleteOne({ session });
+  });
   res.status(200).json({ id: req.params.id });
 });
 
 const createKeyResult = asyncHandler(async (req, res) => {
-  const objective = await OkrObjective.findById(req.params.id);
+  const title = requireText(req.body.title, "Please add a title", res);
+  validateDueDate(req.body.dueDate, res);
 
-  if (!objective) {
-    res.status(404);
-    throw new Error("Objective not found");
-  }
-
-  if (!req.body.title) {
+  if (!["string", "number"].includes(typeof req.body.weight)) {
     res.status(400);
-    throw new Error("Please add a title");
+    throw new Error("Weight must be a number between 1 and 100");
   }
-
-  if (!req.body.weight) {
-    res.status(400);
-    throw new Error("Please add a weight");
-  }
-
-  if (!req.body.dueDate) {
-    res.status(400);
-    throw new Error("Please add a due date");
-  }
-
-  const keyResults = await OkrKeyResult.find({ objective: objective._id });
-
-  let usedWeight = 0;
-
-  for (let i = 0; i < keyResults.length; i++) {
-    usedWeight = usedWeight + keyResults[i].weight;
-  }
-
   const newWeight = Number(req.body.weight);
-  const weightLeft = 100 - usedWeight;
-
-  if (newWeight > weightLeft) {
+  if (!Number.isFinite(newWeight) || newWeight < 1 || newWeight > 100) {
     res.status(400);
-    throw new Error("Weights cannot go over 100. Only " + weightLeft + " is left.");
+    throw new Error("Weight must be a number between 1 and 100");
   }
 
-  const keyResult = await OkrKeyResult.create({
-    objective: objective._id,
-    title: req.body.title,
-    weight: newWeight,
-    assignedTo: req.body.assignedTo,
-    dueDate: req.body.dueDate,
-  });
+  if (req.body.assignedTo !== undefined && req.body.assignedTo !== null) {
+    await validateUser(req.body.assignedTo, "assignee", res);
+  }
 
+  const keyResult = await writes.transaction(async (session) => {
+    const objective = await writes.lockObjective(req.params.id, session);
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    await assertObjectiveAccess(
+      req,
+      res,
+      objective,
+      session,
+      "Create Key Results",
+    );
+    const keyResults = await OkrKeyResult.find(
+      { objective: objective._id },
+      null,
+      { session },
+    );
+
+    let usedWeight = 0;
+
+    for (let i = 0; i < keyResults.length; i++) {
+      usedWeight = usedWeight + keyResults[i].weight;
+    }
+
+    const weightLeft = 100 - usedWeight;
+
+    if (newWeight > weightLeft) {
+      res.status(400);
+      throw new Error(
+        "Weights cannot go over 100. Only " + weightLeft + " is left.",
+      );
+    }
+
+    const keyResult = new OkrKeyResult({
+      objective: objective._id,
+      title: title,
+      weight: newWeight,
+      assignedTo: req.body.assignedTo,
+      dueDate: req.body.dueDate,
+    });
+
+    await keyResult.save({ session });
+    return keyResult;
+  });
   res.status(201).json(keyResult);
 });
 
+const approveKeyResult = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.keyResultId)) {
+    res.status(404);
+    throw new Error("Key result not found");
+  }
+  if (typeof req.body.approved !== "boolean") {
+    res.status(400);
+    throw new Error("Approved must be true or false");
+  }
+  const result = await writes.transaction(async (session) => {
+    const objective = await writes.lockObjective(req.params.id, session);
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    await assertObjectiveAccess(
+      req,
+      res,
+      objective,
+      session,
+      "Approve Key Results",
+    );
+    const keyResult = await OkrKeyResult.findOne(
+      { _id: req.params.keyResultId, objective: objective._id },
+      null,
+      { session },
+    );
+    if (!keyResult) {
+      res.status(404);
+      throw new Error("Key result not found");
+    }
+    keyResult.approved = req.body.approved;
+    keyResult.approvedBy = req.body.approved ? req.user._id : null;
+    keyResult.approvedAt = req.body.approved ? new Date() : null;
+    await keyResult.save({ session });
+    return keyResult;
+  });
+  res.json(result);
+});
+
+const linkCalendar = asyncHandler(async (req, res) => {
+  if (
+    !mongoose.isObjectIdOrHexString(req.params.id) ||
+    !mongoose.isObjectIdOrHexString(req.body.calendarEntry)
+  ) {
+    res.status(400);
+    throw new Error("Please supply valid objective and calendar IDs");
+  }
+  const result = await writes.transaction(async (session) => {
+    const objective = await writes.lockObjective(req.params.id, session);
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    if (
+      objective.calendarEntry &&
+      objective.calendarEntry.toString() !== req.body.calendarEntry
+    ) {
+      res.status(409);
+      throw new Error("This objective already has a calendar link");
+    }
+    const entry = await CalendarEntry.findOneAndUpdate(
+      { _id: req.body.calendarEntry, category: "OKR Objective" },
+      { $inc: { __v: 1 } },
+      { new: true, session },
+    );
+    if (!entry) {
+      res.status(404);
+      throw new Error("OKR calendar entry not found");
+    }
+    if (
+      await OkrObjective.exists({
+        calendarEntry: entry._id,
+        _id: { $ne: objective._id },
+      }).session(session)
+    ) {
+      res.status(409);
+      throw new Error("Calendar entry is already linked to another objective");
+    }
+    objective.calendarEntry = entry._id;
+    await writes.syncCalendar(objective, req.user, session);
+    return { id: objective.id, calendarEntry: entry.id };
+  });
+  res.json(result);
+});
+
+const getReport = asyncHandler(async (req, res) => {
+  const objectives = await OkrObjective.find().populate(
+    "owner",
+    "firstName lastName",
+  );
+  const groups = [];
+  let totalProgress = 0;
+  let onTrack = 0;
+  for (const objective of objectives) {
+    const data = await loadObjective(objective);
+    const progress = data.objective.progress;
+    totalProgress += progress;
+    if (objective.status === "on-track") onTrack++;
+    let group = groups.find((item) => item.name === objective.group);
+    if (!group) {
+      group = { name: objective.group, objectives: 0, progress: 0 };
+      groups.push(group);
+    }
+    group.objectives++;
+    group.progress += progress;
+  }
+  for (const group of groups)
+    group.progress = Math.round(group.progress / group.objectives);
+  groups.sort((a, b) => a.name.localeCompare(b.name));
+  res.json({
+    totalObjectives: objectives.length,
+    onTrack,
+    averageProgress: objectives.length
+      ? Math.round(totalProgress / objectives.length)
+      : 0,
+    groups,
+  });
+});
+
 module.exports = {
+  linkCalendar,
+  approveKeyResult,
+  getReport,
   getObjectives,
   getObjectiveGroups,
   getObjective,
