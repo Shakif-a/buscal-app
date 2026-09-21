@@ -5,6 +5,7 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const CalendarEntry = require("../models/calendarEntryModel");
 const User = require("../models/userModel");
 const OkrGroup = require("../models/okrGroupModel");
+const OkrEvidence = require("../models/okrEvidenceModel");
 const writes = require("../services/okrWrites");
 const {
   assertObjectiveAccess,
@@ -58,6 +59,9 @@ function getName(user) {
 }
 
 async function loadObjective(objective, user) {
+  const userCanManage = user
+    ? await canUserManageObjective(user, objective)
+    : false;
   const keyResultDocuments = await OkrKeyResult.find({
     objective: objective._id,
   })
@@ -77,6 +81,15 @@ async function loadObjective(objective, user) {
       keyResult.assigned = getName(keyResult.assignedTo);
     } else {
       keyResult.assigned = "Unassigned";
+    }
+
+    if (user) {
+      const assignedId =
+        keyResult.assignedTo &&
+        (keyResult.assignedTo._id || keyResult.assignedTo);
+      const isAssigned =
+        assignedId && assignedId.toString() === user._id.toString();
+      keyResult.canManageEvidence = isAssigned || userCanManage;
     }
 
     totalWeight = totalWeight + keyResult.weight;
@@ -107,7 +120,7 @@ async function loadObjective(objective, user) {
   objectiveData.canManage = false;
 
   if (user) {
-    objectiveData.canManage = await canUserManageObjective(user, objective);
+    objectiveData.canManage = userCanManage;
     objectiveData.canCreateKeyResult =
       objectiveData.canManage &&
       (await hasObjectivePermission(user, objective, "Create Key Results"));
@@ -379,6 +392,7 @@ const deleteObjective = asyncHandler(async (req, res) => {
     }
     await assertObjectiveAccess(req, res, objective, session);
     await writes.linkLegacyCalendar(objective, session);
+    await OkrEvidence.deleteMany({ objective: objective._id }, { session });
     await OkrKeyResult.deleteMany({ objective: objective._id }, { session });
     await writes.removeCalendar(objective, session);
     await objective.deleteOne({ session });

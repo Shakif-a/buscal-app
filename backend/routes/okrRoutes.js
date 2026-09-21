@@ -3,6 +3,11 @@ const router = express.Router();
 const { requireObjectBody } = require("../middleware/errorMiddleware");
 router.use(requireObjectBody);
 
+const evidenceUpload = express.raw({
+  type: "application/octet-stream",
+  limit: "5mb",
+});
+
 const {
   linkCalendar,
   getReport,
@@ -15,6 +20,12 @@ const {
   deleteObjective,
   createKeyResult,
 } = require("../controllers/okrController");
+const {
+  uploadEvidence,
+  getEvidence,
+  downloadEvidence,
+  deleteEvidence,
+} = require("../controllers/okrEvidenceController");
 
 const { protect } = require("../middleware/authMiddleware");
 const {
@@ -58,6 +69,27 @@ router.post(
   protect,
   canCreateKeyResult,
   createKeyResult,
+);
+router.post(
+  "/objectives/:id/key-results/:keyResultId/evidence",
+  protect,
+  evidenceUpload,
+  uploadEvidence,
+);
+router.get(
+  "/objectives/:id/key-results/:keyResultId/evidence",
+  protect,
+  getEvidence,
+);
+router.get(
+  "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId/download",
+  protect,
+  downloadEvidence,
+);
+router.delete(
+  "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId",
+  protect,
+  deleteEvidence,
 );
 
 module.exports = router;

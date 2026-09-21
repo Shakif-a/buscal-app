@@ -14,6 +14,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../../models/userModel");
 const Objective = require("../../models/okrObjectiveModel");
 const KeyResult = require("../../models/okrKeyResultModel");
+const Evidence = require("../../models/okrEvidenceModel");
 const Group = require("../../models/okrGroupModel");
 const Permission = require("../../models/okrRolePermissionModel");
 const Calendar = require("../../models/calendarEntryModel");
@@ -102,6 +103,7 @@ test.before(async () => {
     Group,
     Permission,
     KeyResult,
+    Evidence,
     Calendar,
     Scheduler,
   ]) {
@@ -172,6 +174,7 @@ test.beforeEach(async () => {
     User,
     Objective,
     KeyResult,
+    Evidence,
     Group,
     Permission,
     Calendar,
@@ -231,6 +234,64 @@ async function request(method, path, body, role = "admin", authorization) {
     console.error("HTTP failure:", method, path, data.message);
   return { status: response.status, body: data };
 }
+
+async function evidenceRequest(method, path, options = {}) {
+  const role = options.role || "admin";
+  const headers = {};
+  if (options.authorization !== null) {
+    headers.Authorization =
+      options.authorization === undefined
+        ? "Bearer " + jwt.sign({ id: users[role].id }, secret)
+        : options.authorization;
+  }
+  if (options.filename !== undefined)
+    headers["X-Evidence-Name"] = encodeURIComponent(options.filename);
+  if (options.mimetype !== undefined)
+    headers["X-Evidence-Type"] = encodeURIComponent(options.mimetype);
+  if (options.note !== undefined)
+    headers["X-Evidence-Note"] = encodeURIComponent(options.note);
+  if (options.contentType !== null)
+    headers["Content-Type"] =
+      options.contentType || "application/octet-stream";
+
+  const response = await fetch(base + path, {
+    method,
+    headers,
+    body: options.body,
+  });
+  const responseType = response.headers.get("content-type") || "";
+  const body = responseType.includes("application/json")
+    ? await response.json()
+    : Buffer.from(await response.arrayBuffer());
+  if (response.status === 500)
+    console.error("HTTP failure:", method, path, body.message);
+  return { status: response.status, body, headers: response.headers };
+}
+
+function sampleEvidenceFile(filename) {
+  const extension = filename.slice(filename.lastIndexOf(".")).toLowerCase();
+  if (extension === ".pdf") return Buffer.from("%PDF-1.4\nTest evidence");
+  if (extension === ".png")
+    return Buffer.from("89504e470d0a1a0a", "hex");
+  if (extension === ".jpg" || extension === ".jpeg")
+    return Buffer.from("ffd8ffe000104a464946", "hex");
+  if (extension === ".gif") return Buffer.from("GIF89a");
+  if (extension === ".webp") return Buffer.from("RIFF0000WEBP");
+  if (extension === ".heic")
+    return Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from("ftypheic")]);
+  if ([".doc", ".xls", ".ppt"].includes(extension))
+    return Buffer.from("d0cf11e0a1b11ae1", "hex");
+  if (
+    [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".zip"].includes(
+      extension,
+    )
+  )
+    return Buffer.from("504b0304", "hex");
+  if (extension === ".rtf") return Buffer.from("{\\rtf1 Test evidence}");
+  if (extension === ".json") return Buffer.from('{"result":"complete"}');
+  return Buffer.from("test evidence");
+}
+
 function objectiveBody(extra = {}) {
   return {
     title: "New",
@@ -1467,6 +1528,515 @@ test("key-result approval rejects IDs from a different objective", async () => {
   );
   assert.equal((await KeyResult.findById(key._id)).approved, false);
 });
+
+test("assigned employees can upload, view, download and delete evidence", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Document the result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+    approved: true,
+    approvedBy: users.admin._id,
+    approvedAt: new Date(),
+  });
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const file = Buffer.from("%PDF-1.4\nTest evidence");
+  const uploaded = await evidenceRequest("POST", path, {
+    role: "employee",
+    filename: "Q1 result.pdf",
+    mimetype: "application/pdf",
+    note: "Final figures for review",
+    body: file,
+  });
+
+  assert.equal(uploaded.status, 201);
+  assert.equal(uploaded.body.filename, "Q1 result.pdf");
+  assert.equal(uploaded.body.mimetype, "application/pdf");
+  assert.equal(uploaded.body.size, file.length);
+  assert.equal(uploaded.body.note, "Final figures for review");
+  assert.equal(uploaded.body.uploadedByName, "employee Test");
+  assert.equal(uploaded.body.data, undefined);
+
+  const saved = await Evidence.findById(uploaded.body._id).select("+data");
+  assert.deepEqual(Buffer.from(saved.data), file);
+  assert.equal(saved.uploadedBy.toString(), users.employee.id);
+  const updatedKey = await KeyResult.findById(key._id);
+  assert.equal(updatedKey.approved, false);
+  assert.equal(updatedKey.approvedBy, null);
+  assert.equal(updatedKey.approvedAt, null);
+
+  const list = await evidenceRequest("GET", path, { role: "employee" });
+  assert.equal(list.status, 200);
+  assert.equal(list.body.length, 1);
+  assert.equal(list.body[0].filename, "Q1 result.pdf");
+  assert.equal(list.body[0].data, undefined);
+
+  await Evidence.collection.updateOne(
+    { _id: saved._id },
+    { $set: { size: file.length + 100 } },
+  );
+
+  const download = await evidenceRequest(
+    "GET",
+    path + "/" + uploaded.body._id + "/download",
+    { role: "employee" },
+  );
+  assert.equal(download.status, 200);
+  assert.deepEqual(download.body, file);
+  assert.equal(download.headers.get("content-type"), "application/pdf");
+  assert.match(
+    download.headers.get("content-disposition"),
+    /attachment; filename="Q1 result\.pdf"/,
+  );
+  assert.equal(download.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(download.headers.get("cache-control"), "private, no-store");
+  assert.equal(download.headers.get("content-length"), String(file.length));
+
+  await KeyResult.updateOne(
+    { _id: key._id },
+    {
+      $set: {
+        approved: true,
+        approvedBy: users.admin._id,
+        approvedAt: new Date(),
+      },
+    },
+  );
+
+  const removed = await evidenceRequest(
+    "DELETE",
+    path + "/" + uploaded.body._id,
+    { role: "employee" },
+  );
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.id, uploaded.body._id);
+  assert.equal(await Evidence.countDocuments(), 0);
+  const keyAfterDelete = await KeyResult.findById(key._id);
+  assert.equal(keyAfterDelete.approved, false);
+  assert.equal(keyAfterDelete.approvedBy, null);
+  assert.equal(keyAfterDelete.approvedAt, null);
+});
+
+test("evidence access follows assignments, objective roles and saved permissions", async () => {
+  users.outsider = await User.create({
+    firstName: "outside",
+    lastName: "Test",
+    email: "outside@example.test",
+    password: "test-hash",
+    roles: ["employee"],
+    exec: "no",
+  });
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Assigned result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const options = {
+    filename: "result.txt",
+    mimetype: "text/plain",
+    body: Buffer.from("done"),
+  };
+
+  assert.equal(
+    (await evidenceRequest("POST", path, { ...options, authorization: null }))
+      .status,
+    401,
+  );
+  assert.equal(
+    (await evidenceRequest("POST", path, { ...options, role: "outsider" }))
+      .status,
+    403,
+  );
+  const uploaded = await evidenceRequest("POST", path, {
+    ...options,
+    role: "admin",
+  });
+  assert.equal(uploaded.status, 201);
+
+  for (const role of [
+    "admin",
+    "exec",
+    "manager",
+    "owner",
+    "groupManager",
+    "employee",
+  ]) {
+    assert.equal(
+      (await evidenceRequest("GET", path, { role })).status,
+      200,
+      role + " should have evidence access",
+    );
+  }
+  assert.equal(
+    (await evidenceRequest("GET", path, { role: "outsider" })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await evidenceRequest(
+        "GET",
+        path + "/" + uploaded.body._id + "/download",
+        { role: "outsider" },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("DELETE", path + "/" + uploaded.body._id, {
+        role: "outsider",
+      })
+    ).status,
+    403,
+  );
+  const assignedView = await request(
+    "GET",
+    pathForObjective(),
+    undefined,
+    "employee",
+  );
+  const outsiderView = await request(
+    "GET",
+    pathForObjective(),
+    undefined,
+    "outsider",
+  );
+  assert.equal(assignedView.body.keyResults[0].canManageEvidence, true);
+  assert.equal(outsiderView.body.keyResults[0].canManageEvidence, false);
+
+  await Permission.create({ role: "Manager", permissions: [] });
+  assert.equal(
+    (await evidenceRequest("GET", path, { role: "manager" })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await evidenceRequest(
+        "GET",
+        path + "/" + uploaded.body._id + "/download",
+        { role: "manager" },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await evidenceRequest("GET", path, { role: "groupManager" })).status,
+    403,
+  );
+  assert.equal(
+    (await evidenceRequest("GET", path, { role: "employee" })).status,
+    200,
+  );
+  assert.equal(
+    (await evidenceRequest("GET", path, { role: "owner" })).status,
+    200,
+  );
+});
+
+test("evidence routes reject malformed IDs, mismatched records and invalid files", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const valid = {
+    filename: "result.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.from("%PDF-1.4"),
+  };
+
+  assert.equal(
+    (
+      await evidenceRequest(
+        "POST",
+        "/api/okr/objectives/bad-id/key-results/" + key.id + "/evidence",
+        valid,
+      )
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await evidenceRequest(
+        "POST",
+        pathForObjective() + "/key-results/bad-id/evidence",
+        valid,
+      )
+    ).status,
+    404,
+  );
+  const otherObjective = await Objective.create({
+    title: "Other",
+    owner: users.owner._id,
+    group: "Sales",
+    dueDate: "2026-12-01",
+  });
+  assert.equal(
+    (
+      await evidenceRequest(
+        "POST",
+        "/api/okr/objectives/" +
+          otherObjective.id +
+          "/key-results/" +
+          key.id +
+          "/evidence",
+        valid,
+      )
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        mimetype: "application/pdf",
+        body: valid.body,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        filename: "program.exe",
+        mimetype: "application/octet-stream",
+        body: Buffer.from("not safe"),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        filename: "result.pdf",
+        mimetype: "text/plain",
+        body: Buffer.from("not a PDF"),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        filename: "result.pdf",
+        mimetype: "application/pdf",
+        body: Buffer.from("not a PDF"),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        filename: "../result.pdf",
+        mimetype: "application/pdf",
+        body: valid.body,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        filename: "result.pdf",
+        mimetype: "application/pdf",
+        note: "x".repeat(1001),
+        body: valid.body,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        filename: "result.pdf",
+        mimetype: "application/pdf",
+        body: Buffer.alloc(0),
+      })
+    ).status,
+    400,
+  );
+  const tooLarge = await evidenceRequest("POST", path, {
+    filename: "large.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.alloc(5 * 1024 * 1024 + 1),
+  });
+  assert.equal(tooLarge.status, 413);
+  assert.equal(tooLarge.body.message, "Evidence files cannot be larger than 5 MB");
+  assert.equal(
+    (await evidenceRequest("GET", path + "/bad-id/download")).status,
+    404,
+  );
+  assert.equal(
+    (await evidenceRequest("DELETE", path + "/" + id())).status,
+    404,
+  );
+
+  const otherKey = await KeyResult.create({
+    objective: objective._id,
+    title: "Other result",
+    weight: 20,
+    dueDate: "2026-12-01",
+  });
+  const otherEvidence = await Evidence.create({
+    objective: objective._id,
+    keyResult: otherKey._id,
+    filename: "other.txt",
+    mimetype: "text/plain",
+    size: 5,
+    data: Buffer.from("other"),
+    uploadedBy: users.admin._id,
+  });
+  assert.equal(
+    (
+      await evidenceRequest(
+        "GET",
+        path + "/" + otherEvidence.id + "/download",
+      )
+    ).status,
+    404,
+  );
+  assert.equal(
+    (await evidenceRequest("DELETE", path + "/" + otherEvidence.id)).status,
+    404,
+  );
+  await Evidence.deleteOne({ _id: otherEvidence._id });
+  assert.equal(await Evidence.countDocuments(), 0);
+});
+
+test("evidence accepts common presentation, archive, data and image formats", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const files = [
+    ["figures.csv", "text/csv"],
+    ["report.doc", "application/msword"],
+    [
+      "report.docx",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ],
+    ["chart.gif", "image/gif"],
+    ["photo.heic", "image/heic"],
+    ["photo.jpeg", "image/jpeg"],
+    ["photo.jpg", "image/jpeg"],
+    ["results.json", "application/json"],
+    ["notes.md", "text/markdown"],
+    ["presentation.odp", "application/vnd.oasis.opendocument.presentation"],
+    ["figures.ods", "application/vnd.oasis.opendocument.spreadsheet"],
+    ["notes.odt", "application/vnd.oasis.opendocument.text"],
+    ["result.pdf", "application/pdf"],
+    ["chart.png", "image/png"],
+    ["presentation.ppt", "application/vnd.ms-powerpoint"],
+    [
+      "presentation.pptx",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ],
+    ["meeting.rtf", "application/octet-stream", "application/rtf"],
+    ["notes.txt", "text/plain"],
+    ["photo.webp", "image/webp"],
+    ["legacy.xls", "application/vnd.ms-excel"],
+    [
+      "figures.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ],
+    ["records.zip", "application/zip"],
+  ];
+
+  for (const [filename, mimetype, storedMimetype = mimetype] of files) {
+    const response = await evidenceRequest("POST", path, {
+      filename,
+      mimetype,
+      body: sampleEvidenceFile(filename),
+    });
+    assert.equal(response.status, 201, filename + " should be accepted");
+    assert.equal(response.body.filename, filename);
+    assert.equal(response.body.mimetype, storedMimetype);
+  }
+
+  assert.equal(await Evidence.countDocuments(), files.length);
+});
+
+test("evidence accepts a file at the exact size limit", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Large result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const file = Buffer.alloc(5 * 1024 * 1024);
+  file.write("%PDF-1.4");
+  const response = await evidenceRequest(
+    "POST",
+    pathForObjective() + "/key-results/" + key.id + "/evidence",
+    {
+      filename: "limit.pdf",
+      mimetype: "application/pdf",
+      body: file,
+    },
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.size, file.length);
+});
+
+test("evidence model validates stored files and objective deletion removes them", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  await assert.rejects(
+    new Evidence({
+      objective: objective._id,
+      keyResult: key._id,
+      filename: "large.pdf",
+      mimetype: "application/pdf",
+      size: 5 * 1024 * 1024 + 1,
+      data: Buffer.alloc(5 * 1024 * 1024 + 1),
+      uploadedBy: users.admin._id,
+    }).save(),
+    { name: "ValidationError" },
+  );
+
+  const normalized = await Evidence.create({
+    objective: objective._id,
+    keyResult: key._id,
+    filename: "actual-size.txt",
+    mimetype: "text/plain",
+    size: 5 * 1024 * 1024,
+    data: Buffer.from("saved"),
+    uploadedBy: users.admin._id,
+  });
+  assert.equal(normalized.size, 5);
+
+  await Evidence.create({
+    objective: objective._id,
+    keyResult: key._id,
+    filename: "saved.txt",
+    mimetype: "text/plain",
+    size: 5,
+    data: Buffer.from("saved"),
+    uploadedBy: users.admin._id,
+  });
+  assert.equal((await request("DELETE", pathForObjective())).status, 200);
+  assert.equal(await KeyResult.countDocuments(), 0);
+  assert.equal(await Evidence.countDocuments(), 0);
+});
 test("reports use actual progress and enforce saved View Reports permission", async () => {
   await KeyResult.create({
     objective: objective._id,
@@ -1558,13 +2128,22 @@ test("failed calendar scheduling rolls back objective and calendar creation", as
     Scheduler.updateOne = original;
   }
 });
-test("failed calendar deletion rolls back objective and key-result deletion", async () => {
+test("failed calendar deletion rolls back objective, key-result and evidence deletion", async () => {
   const created = await request("POST", "/api/okr/objectives", objectiveBody());
-  await KeyResult.create({
+  const key = await KeyResult.create({
     objective: created.body._id,
     title: "Saved",
     weight: 100,
     dueDate: "2026-12-01",
+  });
+  await Evidence.create({
+    objective: created.body._id,
+    keyResult: key._id,
+    filename: "saved.txt",
+    mimetype: "text/plain",
+    size: 5,
+    data: Buffer.from("saved"),
+    uploadedBy: users.admin._id,
   });
   const original = Calendar.findOneAndDelete;
   Calendar.findOneAndDelete = async () => {
@@ -1584,6 +2163,10 @@ test("failed calendar deletion rolls back objective and key-result deletion", as
     await KeyResult.countDocuments({ objective: created.body._id }),
     1,
   );
+  assert.equal(
+    await Evidence.countDocuments({ objective: created.body._id }),
+    1,
+  );
   assert.equal(await Calendar.countDocuments(), 1);
 });
 test("concurrent objective deletion and key-result creation never leave orphaned key results", async () => {
@@ -1595,6 +2178,33 @@ test("concurrent objective deletion and key-result creation never leave orphaned
   assert.ok([201, 404].includes(results[1].status));
   assert.equal(await Objective.countDocuments(), 0);
   assert.equal(await KeyResult.countDocuments(), 0);
+});
+test("concurrent objective deletion and evidence upload never leave orphaned files", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const results = await Promise.all([
+    request("DELETE", pathForObjective()),
+    evidenceRequest(
+      "POST",
+      pathForObjective() + "/key-results/" + key.id + "/evidence",
+      {
+        role: "employee",
+        filename: "result.txt",
+        mimetype: "text/plain",
+        body: Buffer.from("done"),
+      },
+    ),
+  ]);
+  assert.equal(results[0].status, 200);
+  assert.ok([201, 404].includes(results[1].status));
+  assert.equal(await Objective.countDocuments(), 0);
+  assert.equal(await KeyResult.countDocuments(), 0);
+  assert.equal(await Evidence.countDocuments(), 0);
 });
 test("legacy calendar entry is linked once and updated without duplicate events", async () => {
   const entry = await Calendar.create({
