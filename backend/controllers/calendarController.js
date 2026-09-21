@@ -17,12 +17,14 @@ const { add } = require("lodash");
 //------------------------------------------------------------------//
 
 // OKR Modual Ownship Tracker. Prevent users editing OKR licked entries
-const isOkrManagedCategory = (category) => 
-  category === "OKR Objective" || category === "OKR Key Result";
+const OKR_MANAGED_CATEGORIES = ["OKR Objective", "OKR Key Result"];
+
+const isOkrManagedCategory = (category) =>
+  OKR_MANAGED_CATEGORIES.includes(category);
 
 const okrManagedEntryError = () => ({
-  // Could use a UI change
-  error: "Entry managed by the OKR Tracker. Edit via the OKR menu.",
+  error:
+    "This entry is managed by the OKR Tracker. Edit the linked Objective or Key Result instead.",
 });
 
 
