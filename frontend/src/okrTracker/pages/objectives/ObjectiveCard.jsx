@@ -63,6 +63,7 @@ function ObjectiveCard({ objective }) {
 
   // Key Results Data
   const [keyResults, setKeyResults] = useState([]);
+  const [originalKeyResults, setOriginalKeyResults] = useState([]);
 
   function addKeyResult() {
     const newKeyResult = {
@@ -104,8 +105,24 @@ function ObjectiveCard({ objective }) {
   }
 
   function handleEditButton() {
-    setEditMode(!editMode);
+    if (!editMode){
+      //Entering edit mode
+      setOriginalKeyResults(
+        keyResults.map((keyResult) => ({...keyResult}))
+      );
+
+      setEditMode(true);
+    } else {
+      //Save Changes
+      setEditMode(false);
+      setOriginalKeyResults([]);
+    }
   }
+
+  const totalKeyResultWeight = keyResults.reduce(
+    (total, keyResult) => total + Number(keyResult.weight),
+    0
+  );
 
   {/*delete objective*/}
   const handleDeleteObjective = async () => {
@@ -148,12 +165,15 @@ function ObjectiveCard({ objective }) {
 
   // KR Save Validity Check
   const keyResultsValid =
-    keyResults.length > 0 &&
-    keyResults.every((keyResult) =>
+    keyResults.length === 0 ||
+    (
+      keyResults.every((keyResult) =>
       keyResult.name.trim() !== "" &&
       Number(keyResult.weight) > 0 &&
       keyResult.assigned !== "" &&
       keyResult.dueDate !== ""
+    ) &&
+    totalKeyResultWeight === 100
     );
 
   //Weight Popup
@@ -306,8 +326,8 @@ function ObjectiveCard({ objective }) {
                 <th>KEY RESULTS <span className="required">*</span></th>
                 <th>WEIGHT <span className="required">*</span></th>
                 <th>ASSIGNED <span className="required">*</span></th>
-                <th>PROGRESS <span className="required">*</span></th>
                 <th>DUE DATE <span className="required">*</span></th>
+                <th>PROGRESS</th>
                 <th>STATUS</th>
                 <th>EVIDENCE</th>
                 <th>APPROVAL</th>
@@ -397,6 +417,26 @@ function ObjectiveCard({ objective }) {
                       )}
                     </td>
 
+                    {/* Due Date */}
+                    <td>
+                      {editMode ? (
+                        <input
+                          className="date-input"
+                          type="date"
+                          value={keyResult.dueDate}
+                          onChange={(event) =>
+                            updateKeyResult(
+                              keyResult.id,
+                              "dueDate",
+                              event.target.value
+                            )
+                          }
+                        />
+                      ) : (
+                        keyResult.dueDate
+                      )}
+                    </td>
+
                     {/* Progress */}
                     <td>
                       {editMode ? (
@@ -416,26 +456,6 @@ function ObjectiveCard({ objective }) {
                         />
                       ) : (
                         `${keyResult.progress}%`
-                      )}
-                    </td>
-
-                    {/* Due Date */}
-                    <td>
-                      {editMode ? (
-                        <input
-                          className="date-input"
-                          type="date"
-                          value={keyResult.dueDate}
-                          onChange={(event) =>
-                            updateKeyResult(
-                              keyResult.id,
-                              "dueDate",
-                              event.target.value
-                            )
-                          }
-                        />
-                      ) : (
-                        keyResult.dueDate
                       )}
                     </td>
 
@@ -537,10 +557,27 @@ function ObjectiveCard({ objective }) {
                 </button>
               )}
 
-              {editMode && !keyResultsValid && keyResults.length > 0 && (
-                <p className="key-result-validation">
-                  Key Results Title, Weight, Assigned Employee and Due Date are required fields.
-                </p>
+              {editMode && keyResults.length > 0 && (
+                <>
+                  {!keyResults.every((keyResult) =>
+                  keyResult.name.trim() !== "" &&
+                  Number(keyResult.weight) > 0 &&
+                  keyResult.assigned !== "" &&
+                  keyResult.dueDate !== ""
+                  ) && (
+                    <p className="key-result-validation">
+                    Key Results Title, Weight, Assigned Employee and Due Date are required fields.
+                    </p>
+                  )}
+                  
+                  {totalKeyResultWeight !== 100 &&(
+                    <p className="key-result-validation">
+                      Combined Key Result Weight must equal 100%
+                      <br />
+                      Current total: {totalKeyResultWeight}%
+                    </p>
+                  )}
+                </>
               )}
             </div>
             <div className="footer-buttons">
@@ -550,8 +587,10 @@ function ObjectiveCard({ objective }) {
                   type="button"
                   className="cancel-button"
                   onClick={() => {
+                    setKeyResults(originalKeyResults);
                     setEditMode(false);
                     setShowWeightPopup(false);
+                    setWeightDrafts([]);
                   }}
                 >
                   Cancel
@@ -728,9 +767,6 @@ function ObjectiveCard({ objective }) {
                 type="button"
                 className="cancel-button"
                 onClick={() => setShowEvidencePopup(false)}
-                onClick={() => {
-                  setEditMode(false);
-                }}
               >
                 Cancel
               </button>
@@ -801,110 +837,6 @@ function ObjectiveCard({ objective }) {
                 onClick={() => setShowViewEvidence(false)}
               >
                 Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteModal && (
-        <div className="popup-overlay">
-          <div className="delete-objective-popup">
-            <h2>Delete Objective</h2>
-            <p>Are you sure you want to delete <strong>{objective.title}</strong>?</p>
-            <p>This action cannot be undone.</p>
-
-            <div className="popup-buttons">
-              <button type="button"
-              className="popup-cancel-button"
-              onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button type="button"
-              className="popup-delete-button"
-              onClick={handleDeleteObjective}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && (
-        <div className="edit-popup-overlay">
-          <div className="edit-objective-popup">
-            <div className="edit-popup-header">
-              <h2>Edit Objective</h2>
-
-              <button type="button"
-              className="edit-popup-close"
-              onClick={() => setShowEditModal(false)}>x</button>
-            </div>
-
-            <div className="edit-objective-form">
-              <div className="edit-form-left">
-                <label>Title</label>
-                <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Enter Objective Title"/>
-
-                <label>Due Date</label>
-                <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    />
-                
-                <label>Owner</label>
-                <input
-                    type="text"
-                    value={editOwner}
-                    onChange={(e) => setEditOwner(e.target.value)}
-                    />
-                
-                <label>Group</label>
-                <input
-                    type="text"
-                    value={editGroup}
-                    onChange={(e) => setEditGroup(e.target.value)}
-                    />
-                
-                <label>Type</label>
-                <select
-                    value={editCommitmentType}
-                    onChange={(e) => setEditCommitmentType(e.target.value)}
-                >
-                  <option value = "committed">Committed</option>
-                  <option value = "aspirational">Aspirational</option>
-                </select>
-              </div>
-
-              <div className="edit-form-right">
-                <label>Description</label>
-                <textarea
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    placeholder="Describe the Objective"
-                />
-              </div>
-            </div>
-
-            <div className="edit-popup-buttons">
-              <button
-                  type="button"
-                  className="edit-cancel-button"
-                  onClick={() => setShowEditModal(false)}
-              >
-                Cancel
-              </button>
-
-              <button
-                  type="button"
-                  className="edit-save-button"
-                  onClick={handleUpdateObjective}
-              >
-                Save Changes
               </button>
             </div>
           </div>
