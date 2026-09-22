@@ -17,18 +17,26 @@ const {
 } = require("../controllers/okrController");
 
 const { protect } = require("../middleware/authMiddleware");
-
+const {
+  canCreateObjective,
+  canManageObjective,
+} = require("../middleware/okrPermissions");
 
 router.get("/", (req, res) => {
   res.json({ message: "OKR Tracker API endpoint" });
 });
 
 router.get("/objectives", protect, getObjectives);
-router.post("/objectives", protect, createObjective);
+router.post("/objectives", protect, canCreateObjective, createObjective);
 router.get("/objectives/groups", protect, getObjectiveGroups);
 router.get("/objectives/:id", protect, getObjective);
-router.put("/objectives/:id", protect, updateObjective);
-router.delete("/objectives/:id", protect, deleteObjective);
-router.post("/objectives/:id/key-results", protect, createKeyResult);
+router.put("/objectives/:id", protect, canManageObjective, updateObjective);
+router.delete("/objectives/:id", protect, canManageObjective, deleteObjective);
+router.post(
+  "/objectives/:id/key-results",
+  protect,
+  canManageObjective,
+  createKeyResult
+);
 
 module.exports = router;

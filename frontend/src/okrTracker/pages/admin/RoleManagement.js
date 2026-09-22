@@ -101,13 +101,17 @@ function RoleManagement() {
   // Save the changes. Here we just show a confirmation, since there
   // is no backend connected yet. we have to Replace this with an API call later.
   function saveRole(roleName) {
-    alert("Changes saved for " + roleName + " role.");
+    setSavedRole(roleName);
+    setShowSavePopup(true);
   }
 
   // Filter the roles by the search text.
   const visibleRoles = roleNames.filter((name) =>
     name.toLowerCase().includes(searchText.toLowerCase())
   );
+
+  const [showSavePopup,setShowSavePopup] = useState(false);
+  const [savedRole, setSavedRole] = useState("");
 
   return (
     <div className="role-management">
@@ -209,15 +213,7 @@ function RoleManagement() {
                 <div>
                   <button
                     onClick={() => toggleExpand(roleName)}
-                    style={{
-                      padding: "10px 30px 10px 20px",
-                      borderRadius: "8px",
-                      border: "1px solid #ddd",
-                      backgroundColor: "#fff",
-                      color: navy,
-                      cursor: "pointer",
-                      position: "relative",
-                    }}
+                    className="role-edit-button"
                   >
                     Edit
                     <span style={{ position: "absolute", right: "10px", color: "#aaa" }}>
@@ -297,28 +293,13 @@ function RoleManagement() {
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "16px" }}>
                     <button
                       onClick={() => resetRole(roleName)}
-                      style={{
-                        padding: "12px 28px",
-                        borderRadius: "8px",
-                        border: "1px solid #ddd",
-                        backgroundColor: "#f2f2f2",
-                        color: navy,
-                        cursor: "pointer",
-                      }}
+                      className="role-reset-button"
                     >
-                      Reset
+                      Cancel
                     </button>
                     <button
                       onClick={() => saveRole(roleName)}
-                      style={{
-                        padding: "12px 28px",
-                        borderRadius: "8px",
-                        border: "none",
-                        backgroundColor: "#7fbce0",
-                        color: "#fff",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                      }}
+                      className="role-save-button"
                     >
                       Save Changes
                     </button>
@@ -388,6 +369,16 @@ function RoleManagement() {
           ))}
         </div>
       </div>
+      {showSavePopup && (
+        <div className="popup-overlay">
+          <div className="role-popup">
+            <h2>Changes Saved</h2>
+            <p>Changes to the <strong>{savedRole}</strong> role have been saved.</p>
+            <button className="popup-close-button"
+            onClick={() => setShowSavePopup(false)}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
