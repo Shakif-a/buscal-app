@@ -25,6 +25,7 @@ import DeleteModal from "./DeleteModal";
 import AddEditEntry from "./AddEditEntry";
 import AllOrOneModal from "./AllOrOneModal";
 import ProgressModal from "./ProgressModal";
+import KeyResultsModal from "./KeyResultsModal";
 
 import { generateReminderOptions, getCategoryColour } from "./UtilityFunctions";
 import {
@@ -168,6 +169,10 @@ const EntryViewer = ({ entryData, type }) => {
   const [openProgress, setOpenProgress] = useState(false);
   const handleOpenProgress = () => setOpenProgress(true);
   const handleCloseProgress = () => setOpenProgress(false);
+
+  const [openKeyResults, setOpenKeyResults] = useState(false);
+  const handleOpenKeyResults = () => setOpenKeyResults(true);
+  const handleCloseKeyResults = () => setOpenKeyResults(false);
 
   // All or one
   const handleJustThis = () => {
@@ -720,20 +725,51 @@ const EntryViewer = ({ entryData, type }) => {
                 ) : null}
                 {type !== "history" ? (
                   <GridLegacy item xs={12}>
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="small"
-                      onClick={handleOpenProgress}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        marinTop: 1,
+                      }}
                     >
-                      View Progress
-                    </Button>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        size="small"
+                        onClick={handleOpenProgress}
+                      >
+                        View Progress
+                      </Button>
+                    
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleOpenKeyResults}
+                      >
+                        View Key Results
+                      </Button>
+                    </Box>
                     <Modal open={openProgress} onClose={handleCloseProgress}>
                       <Box sx={modalStyle}>
                         <ProgressModal
                           _id={_id}
                           users={users}
                           handleClose={handleCloseProgress}
+                        />
+                      </Box>
+                    </Modal>
+
+                    <Modal
+                      open={openKeyResults}
+                      onClose={handleCloseKeyResults}
+                    >
+                      <Box
+                        sx={modalStyle}
+                      >
+                        <KeyResultsModal
+                          entryId={_id}
+                          objectiveTitle={title}
+                          handleClose={handleCloseKeyResults}
                         />
                       </Box>
                     </Modal>
