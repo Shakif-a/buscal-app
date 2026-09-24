@@ -6,7 +6,7 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const OkrObjective = require("../models/okrObjectiveModel");
 const writes = require("../services/okrWrites");
 const { canUserManageObjective } = require("../middleware/okrPermissions");
-const { createNotification } = require("./notificationController");
+const { generateNotifications } = require("./notificationController");
 
 const allowedFileTypes = {
   ".csv": ["text/csv", "application/vnd.ms-excel"],
@@ -269,12 +269,12 @@ const uploadEvidence = asyncHandler(async (req, res) => {
   const ownerId = result.objective.owner && result.objective.owner.toString();
   if (ownerId && ownerId !== req.user._id.toString()) {
     try {
-      await createNotification(
+      await generateNotifications(
         [ownerId],
         `New evidence was added to "${result.keyResult.title}" on "${result.objective.title}" and now needs review.`,
         ["web"],
-        "/dashboard/okrtracker/objectives",
         "okr",
+        "/dashboard/okrtracker/objectives",
       );
     } catch (error) {
       console.error("Could not create evidence notification:", error.message);

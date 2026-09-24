@@ -20,6 +20,7 @@ const Permission = require("../../models/okrRolePermissionModel");
 const Calendar = require("../../models/calendarEntryModel");
 const Scheduler = require("../../models/schedulerModel");
 const Notification = require("../../models/notificationModel");
+const webService = require("../../services/webService");
 const { errorHandler } = require("../../middleware/errorMiddleware");
 const {
   hasRolePermission,
@@ -27,8 +28,10 @@ const {
 } = require("../../middleware/adminPermissions");
 const { canUserManageObjective } = require("../../middleware/okrPermissions");
 let mongo, directory, server, base, users, objective, sales;
+let deliveredNotifications;
 const secret = "isolated-backend-investigation-only";
 const oldSecret = process.env.JWT_SECRET;
+const originalEnqueueNotification = webService.enqueueNotification;
 const routeCoverage = {};
 const id = () => new mongoose.Types.ObjectId().toString();
 
@@ -169,9 +172,16 @@ test.after(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });
   if (oldSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = oldSecret;
+  webService.enqueueNotification = originalEnqueueNotification;
 });
 
 test.beforeEach(async () => {
+  deliveredNotifications = [];
+  webService.enqueueNotification = (notification) => {
+    deliveredNotifications.push(notification);
+    return { success: true };
+  };
+
   for (const model of [
     User,
     Objective,
@@ -1736,6 +1746,11 @@ test("a non-owner evidence upload creates one review notification", async () => 
   );
   assert.match(notifications[0].content, /Customer response time/);
   assert.match(notifications[0].content, /Original/);
+  assert.equal(deliveredNotifications.length, 1);
+  assert.equal(
+    deliveredNotifications[0].user.toString(),
+    users.owner.id,
+  );
 
   assert.equal(
     (
@@ -1749,6 +1764,7 @@ test("a non-owner evidence upload creates one review notification", async () => 
     201,
   );
   assert.equal(await Notification.countDocuments(), 1);
+  assert.equal(deliveredNotifications.length, 1);
 });
 
 test("legacy evidence without deletion fields stays available", async () => {
