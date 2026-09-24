@@ -249,6 +249,36 @@ describe("API-connected objective and report pages", () => {
       .and("not.be.disabled");
   });
 
+  it("lets the user cancel a slow evidence upload and retry", () => {
+    cy.intercept(
+      "POST",
+      "**/api/okr/objectives/objective-1/key-results/result-1/evidence",
+      {
+        delay: 3000,
+        statusCode: 201,
+        body: { _id: "evidence-1", filename: "slow.pdf" },
+      },
+    );
+
+    cy.visit(fixture);
+    cy.contains("button", "View Key Results").click();
+    cy.contains("button", "Upload").click();
+    cy.contains("label", "Evidence file")
+      .find("input")
+      .selectFile({
+        contents: Cypress.Buffer.from("%PDF-1.4 test"),
+        fileName: "slow.pdf",
+        mimeType: "application/pdf",
+      });
+    cy.contains("button", "Upload Evidence").click();
+    cy.contains("button", "Cancel upload").should("be.visible").click();
+    cy.contains(
+      "Upload cancelled. Your selected file is ready to retry.",
+    ).should("be.visible");
+    cy.contains("slow.pdf").should("be.visible");
+    cy.contains("button", "Upload Evidence").should("not.be.disabled");
+  });
+
   it("checks evidence files before upload and shows the selected details", () => {
     let uploads = 0;
     cy.intercept(

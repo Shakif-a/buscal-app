@@ -19,6 +19,7 @@ const Group = require("../../models/okrGroupModel");
 const Permission = require("../../models/okrRolePermissionModel");
 const Calendar = require("../../models/calendarEntryModel");
 const Scheduler = require("../../models/schedulerModel");
+const Notification = require("../../models/notificationModel");
 const { errorHandler } = require("../../middleware/errorMiddleware");
 const {
   hasRolePermission,
@@ -106,6 +107,7 @@ test.before(async () => {
     Evidence,
     Calendar,
     Scheduler,
+    Notification,
   ]) {
     await model.createCollection();
     await model.createIndexes();
@@ -179,6 +181,7 @@ test.beforeEach(async () => {
     Permission,
     Calendar,
     Scheduler,
+    Notification,
   ])
     await model.deleteMany({});
   users = {};
@@ -1612,11 +1615,207 @@ test("assigned employees can upload, view, download and delete evidence", async 
   );
   assert.equal(removed.status, 200);
   assert.equal(removed.body.id, uploaded.body._id);
-  assert.equal(await Evidence.countDocuments(), 0);
+  assert.equal(await Evidence.countDocuments(), 1);
+  const removedEvidence = await Evidence.findById(uploaded.body._id);
+  assert.equal(removedEvidence.deleted, true);
+  assert.equal(removedEvidence.deletedBy.toString(), users.employee.id);
+  assert.ok(removedEvidence.deletedAt instanceof Date);
+
+  const listAfterDelete = await evidenceRequest("GET", path, {
+    role: "employee",
+  });
+  assert.equal(listAfterDelete.status, 200);
+  assert.equal(listAfterDelete.body.length, 0);
+  assert.equal(
+    (
+      await evidenceRequest(
+        "GET",
+        path + "/" + uploaded.body._id + "/download",
+        { role: "employee" },
+      )
+    ).status,
+    404,
+  );
   const keyAfterDelete = await KeyResult.findById(key._id);
   assert.equal(keyAfterDelete.approved, false);
   assert.equal(keyAfterDelete.approvedBy, null);
   assert.equal(keyAfterDelete.approvedAt, null);
+});
+
+test("evidence limits count active files and a removed file frees a slot", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Supported result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  const uploadedIds = [];
+  for (let index = 1; index <= 10; index++) {
+    const response = await evidenceRequest("POST", path, {
+      role: "owner",
+      filename: "result-" + index + ".txt",
+      mimetype: "text/plain",
+      body: Buffer.from("done " + index),
+    });
+    assert.equal(response.status, 201);
+    uploadedIds.push(response.body._id);
+  }
+
+  const overLimit = await evidenceRequest("POST", path, {
+    role: "owner",
+    filename: "result-11.txt",
+    mimetype: "text/plain",
+    body: Buffer.from("done 11"),
+  });
+  assert.equal(overLimit.status, 400);
+  assert.match(overLimit.body.message, /already has 10 evidence files/);
+
+  assert.equal(
+    (
+      await evidenceRequest("DELETE", path + "/" + uploadedIds[0], {
+        role: "owner",
+      })
+    ).status,
+    200,
+  );
+
+  const replacement = await evidenceRequest("POST", path, {
+    role: "owner",
+    filename: "replacement.txt",
+    mimetype: "text/plain",
+    body: Buffer.from("replacement"),
+  });
+  assert.equal(replacement.status, 201);
+  assert.equal(
+    await Evidence.countDocuments({ keyResult: key._id, deleted: true }),
+    1,
+  );
+  assert.equal(
+    await Evidence.countDocuments({
+      keyResult: key._id,
+      deleted: { $ne: true },
+    }),
+    10,
+  );
+});
+
+test("a non-owner evidence upload creates one review notification", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Customer response time",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        role: "employee",
+        filename: "result.txt",
+        mimetype: "text/plain",
+        body: Buffer.from("done"),
+      })
+    ).status,
+    201,
+  );
+
+  const notifications = await Notification.find({});
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].user.toString(), users.owner.id);
+  assert.equal(notifications[0].channel, "web");
+  assert.equal(notifications[0].category, "okr");
+  assert.equal(
+    notifications[0].link,
+    "/dashboard/okrtracker/objectives",
+  );
+  assert.match(notifications[0].content, /Customer response time/);
+  assert.match(notifications[0].content, /Original/);
+
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        role: "owner",
+        filename: "owner-note.txt",
+        mimetype: "text/plain",
+        body: Buffer.from("owner review"),
+      })
+    ).status,
+    201,
+  );
+  assert.equal(await Notification.countDocuments(), 1);
+});
+
+test("legacy evidence without deletion fields stays available", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Legacy result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const evidenceId = new mongoose.Types.ObjectId();
+  const file = Buffer.from("legacy file");
+  await Evidence.collection.insertOne({
+    _id: evidenceId,
+    objective: objective._id,
+    keyResult: key._id,
+    filename: "legacy.txt",
+    mimetype: "text/plain",
+    size: file.length,
+    note: "",
+    data: file,
+    uploadedBy: users.admin._id,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const path =
+    pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const list = await evidenceRequest("GET", path);
+  assert.equal(list.status, 200);
+  assert.equal(list.body.length, 1);
+  assert.equal(list.body[0].filename, "legacy.txt");
+
+  const download = await evidenceRequest(
+    "GET",
+    path + "/" + evidenceId + "/download",
+  );
+  assert.equal(download.status, 200);
+  assert.deepEqual(download.body, file);
+});
+
+test("rapid evidence upload attempts are rate limited per user", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Rate limited result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const invalidPath =
+    "/api/okr/objectives/bad-id/key-results/" + key.id + "/evidence";
+  const options = {
+    filename: "result.txt",
+    mimetype: "text/plain",
+    body: Buffer.from("done"),
+  };
+
+  for (let attempt = 0; attempt < 30; attempt++) {
+    assert.equal(
+      (await evidenceRequest("POST", invalidPath, options)).status,
+      404,
+    );
+  }
+
+  const limited = await evidenceRequest("POST", invalidPath, options);
+  assert.equal(limited.status, 429);
+  assert.match(limited.body.message, /Too many evidence uploads/);
+  const retryAfter = Number(limited.headers.get("retry-after"));
+  assert.ok(retryAfter > 0 && retryAfter <= 300);
 });
 
 test("evidence access follows assignments, objective roles and saved permissions", async () => {
@@ -1914,14 +2113,6 @@ test("evidence routes reject malformed IDs, mismatched records and invalid files
 });
 
 test("evidence accepts common presentation, archive, data and image formats", async () => {
-  const key = await KeyResult.create({
-    objective: objective._id,
-    title: "Result",
-    weight: 30,
-    dueDate: "2026-12-01",
-  });
-  const path =
-    pathForObjective() + "/key-results/" + key.id + "/evidence";
   const files = [
     ["figures.csv", "text/csv"],
     ["report.doc", "application/msword"],
@@ -1957,6 +2148,14 @@ test("evidence accepts common presentation, archive, data and image formats", as
   ];
 
   for (const [filename, mimetype, storedMimetype = mimetype] of files) {
+    const key = await KeyResult.create({
+      objective: objective._id,
+      title: filename,
+      weight: 1,
+      dueDate: "2026-12-01",
+    });
+    const path =
+      pathForObjective() + "/key-results/" + key.id + "/evidence";
     const response = await evidenceRequest("POST", path, {
       filename,
       mimetype,

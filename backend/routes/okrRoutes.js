@@ -28,6 +28,7 @@ const {
 } = require("../controllers/okrEvidenceController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { evidenceUploadLimiter } = require("../middleware/evidenceUploadLimiter");
 const {
   canCreateObjective,
   canManageObjective,
@@ -73,6 +74,7 @@ router.post(
 router.post(
   "/objectives/:id/key-results/:keyResultId/evidence",
   protect,
+  evidenceUploadLimiter,
   evidenceUpload,
   uploadEvidence,
 );

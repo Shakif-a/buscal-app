@@ -27,7 +27,14 @@ function evidenceUrl(objectiveId, keyResultId) {
   return `${API_URL}/objectives/${objectiveId}/key-results/${keyResultId}/evidence`;
 }
 
-async function uploadEvidence(objectiveId, keyResultId, file, note, token) {
+async function uploadEvidence(
+  objectiveId,
+  keyResultId,
+  file,
+  note,
+  token,
+  signal,
+) {
   const response = await axios.post(
     evidenceUrl(objectiveId, keyResultId),
     file,
@@ -41,6 +48,7 @@ async function uploadEvidence(objectiveId, keyResultId, file, note, token) {
         ),
         "X-Evidence-Note": encodeURIComponent(note.trim()),
       },
+      signal,
     },
   );
   return response.data;

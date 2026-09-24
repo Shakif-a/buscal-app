@@ -113,6 +113,7 @@ function ObjectiveCard({ objective }) {
   const evidenceDialogRef = useRef(null);
   const evidenceCloseRef = useRef(null);
   const evidenceTriggerRef = useRef(null);
+  const evidenceUploadController = useRef(null);
   const keyResults = objective.keyResults || [];
   const objectiveId = objective._id || objective.id;
   const evidenceBusy = evidenceLoading || Boolean(evidenceAction);
@@ -130,6 +131,10 @@ function ObjectiveCard({ objective }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [evidenceResult]);
+
+  useEffect(() => {
+    return () => evidenceUploadController.current?.abort();
+  }, []);
 
   async function addKeyResult(event) {
     event.preventDefault();
@@ -316,6 +321,10 @@ function ObjectiveCard({ objective }) {
     setEvidenceAction("upload");
     setEvidenceError("");
     setEvidenceMessage("");
+
+    const controller = new AbortController();
+    evidenceUploadController.current = controller;
+
     try {
       await keyResultService.uploadEvidence(
         objectiveId,
@@ -323,6 +332,7 @@ function ObjectiveCard({ objective }) {
         evidenceFile,
         evidenceNote,
         user.token,
+        controller.signal,
       );
       setEvidenceFile(null);
       setEvidenceNote("");
@@ -333,10 +343,20 @@ function ObjectiveCard({ objective }) {
         "Evidence uploaded successfully. You can download or share it below.",
       );
     } catch (failure) {
-      setEvidenceError(failureMessage(failure, "Could not upload evidence"));
+      if (failure.code === "ERR_CANCELED") {
+        setEvidenceMessageType("info");
+        setEvidenceMessage(
+          "Upload cancelled. Your selected file is ready to retry.",
+        );
+      } else {
+        setEvidenceError(failureMessage(failure, "Could not upload evidence"));
+      }
       setEvidenceAction("");
+      evidenceUploadController.current = null;
       return;
     }
+
+    evidenceUploadController.current = null;
 
     try {
       const files = await keyResultService.getEvidence(
@@ -361,6 +381,10 @@ function ObjectiveCard({ objective }) {
       );
     }
     setEvidenceAction("");
+  }
+
+  function cancelEvidenceUpload() {
+    evidenceUploadController.current?.abort();
   }
 
   async function getEvidenceFile(file) {
@@ -737,13 +761,19 @@ function ObjectiveCard({ objective }) {
                   />
                 </label>
                 <div className="evidence-popup-actions">
-                  <button
-                    type="button"
-                    onClick={() => showEvidence(evidenceResult)}
-                    disabled={evidenceBusy}
-                  >
-                    View Evidence
-                  </button>
+                  {evidenceAction === "upload" ? (
+                    <button type="button" onClick={cancelEvidenceUpload}>
+                      Cancel upload
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => showEvidence(evidenceResult)}
+                      disabled={evidenceBusy}
+                    >
+                      View Evidence
+                    </button>
+                  )}
                   <button
                     type="submit"
                     className="evidence-primary-button"

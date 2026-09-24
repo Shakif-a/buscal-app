@@ -54,6 +54,7 @@ test("key-result evidence uses protected upload, list, download and delete route
   const originalDelete = axios.delete;
   const requests = [];
   const file = { name: "Q1 result.pdf", type: "application/pdf" };
+  const controller = new AbortController();
 
   axios.post = async (url, body, config) => {
     requests.push({ method: "POST", url, body, config });
@@ -77,6 +78,7 @@ test("key-result evidence uses protected upload, list, download and delete route
       file,
       "Reviewed figures",
       "test-token",
+      controller.signal,
     );
     await keyResultService.getEvidence(
       "objective-1",
@@ -112,6 +114,7 @@ test("key-result evidence uses protected upload, list, download and delete route
       decodeURIComponent(requests[0].config.headers["X-Evidence-Note"]),
       "Reviewed figures",
     );
+    assert.equal(requests[0].config.signal, controller.signal);
     assert.ok(requests[1].url.endsWith(evidenceUrl));
     assert.ok(requests[2].url.endsWith(evidenceUrl + "/evidence-1/download"));
     assert.equal(requests[2].config.responseType, "blob");

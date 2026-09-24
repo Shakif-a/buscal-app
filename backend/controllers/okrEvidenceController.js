@@ -6,6 +6,7 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const OkrObjective = require("../models/okrObjectiveModel");
 const writes = require("../services/okrWrites");
 const { canUserManageObjective } = require("../middleware/okrPermissions");
+const { createNotification } = require("./notificationController");
 
 const allowedFileTypes = {
   ".csv": ["text/csv", "application/vnd.ms-excel"],
@@ -214,12 +215,28 @@ function evidenceData(evidence) {
   return data;
 }
 
+const maximumEvidenceFiles = 10;
+
 const uploadEvidence = asyncHandler(async (req, res) => {
   validateIds(req, res);
   const file = validateFile(req, res);
 
-  const evidence = await writes.transaction(async (session) => {
+  const result = await writes.transaction(async (session) => {
     const target = await loadTarget(req, res, session, true);
+
+    const existingCount = await OkrEvidence.countDocuments({
+      keyResult: target.keyResult._id,
+      deleted: { $ne: true },
+    }).session(session);
+
+    if (existingCount >= maximumEvidenceFiles) {
+      fail(
+        res,
+        400,
+        "This key result already has 10 evidence files, which is the limit. Remove one before adding another.",
+      );
+    }
+
     const evidence = new OkrEvidence({
       objective: target.objective._id,
       keyResult: target.keyResult._id,
@@ -240,11 +257,31 @@ const uploadEvidence = asyncHandler(async (req, res) => {
       await target.keyResult.save({ session });
     }
 
-    return evidence;
+    return {
+      evidence,
+      objective: target.objective,
+      keyResult: target.keyResult,
+    };
   });
 
-  await evidence.populate("uploadedBy", "firstName lastName");
-  res.status(201).json(evidenceData(evidence));
+  await result.evidence.populate("uploadedBy", "firstName lastName");
+
+  const ownerId = result.objective.owner && result.objective.owner.toString();
+  if (ownerId && ownerId !== req.user._id.toString()) {
+    try {
+      await createNotification(
+        [ownerId],
+        `New evidence was added to "${result.keyResult.title}" on "${result.objective.title}" and now needs review.`,
+        ["web"],
+        "/dashboard/okrtracker/objectives",
+        "okr",
+      );
+    } catch (error) {
+      console.error("Could not create evidence notification:", error.message);
+    }
+  }
+
+  res.status(201).json(evidenceData(result.evidence));
 });
 
 const getEvidence = asyncHandler(async (req, res) => {
@@ -254,6 +291,7 @@ const getEvidence = asyncHandler(async (req, res) => {
   const evidence = await OkrEvidence.find({
     objective: req.params.id,
     keyResult: req.params.keyResultId,
+    deleted: { $ne: true },
   })
     .populate("uploadedBy", "firstName lastName")
     .sort({ createdAt: -1 });
@@ -269,6 +307,7 @@ const downloadEvidence = asyncHandler(async (req, res) => {
     _id: req.params.evidenceId,
     objective: req.params.id,
     keyResult: req.params.keyResultId,
+    deleted: { $ne: true },
   }).select("+data");
 
   if (!evidence) {
@@ -298,11 +337,17 @@ const deleteEvidence = asyncHandler(async (req, res) => {
   await writes.transaction(async (session) => {
     const target = await loadTarget(req, res, session, true);
 
-    const evidence = await OkrEvidence.findOneAndDelete(
+    const evidence = await OkrEvidence.findOneAndUpdate(
       {
         _id: req.params.evidenceId,
         objective: req.params.id,
         keyResult: req.params.keyResultId,
+        deleted: { $ne: true },
+      },
+      {
+        deleted: true,
+        deletedBy: req.user._id,
+        deletedAt: new Date(),
       },
       { session },
     );
