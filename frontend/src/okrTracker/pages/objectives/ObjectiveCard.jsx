@@ -4,6 +4,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
@@ -102,6 +103,7 @@ function ObjectiveCard({ objective }) {
   const [evidenceMode, setEvidenceMode] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceDragging, setEvidenceDragging] = useState(false);
   const [evidenceNote, setEvidenceNote] = useState("");
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceAction, setEvidenceAction] = useState("");
@@ -112,10 +114,14 @@ function ObjectiveCard({ objective }) {
   const [evidenceDeleteTarget, setEvidenceDeleteTarget] = useState(null);
   const evidenceDialogRef = useRef(null);
   const evidenceCloseRef = useRef(null);
+  const evidenceDragDepth = useRef(0);
   const evidenceTriggerRef = useRef(null);
   const evidenceUploadController = useRef(null);
   const keyResults = objective.keyResults || [];
   const objectiveId = objective._id || objective.id;
+  const evidenceFileInputId = `evidence-file-${objectiveId}`;
+  const evidenceFileHelpId = `evidence-file-help-${objectiveId}`;
+  const evidenceFileTypesId = `evidence-file-types-${objectiveId}`;
   const evidenceBusy = evidenceLoading || Boolean(evidenceAction);
 
   useEffect(() => {
@@ -185,6 +191,8 @@ function ObjectiveCard({ objective }) {
     setEvidenceMode("");
     setEvidenceFiles([]);
     setEvidenceFile(null);
+    setEvidenceDragging(false);
+    evidenceDragDepth.current = 0;
     setEvidenceNote("");
     setEvidenceLoading(false);
     setEvidenceAction("");
@@ -266,6 +274,8 @@ function ObjectiveCard({ objective }) {
     setEvidenceResult(result);
     setEvidenceMode("upload");
     setEvidenceFile(null);
+    setEvidenceDragging(false);
+    evidenceDragDepth.current = 0;
     setEvidenceNote("");
     setEvidenceError("");
     setEvidenceMessage("");
@@ -275,8 +285,7 @@ function ObjectiveCard({ objective }) {
     setEvidenceLoading(false);
   }
 
-  function selectEvidenceFile(event) {
-    const file = event.target.files[0] || null;
+  function setEvidenceFileSelection(file) {
     setEvidenceFile(null);
     setEvidenceError("");
     setEvidenceMessage("");
@@ -291,23 +300,73 @@ function ObjectiveCard({ objective }) {
 
     if (!evidenceFileExtensions.includes(extension)) {
       setEvidenceError("This file type is not supported");
-      event.target.value = "";
       return;
     }
 
     if (file.size === 0) {
       setEvidenceError("Please select a file that is not empty");
-      event.target.value = "";
       return;
     }
 
     if (file.size > maximumEvidenceSize) {
       setEvidenceError("Evidence files cannot be larger than 5 MB");
-      event.target.value = "";
       return;
     }
 
     setEvidenceFile(file);
+  }
+
+  function selectEvidenceFile(event) {
+    setEvidenceFileSelection(event.target.files[0] || null);
+    event.target.value = "";
+  }
+
+  function startEvidenceDrag(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (evidenceBusy) {
+      return;
+    }
+
+    evidenceDragDepth.current += 1;
+    setEvidenceDragging(true);
+  }
+
+  function continueEvidenceDrag(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function endEvidenceDrag(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    evidenceDragDepth.current = Math.max(0, evidenceDragDepth.current - 1);
+
+    if (evidenceDragDepth.current === 0) {
+      setEvidenceDragging(false);
+    }
+  }
+
+  function dropEvidenceFile(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    evidenceDragDepth.current = 0;
+    setEvidenceDragging(false);
+
+    if (evidenceBusy) {
+      return;
+    }
+
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length > 1) {
+      setEvidenceFile(null);
+      setEvidenceMessage("");
+      setEvidenceError("Please upload one evidence file at a time");
+      return;
+    }
+
+    setEvidenceFileSelection(files[0] || null);
   }
 
   async function uploadEvidence(event) {
@@ -722,32 +781,83 @@ function ObjectiveCard({ objective }) {
 
             {evidenceMode === "upload" ? (
               <form className="evidence-upload-form" onSubmit={uploadEvidence}>
-                <label>
-                  Evidence file
-                  <input
-                    type="file"
-                    required
-                    accept={evidenceFileExtensions.join(",")}
-                    onChange={selectEvidenceFile}
-                    disabled={evidenceBusy}
-                  />
-                </label>
-                <p className="evidence-file-help">
-                  PDF, image, Office, OpenDocument, ZIP, JSON or text file.
-                  Maximum 5 MB.
-                </p>
-                {evidenceFile && (
-                  <div className="evidence-selected-file" role="status">
-                    <InsertDriveFileOutlinedIcon aria-hidden="true" />
-                    <div>
-                      <strong>{evidenceFile.name}</strong>
-                      <span>
-                        {displayFileType(evidenceFile.name)} ·{" "}
-                        {displayFileSize(evidenceFile.size)}
-                      </span>
-                    </div>
+                <div className="evidence-file-field">
+                  <span className="evidence-field-label">Files</span>
+                  <label
+                    className={`evidence-drop-zone${
+                      evidenceDragging ? " is-dragging" : ""
+                    }${evidenceFile ? " has-file" : ""}${
+                      evidenceBusy ? " is-disabled" : ""
+                    }`}
+                    htmlFor={evidenceFileInputId}
+                    onDragEnter={startEvidenceDrag}
+                    onDragOver={continueEvidenceDrag}
+                    onDragLeave={endEvidenceDrag}
+                    onDrop={dropEvidenceFile}
+                  >
+                    <input
+                      id={evidenceFileInputId}
+                      className="evidence-file-input"
+                      aria-label="Evidence file"
+                      aria-describedby={`${evidenceFileHelpId} ${evidenceFileTypesId}`}
+                      type="file"
+                      accept={evidenceFileExtensions.join(",")}
+                      onChange={selectEvidenceFile}
+                      disabled={evidenceBusy}
+                    />
+                    {evidenceDragging ? (
+                      <div className="evidence-drop-prompt" aria-live="polite">
+                        <FileUploadOutlinedIcon aria-hidden="true" />
+                        <strong>Drop the file here</strong>
+                        <span>
+                          It will be ready for you to review before upload.
+                        </span>
+                      </div>
+                    ) : evidenceFile ? (
+                      <div className="evidence-selected-file" role="status">
+                        <InsertDriveFileOutlinedIcon aria-hidden="true" />
+                        <div>
+                          <strong>{evidenceFile.name}</strong>
+                          <span>
+                            {displayFileType(evidenceFile.name)} ·{" "}
+                            {displayFileSize(evidenceFile.size)}
+                          </span>
+                          <span>Drop another file or click to replace it.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="evidence-drop-prompt">
+                        <FileUploadOutlinedIcon aria-hidden="true" />
+                        <strong>
+                          You can drag and drop a file here to add it
+                        </strong>
+                        <span>or click to choose a file</span>
+                      </div>
+                    )}
+                  </label>
+                  <div
+                    id={evidenceFileHelpId}
+                    className="evidence-file-help"
+                  >
+                    <span>Maximum file size: 5 MB · 1 file per upload</span>
+                    <span>Up to 10 active evidence files per key result</span>
                   </div>
-                )}
+                </div>
+                <div
+                  id={evidenceFileTypesId}
+                  className="evidence-accepted-types"
+                >
+                  <strong>Accepted file types:</strong>
+                  <div>
+                    <span>PDF</span>
+                    <span>Images</span>
+                    <span>Office</span>
+                    <span>OpenDocument</span>
+                    <span>ZIP</span>
+                    <span>JSON</span>
+                    <span>Text</span>
+                  </div>
+                </div>
                 <label>
                   <span className="evidence-note-label">
                     <span>Note (optional)</span>

@@ -113,8 +113,7 @@ describe("API-connected objective and report pages", () => {
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("%PDF-1.4 test"),
         fileName: "Q1 result.pdf",
@@ -202,13 +201,11 @@ describe("API-connected objective and report pages", () => {
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .should("have.attr", "accept")
       .and("include", ".pptx")
       .and("include", ".zip");
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("%PDF-1.4 test"),
         fileName: "Q1 result.pdf",
@@ -234,8 +231,7 @@ describe("API-connected objective and report pages", () => {
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("fake"),
         fileName: "fake.pdf",
@@ -263,8 +259,7 @@ describe("API-connected objective and report pages", () => {
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("%PDF-1.4 test"),
         fileName: "slow.pdf",
@@ -293,8 +288,7 @@ describe("API-connected objective and report pages", () => {
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.alloc(0),
         fileName: "empty.pdf",
@@ -303,8 +297,7 @@ describe("API-connected objective and report pages", () => {
     cy.contains("Please select a file that is not empty").should("be.visible");
     cy.contains("button", "Upload Evidence").should("be.disabled");
 
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("unsafe"),
         fileName: "program.exe",
@@ -312,8 +305,7 @@ describe("API-connected objective and report pages", () => {
       });
     cy.contains("This file type is not supported").should("be.visible");
 
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.alloc(5 * 1024 * 1024 + 1),
         fileName: "too-large.pdf",
@@ -323,8 +315,7 @@ describe("API-connected objective and report pages", () => {
       "be.visible",
     );
 
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("%PDF-1.4 test"),
         fileName: "ready.pdf",
@@ -336,6 +327,63 @@ describe("API-connected objective and report pages", () => {
     cy.contains("label", "Note (optional)").find("textarea").type("Ready");
     cy.contains("5/1000").should("be.visible");
     cy.then(() => expect(uploads).to.equal(0));
+  });
+
+  it("supports the evidence drag and drop area", () => {
+    cy.visit(fixture);
+    cy.contains("button", "View Key Results").click();
+    cy.contains("button", "Upload").click();
+
+    cy.contains("You can drag and drop a file here to add it").should(
+      "be.visible",
+    );
+    cy.contains("Maximum file size: 5 MB · 1 file per upload").should(
+      "be.visible",
+    );
+    cy.contains("Up to 10 active evidence files per key result").should(
+      "be.visible",
+    );
+    cy.contains("Accepted file types:").should("be.visible");
+
+    cy.get(".evidence-drop-zone")
+      .trigger("dragenter")
+      .should("have.class", "is-dragging");
+    cy.contains("Drop the file here").should("be.visible");
+    cy.get(".evidence-drop-zone")
+      .trigger("dragleave")
+      .should("not.have.class", "is-dragging");
+
+    cy.get(".evidence-drop-zone").selectFile(
+      {
+        contents: Cypress.Buffer.from("%PDF-1.4 dropped"),
+        fileName: "dropped-evidence.pdf",
+        mimeType: "application/pdf",
+      },
+      { action: "drag-drop" },
+    );
+    cy.contains("dropped-evidence.pdf").should("be.visible");
+    cy.contains("PDF · 1 KB").should("be.visible");
+    cy.contains("button", "Upload Evidence").should("not.be.disabled");
+
+    cy.get(".evidence-drop-zone").selectFile(
+      [
+        {
+          contents: Cypress.Buffer.from("%PDF-1.4 first"),
+          fileName: "first.pdf",
+          mimeType: "application/pdf",
+        },
+        {
+          contents: Cypress.Buffer.from("%PDF-1.4 second"),
+          fileName: "second.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+      { action: "drag-drop" },
+    );
+    cy.contains("Please upload one evidence file at a time").should(
+      "be.visible",
+    );
+    cy.contains("button", "Upload Evidence").should("be.disabled");
   });
 
   it("clears upload drafts and status when moving between evidence views", () => {
@@ -355,8 +403,7 @@ describe("API-connected objective and report pages", () => {
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
-    cy.contains("label", "Evidence file")
-      .find("input")
+    cy.get('input[aria-label="Evidence file"]')
       .selectFile({
         contents: Cypress.Buffer.from("%PDF-1.4 draft"),
         fileName: "draft.pdf",
@@ -456,6 +503,30 @@ describe("API-connected objective and report pages", () => {
     cy.contains("button", "Share File").should("be.visible");
     cy.contains("button", "Download").should("be.visible");
     cy.contains("button", "Delete").should("be.visible");
+  });
+
+  it("fits the evidence upload area on a small phone screen", () => {
+    cy.viewport(375, 667);
+    cy.visit(fixture);
+    cy.contains("button", "View Key Results").click();
+    cy.contains("button", "Upload").click();
+
+    cy.get('[role="dialog"]').should("be.visible").then(($dialog) => {
+      expect($dialog[0].scrollWidth).to.be.at.most($dialog[0].clientWidth);
+    });
+    cy.get(".evidence-drop-zone").should("be.visible");
+    cy.get('input[aria-label="Evidence file"]').selectFile({
+      contents: Cypress.Buffer.from("%PDF-1.4 mobile"),
+      fileName: "a-long-evidence-file-name-for-a-small-phone-screen.pdf",
+      mimeType: "application/pdf",
+    });
+    cy.contains("a-long-evidence-file-name-for-a-small-phone-screen.pdf")
+      .scrollIntoView()
+      .should("be.visible");
+    cy.contains("button", "Upload Evidence")
+      .scrollIntoView()
+      .should("be.visible")
+      .and("not.be.disabled");
   });
 
   it("loads actual report values through the protected report route", () => {
