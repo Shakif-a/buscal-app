@@ -25,6 +25,7 @@ const {
   getEvidence,
   downloadEvidence,
   deleteEvidence,
+  restoreEvidence,
 } = require("../controllers/okrEvidenceController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -92,6 +93,11 @@ router.delete(
   "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId",
   protect,
   deleteEvidence,
+);
+router.post(
+  "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId/restore",
+  protect,
+  restoreEvidence,
 );
 
 module.exports = router;

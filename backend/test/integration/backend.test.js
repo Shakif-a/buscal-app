@@ -1712,6 +1712,112 @@ test("evidence limits count active files and a removed file frees a slot", async
   );
 });
 
+test("deleted evidence can be restored, and restoring respects the file limit and permissions", async () => {
+  users.outsider = await User.create({
+    firstName: "outside",
+    lastName: "Test",
+    email: "outside@example.test",
+    password: "test-hash",
+    roles: ["employee"],
+    exec: "no",
+  });
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Recoverable result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  const uploaded = await evidenceRequest("POST", path, {
+    role: "employee",
+    filename: "Q1 result.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.from("%PDF-1.4\nTest evidence"),
+  });
+  assert.equal(uploaded.status, 201);
+  const evidenceId = uploaded.body._id;
+
+  assert.equal(
+    (
+      await evidenceRequest("DELETE", path + "/" + evidenceId, {
+        role: "employee",
+      })
+    ).status,
+    200,
+  );
+
+  assert.equal(
+    (
+      await evidenceRequest("POST", path + "/" + evidenceId + "/restore", {
+        role: "outsider",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await evidenceRequest("POST", path + "/" + id() + "/restore", {
+        role: "employee",
+      })
+    ).status,
+    404,
+  );
+
+  const restored = await evidenceRequest(
+    "POST",
+    path + "/" + evidenceId + "/restore",
+    { role: "employee" },
+  );
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.id, evidenceId);
+
+  const restoredEvidence = await Evidence.findById(evidenceId);
+  assert.equal(restoredEvidence.deleted, false);
+  assert.equal(restoredEvidence.deletedBy, null);
+  assert.equal(restoredEvidence.deletedAt, null);
+
+  assert.equal(
+    (
+      await evidenceRequest("POST", path + "/" + evidenceId + "/restore", {
+        role: "employee",
+      })
+    ).status,
+    404,
+  );
+
+  assert.equal(
+    (
+      await evidenceRequest("DELETE", path + "/" + evidenceId, {
+        role: "employee",
+      })
+    ).status,
+    200,
+  );
+
+  for (let index = 1; index <= 10; index++) {
+    const response = await evidenceRequest("POST", path, {
+      role: "employee",
+      filename: "filler-" + index + ".txt",
+      mimetype: "text/plain",
+      body: Buffer.from("filler " + index),
+    });
+    assert.equal(response.status, 201);
+  }
+
+  const overLimit = await evidenceRequest(
+    "POST",
+    path + "/" + evidenceId + "/restore",
+    { role: "employee" },
+  );
+  assert.equal(overLimit.status, 400);
+  assert.match(overLimit.body.message, /already has 10 evidence files/);
+
+  const stillDeleted = await Evidence.findById(evidenceId);
+  assert.equal(stillDeleted.deleted, true);
+});
+
 test("a non-owner evidence upload creates one review notification", async () => {
   const key = await KeyResult.create({
     objective: objective._id,

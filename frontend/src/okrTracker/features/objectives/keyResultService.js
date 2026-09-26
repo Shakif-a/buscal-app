@@ -34,6 +34,7 @@ async function uploadEvidence(
   note,
   token,
   signal,
+  onUploadProgress,
 ) {
   const response = await axios.post(
     evidenceUrl(objectiveId, keyResultId),
@@ -49,6 +50,13 @@ async function uploadEvidence(
         "X-Evidence-Note": encodeURIComponent(note.trim()),
       },
       signal,
+      onUploadProgress: onUploadProgress
+        ? (event) => {
+            if (event.total) {
+              onUploadProgress(Math.round((event.loaded / event.total) * 100));
+            }
+          }
+        : undefined,
     },
   );
   return response.data;
@@ -92,6 +100,22 @@ async function deleteEvidence(
   return response.data;
 }
 
+async function restoreEvidence(
+  objectiveId,
+  keyResultId,
+  evidenceId,
+  token,
+) {
+  const response = await axios.post(
+    `${evidenceUrl(objectiveId, keyResultId)}/${evidenceId}/restore`,
+    null,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  return response.data;
+}
+
 export default {
   create,
   approve,
@@ -99,4 +123,5 @@ export default {
   getEvidence,
   downloadEvidence,
   deleteEvidence,
+  restoreEvidence,
 };

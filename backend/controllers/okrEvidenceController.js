@@ -367,9 +367,52 @@ const deleteEvidence = asyncHandler(async (req, res) => {
   res.json({ id: req.params.evidenceId });
 });
 
+const restoreEvidence = asyncHandler(async (req, res) => {
+  validateIds(req, res, true);
+
+  await writes.transaction(async (session) => {
+    const target = await loadTarget(req, res, session, true);
+
+    const existingCount = await OkrEvidence.countDocuments({
+      keyResult: target.keyResult._id,
+      deleted: { $ne: true },
+    }).session(session);
+
+    if (existingCount >= maximumEvidenceFiles) {
+      fail(
+        res,
+        400,
+        "This key result already has 10 evidence files, which is the limit. Remove one before adding another.",
+      );
+    }
+
+    const evidence = await OkrEvidence.findOneAndUpdate(
+      {
+        _id: req.params.evidenceId,
+        objective: target.objective._id,
+        keyResult: target.keyResult._id,
+        deleted: true,
+      },
+      {
+        deleted: false,
+        deletedBy: null,
+        deletedAt: null,
+      },
+      { session },
+    );
+
+    if (!evidence) {
+      fail(res, 404, "Evidence not found");
+    }
+  });
+
+  res.json({ id: req.params.evidenceId });
+});
+
 module.exports = {
   uploadEvidence,
   getEvidence,
   downloadEvidence,
   deleteEvidence,
+  restoreEvidence,
 };
