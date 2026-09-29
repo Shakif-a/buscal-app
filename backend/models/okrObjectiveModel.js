@@ -39,6 +39,11 @@ const objectiveSchema = new mongoose.Schema(
       enum: ["on-track", "at-risk", "overdue", "completed"],
       default: "on-track",
     },
+    calendarEntry: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CalendarEntry",
+      default: null,
+    },
   },
   { timestamps: true }
 );

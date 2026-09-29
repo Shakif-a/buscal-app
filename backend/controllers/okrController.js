@@ -2,8 +2,14 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
-const CalendarEntry = require("../models/calendarEntryModel");
 const User = require("../models/userModel");
+const {
+  OBJECTIVE_CATEGORY,
+  KEY_RESULT_CATEGORY,
+  createLinkedCalendarEntry,
+  updateLinkedCalendarEntry,
+  deleteLinkedCalendarEntry,
+} = require("../services/okrCalendarSyncService");
 
 function getName(user) {
   let name = "";
@@ -153,30 +159,39 @@ const createObjective = asyncHandler(async (req, res) => {
     commitmentType = "committed";
   }
 
-  const objective = await OkrObjective.create({
+  // Create the calendar entry first before Objective is attempted
+  const calendarEntry = await createLinkedCalendarEntry({
     title: req.body.title,
     description: req.body.description,
-    group: req.body.group,
-    owner: req.body.owner,
     dueDate: req.body.dueDate,
-    commitmentType: commitmentType,
+    ownerId: req.user.id,
+    assignedId: req.body.owner,
+    category: OBJECTIVE_CATEGORY,
+    actorUser: req.user,
   });
 
-  // Best effort to create a calander entry to match the objective
+  let objective;
   try {
-    await CalendarEntry.create({
-      title: objective.title,
-      description: objective.description,
-      userOwner: req.user.id,
-      userAssigned: [objective.owner],
-      endTime: objective.dueDate,
-      completionStatus: "not started",
-      category: "OKR Objective",
-      priority: "normal",
+    objective = await OkrObjective.create({
+      title: req.body.title,
+      description: req.body.description,
+      group: req.body.group,
+      owner: req.body.owner,
+      dueDate: req.body.dueDate,
+      commitmentType: commitmentType,
+      calendarEntry: calendarEntry._id,
     });
   } catch (error) {
-    console.error("Could not create linked calendar entry for objective:", error);
+    // Roll back the calendar entry if objective fails
+    await deleteLinkedCalendarEntry({
+      entryId: calendarEntry._id,
+      actorUser: req.user,
+    });
+    throw error;
   }
+
+  calendarEntry.linkedObjective = objective._id;
+  await calendarEntry.save();
 
   res.status(201).json(objective);
 });
@@ -284,6 +299,17 @@ const updateObjective = asyncHandler(async (req, res) => {
     objective.commitmentType = type;
   }
 
+  if (objective.calendarEntry) {
+    await updateLinkedCalendarEntry({
+      entryId: objective.calendarEntry,
+      title: objective.title,
+      description: objective.description,
+      dueDate: objective.dueDate,
+      assignedId: objective.owner,
+      actorUser: req.user,
+    });
+  }
+
   await objective.save();
   await objective.populate("owner", "firstName lastName");
 
@@ -299,6 +325,20 @@ const deleteObjective = asyncHandler(async (req, res) => {
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
+  }
+
+  const keyResults = await OkrKeyResult.find({ objective: objective._id });
+
+  await deleteLinkedCalendarEntry({
+    entryId: objective.calendarEntry,
+    actorUser: req.user,
+  });
+
+  for (let i = 0; i < keyResults.length; i++) {
+    await deleteLinkedCalendarEntry({
+      entryId: keyResults[i].calendarEntry,
+      actorUser: req.user,
+    });
   }
 
   await OkrKeyResult.deleteMany({ objective: objective._id });
@@ -346,13 +386,38 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Weights cannot go over 100. Only " + weightLeft + " is left.");
   }
 
-  const keyResult = await OkrKeyResult.create({
-    objective: objective._id,
+  // KRs with no assignee falls back to the objective owner
+  const assignedId = req.body.assignedTo || objective.owner;
+
+  const calendarEntry = await createLinkedCalendarEntry({
     title: req.body.title,
-    weight: newWeight,
-    assignedTo: req.body.assignedTo,
     dueDate: req.body.dueDate,
+    ownerId: req.user.id,
+    assignedId: assignedId,
+    category: KEY_RESULT_CATEGORY,
+    actorUser: req.user,
   });
+
+  let keyResult;
+  try {
+    keyResult = await OkrKeyResult.create({
+      objective: objective._id,
+      title: req.body.title,
+      weight: newWeight,
+      assignedTo: req.body.assignedTo,
+      dueDate: req.body.dueDate,
+      calendarEntry: calendarEntry._id,
+    });
+  } catch (error) {
+    await deleteLinkedCalendarEntry({
+      entryId: calendarEntry._id,
+      actorUser: req.user,
+    });
+    throw error;
+  }
+
+  calendarEntry.linkedKeyResult = keyResult._id;
+  await calendarEntry.save();
 
   res.status(201).json(keyResult);
 });

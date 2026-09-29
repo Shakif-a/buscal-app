@@ -16,6 +16,18 @@ const { add } = require("lodash");
 //---------------------------HELPER----------------------------------//
 //------------------------------------------------------------------//
 
+// OKR Modual Ownship Tracker. Prevent users editing OKR licked entries
+const OKR_MANAGED_CATEGORIES = ["OKR Objective", "OKR Key Result"];
+
+const isOkrManagedCategory = (category) =>
+  OKR_MANAGED_CATEGORIES.includes(category);
+
+const okrManagedEntryError = () => ({
+  error:
+    "This entry is managed by the OKR Tracker. Edit the linked Objective or Key Result instead.",
+});
+
+
 const generateReminderOptions = (startTime, endTime, whenAlarm) => {
   // Parse the input dates
   const startDate = startTime ? new Date(startTime) : null;
@@ -390,6 +402,10 @@ const updateEntry = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: "Calendar entry not found." });
     }
 
+    if (isOkrManagedCategory(entry.category)) {
+      return res.status(403).json(okrManagedEntryError());
+    }
+
     // Find the corresponding history document
     const history = await CalendarHistory.findOne({ ref: entry._id });
     if (!history) {
@@ -654,6 +670,10 @@ const reassignEntry = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: "Calendar entry not found." });
     }
 
+    if (isOkrManagedCategory(entry.category)) {
+      return res.status(403).json(okrManagedEntryError());
+    }
+
     // Find the corresponding history document
     const history = await CalendarHistory.findOne({ ref: entry._id });
     if (!history) {
@@ -797,6 +817,10 @@ const updateRecurringEntries = asyncHandler(async (req, res) => {
 
     if (!calendarEntry) {
       return res.status(404).json({ message: "Calendar entry not found" });
+    }
+
+    if (isOkrManagedCategory(calendarEntry.category)) {
+      return res.status(403).json(okrManagedEntryError());
     }
 
     // Determine if the entry is the original or a copy
@@ -1527,6 +1551,10 @@ const createEntry = asyncHandler(async (req, res) => {
       .json({ error: "Title and end time are required fields." });
   }
 
+  if (isOkrManagedCategory(category)) {
+    return res.status(403).json(okrManagedEntryError());
+  }
+
   const startTimeDate = new Date(startTime);
   const endTimeDate = new Date(endTime);
 
@@ -1681,6 +1709,11 @@ const deleteEntry = asyncHandler(async (req, res) => {
     if (!calendarEntry) {
       return res.status(404).json({ message: "Calendar entry not found" });
     }
+
+    if (isOkrManagedCategory(calendarEntry.category)) {
+      return res.status(403).json(okrManagedEntryError());
+    }
+
     const { completionStatus, userOwner, userAssigned, file } = calendarEntry;
 
     // Check the conditions
@@ -1766,6 +1799,10 @@ const deleteRecurringEntries = asyncHandler(async (req, res) => {
 
     if (!calendarEntry) {
       return res.status(404).json({ message: "Calendar entry not found" });
+    }
+
+    if (isOkrManagedCategory(calendarEntry.category)) {
+      return res.status(403).json(okrManagedEntryError());
     }
 
     let entriesToDelete = [];
