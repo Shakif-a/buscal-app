@@ -559,10 +559,14 @@ function ObjectiveCard({ objective }) {
           cancelled = true;
           updateQueueItem(item.id, { status: "queued", percent: 0 });
         } else {
+          const message = failureMessage(failure, "Could not upload this file");
           updateQueueItem(item.id, {
             status: "error",
             percent: 0,
-            error: failureMessage(failure, "Could not upload this file"),
+            error: message,
+            permanent:
+              message.startsWith("This file was blocked by the security scan") &&
+              !message.includes("can approve it"),
           });
         }
       }
@@ -1167,7 +1171,12 @@ function ObjectiveCard({ objective }) {
                               className="evidence-progress-fill"
                               style={{ width: `${item.percent}%` }}
                             >
-                              <span>{item.percent}% Complete</span>
+                              <span>
+                                {item.status === "uploading" &&
+                                item.percent >= 99
+                                  ? "Scanning and saving..."
+                                  : `${item.percent}% Complete`}
+                              </span>
                             </div>
                             {item.status === "success" && (
                               <span className="evidence-progress-check">

@@ -53,7 +53,9 @@ async function uploadEvidence(
       onUploadProgress: onUploadProgress
         ? (event) => {
             if (event.total) {
-              onUploadProgress(Math.round((event.loaded / event.total) * 100));
+              onUploadProgress(
+                Math.min(99, Math.round((event.loaded / event.total) * 100)),
+              );
             }
           }
         : undefined,

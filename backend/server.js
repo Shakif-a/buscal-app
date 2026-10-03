@@ -12,6 +12,7 @@ const cors = require("cors");
 const path = require("path");
 
 const connectDB = require("./config/db");
+const { initializeSocket } = require("./config/socket");
 const {
   initializeCalendarScheduler,
 } = require("./scheduling/calendarScheduler");
@@ -32,6 +33,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 // ── Core routes ──────────────────────────────────────────────────────────────
 app.use("/api/calendar", require("./routes/calendarRoutes"));
 app.use("/api/users", require("./routes/userRoutes")); // Auth + account settings
+app.use("/api/notify", require("./routes/notificationRoutes"));
 
 // ── Add new module routes below this line ────────────────────────────────────
 app.use("/api/okr/admin", require("./routes/okrAdminRoutes"));
@@ -63,6 +65,7 @@ const startServer = async () => {
     server = app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`.cyan.underline);
     });
+    initializeSocket(server);
 
     // 3. Initialize
     await initializeCalendarScheduler();

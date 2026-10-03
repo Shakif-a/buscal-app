@@ -20,6 +20,9 @@ const Permission = require("../../models/okrRolePermissionModel");
 const Calendar = require("../../models/calendarEntryModel");
 const Scheduler = require("../../models/schedulerModel");
 const Notification = require("../../models/notificationModel");
+const BlockedUpload = require("../../models/okrBlockedUploadModel");
+const blockedReports = require("../../services/blockedUploads/links");
+const { createHash } = require("node:crypto");
 const webService = require("../../services/webService");
 const { errorHandler } = require("../../middleware/errorMiddleware");
 const {
@@ -111,6 +114,7 @@ test.before(async () => {
     Calendar,
     Scheduler,
     Notification,
+    BlockedUpload,
   ]) {
     await model.createCollection();
     await model.createIndexes();
@@ -139,6 +143,7 @@ test.before(async () => {
     next();
   });
   app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
   app.use("/api/users", require("../../routes/userRoutes"));
   app.use("/api/calendar", require("../../routes/calendarRoutes"));
   app.use("/api/okr/admin", require("../../routes/okrAdminRoutes"));
@@ -192,6 +197,7 @@ test.beforeEach(async () => {
     Calendar,
     Scheduler,
     Notification,
+    BlockedUpload,
   ])
     await model.deleteMany({});
   users = {};
@@ -299,7 +305,7 @@ function sampleEvidenceFile(filename) {
       extension,
     )
   )
-    return Buffer.from("504b0304", "hex");
+    return Buffer.from("504b0506" + "00".repeat(18), "hex");
   if (extension === ".rtf") return Buffer.from("{\\rtf1 Test evidence}");
   if (extension === ".json") return Buffer.from('{"result":"complete"}');
   return Buffer.from("test evidence");
@@ -1818,6 +1824,363 @@ test("deleted evidence can be restored, and restoring respects the file limit an
   assert.equal(stillDeleted.deleted, true);
 });
 
+test("evidence uploads that fail the security scan are rejected and never stored", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Scanned result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const eicar = [
+    "X5O!P%@AP[4\\PZX54(P^)7CC)7}",
+    "$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!",
+    "$H+H*",
+  ].join("");
+
+  const blocked = [
+    {
+      filename: "notes.txt",
+      mimetype: "text/plain",
+      body: Buffer.from(eicar),
+    },
+    {
+      filename: "form.pdf",
+      mimetype: "application/pdf",
+      body: Buffer.from("%PDF-1.4\n<< /S /JavaScript /JS (app.alert(1)) >>"),
+    },
+    {
+      filename: "budget.csv",
+      mimetype: "text/csv",
+      body: Buffer.from("name,total\nx,=cmd|' /C calc'!A0\n"),
+    },
+  ];
+
+  for (const file of blocked) {
+    const response = await evidenceRequest("POST", path, {
+      role: "owner",
+      ...file,
+    });
+    assert.equal(response.status, 400);
+    assert.match(response.body.message, /blocked by the security scan/);
+  }
+
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 0);
+
+  const clean = await evidenceRequest("POST", path, {
+    role: "owner",
+    filename: "result.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.from("%PDF-1.4\nTest evidence"),
+  });
+  assert.equal(clean.status, 201);
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 1);
+});
+
+test("a blocked upload notifies the owner, group manager and supervisor with the sender details", async () => {
+  users.employee.supervisor = users.manager._id;
+  await users.employee.save();
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Quarterly <b>result</b>",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  const response = await evidenceRequest("POST", path, {
+    role: "employee",
+    filename: '<img src="x" onerror="alert(1)">.pdf',
+    mimetype: "application/pdf",
+    body: Buffer.from("%PDF-1.4\n<< /S /Launch /F (cmd.exe) >>"),
+  });
+  assert.equal(response.status, 400);
+  assert.match(response.body.message, /blocked by the security scan/);
+
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 0);
+
+  const notifications = await Notification.find({});
+  assert.deepEqual(
+    notifications.map((notification) => notification.user.toString()).sort(),
+    [users.owner.id, users.groupManager.id, users.manager.id].sort(),
+  );
+  assert.equal(deliveredNotifications.length, 3);
+
+  for (const notification of notifications) {
+    assert.equal(notification.channel, "web");
+    assert.equal(notification.category, "error");
+    assert.match(notification.content, /Security alert/);
+    assert.match(notification.content, /employee Test/);
+    assert.match(notification.content, /employee@example\.test/);
+    assert.match(notification.content, /scripts, launch actions/);
+    assert.match(notification.content, /IP address: 127\.0\.0\.1/);
+    assert.equal(notification.content.includes("Time:"), false);
+    assert.equal(notification.content.includes("Roles:"), false);
+    assert.match(notification.content, /Quarterly &lt;b&gt;result&lt;\/b&gt;/);
+    assert.match(notification.content, /&lt;img src=&quot;x&quot;/);
+    assert.equal(notification.content.includes("<img"), false);
+    assert.equal(notification.content.includes("<b>"), false);
+  }
+});
+
+test("a blocked upload by the owner notifies the group manager but never the sender", async () => {
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Owner result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  const response = await evidenceRequest("POST", path, {
+    role: "owner",
+    filename: "notes.txt",
+    mimetype: "text/plain",
+    body: Buffer.from(
+      [
+        "X5O!P%@AP[4\\PZX54(P^)7CC)7}",
+        "$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!",
+        "$H+H*",
+      ].join(""),
+    ),
+  });
+  assert.equal(response.status, 400);
+
+  const notifications = await Notification.find({});
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].user.toString(), users.groupManager.id);
+});
+
+test("a blocked upload with nobody else to tell falls back to admins and executives", async () => {
+  const lonely = await Objective.create({
+    title: "No manager",
+    owner: users.owner._id,
+    group: "Marketing",
+    dueDate: "2026-12-01",
+  });
+  const key = await KeyResult.create({
+    objective: lonely._id,
+    title: "Lonely result",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+  const path =
+    "/api/okr/objectives/" + lonely.id + "/key-results/" + key.id + "/evidence";
+
+  const response = await evidenceRequest("POST", path, {
+    role: "owner",
+    filename: "form.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.from("%PDF-1.4\n<< /S /JavaScript /JS (x) >>"),
+  });
+  assert.equal(response.status, 400);
+
+  const notifications = await Notification.find({});
+  assert.deepEqual(
+    notifications.map((notification) => notification.user.toString()).sort(),
+    [users.admin.id, users.exec.id].sort(),
+  );
+});
+
+test("a user without access cannot trigger alerts, and ordinary rejections send none", async () => {
+  users.outsider = await User.create({
+    firstName: "outside",
+    lastName: "Test",
+    email: "outside@example.test",
+    password: "test-hash",
+    roles: ["employee"],
+    exec: "no",
+  });
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Protected result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  const unauthorised = await evidenceRequest("POST", path, {
+    role: "outsider",
+    filename: "form.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.from("%PDF-1.4\n<< /S /Launch /F (cmd.exe) >>"),
+  });
+  assert.equal(unauthorised.status, 403);
+
+  const mismatch = await evidenceRequest("POST", path, {
+    role: "employee",
+    filename: "fake.pdf",
+    mimetype: "application/pdf",
+    body: Buffer.from("not really a pdf"),
+  });
+  assert.equal(mismatch.status, 400);
+
+  const wrongType = await evidenceRequest("POST", path, {
+    role: "employee",
+    filename: "tool.exe",
+    mimetype: "application/octet-stream",
+    body: Buffer.from("MZ"),
+  });
+  assert.equal(wrongType.status, 400);
+
+  assert.equal(await Notification.countDocuments(), 0);
+  assert.equal(deliveredNotifications.length, 0);
+});
+
+test("the alert links to a safe report which managers can open without any button or login", async () => {
+  users.employee.supervisor = users.manager._id;
+  await users.employee.save();
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Report <b>key</b>",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+  const fileBody = Buffer.from(
+    "name,total\nx,=cmd|' /C calc'!A0\n<script>alert(1)</script>\n",
+  );
+
+  const response = await evidenceRequest("POST", path, {
+    role: "employee",
+    filename: "<img src=x onerror=alert(1)>.csv",
+    mimetype: "text/csv",
+    body: fileBody,
+  });
+  assert.equal(response.status, 400);
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 0);
+
+  const records = await BlockedUpload.find({});
+  assert.equal(records.length, 1);
+  assert.equal(records[0].get("data"), undefined);
+  assert.equal(records[0].sha256, createHash("sha256").update(fileBody).digest("hex"));
+  assert.equal(records[0].detectedType, "Plain text");
+
+  const notifications = await Notification.find({});
+  assert.equal(notifications.length, 3);
+
+  const links = notifications.map((notification) => {
+    const match = /<a href="([^"]+)" target="_blank" rel="noopener noreferrer" style="[^"]+">Review this file and approve or decline it<\/a>/.exec(
+      notification.content,
+    );
+    assert.ok(match, "every alert carries the report link");
+    return match[1].replace(/&amp;/g, "&");
+  });
+  assert.equal(new Set(links).size, 3);
+
+  for (const link of links) {
+    const url = new URL(link);
+    assert.equal(url.pathname, "/api/okr/blocked-uploads/" + records[0].id);
+
+    const page = await fetch(base + url.pathname + url.search);
+    const html = await page.text();
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get("content-type"), /text\/html/);
+    assert.match(page.headers.get("content-security-policy"), /default-src 'none'/);
+    assert.equal(page.headers.get("x-content-type-options"), "nosniff");
+    assert.match(page.headers.get("cache-control"), /no-store/);
+    assert.equal(page.headers.get("referrer-policy"), "no-referrer");
+    assert.match(html, /Upload blocked/);
+    assert.match(html, /command formula/);
+    assert.match(html, /employee Test/);
+    assert.match(html, /employee@example\.test/);
+    assert.match(html, /Report &lt;b&gt;key&lt;\/b&gt;/);
+    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;\.csv/);
+    assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(html, new RegExp(records[0].sha256));
+    assert.equal(html.includes("<img"), false);
+    assert.equal(html.includes("<script"), false);
+    assert.equal(html.includes("<b>"), false);
+  }
+});
+
+test("report links reject missing, forged, expired, wrong-report and unauthorised tokens", async () => {
+  users.outsider = await User.create({
+    firstName: "outside",
+    lastName: "Test",
+    email: "outside@example.test",
+    password: "test-hash",
+    roles: ["employee"],
+    exec: "no",
+  });
+  const key = await KeyResult.create({
+    objective: objective._id,
+    title: "Guarded result",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+  const path = pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+  assert.equal(
+    (
+      await evidenceRequest("POST", path, {
+        role: "employee",
+        filename: "form.pdf",
+        mimetype: "application/pdf",
+        body: Buffer.from("%PDF-1.4\n<< /S /Launch /F (cmd.exe) >>"),
+      })
+    ).status,
+    400,
+  );
+  const report = await BlockedUpload.findOne({});
+  const reportPath = "/api/okr/blocked-uploads/" + report.id;
+  const open = async (token) => {
+    const response = await fetch(
+      base + reportPath + (token === undefined ? "" : "?token=" + encodeURIComponent(token)),
+    );
+    return { status: response.status, html: await response.text() };
+  };
+
+  const good = blockedReports.signReportToken(report.id, users.owner.id);
+  assert.equal((await open(good)).status, 200);
+  assert.equal(
+    (await open(blockedReports.signReportToken(report.id, users.groupManager.id))).status,
+    200,
+  );
+
+  const refused = [
+    undefined,
+    "",
+    "garbage",
+    good.slice(0, -3) + "abc",
+    blockedReports.signReportToken(report.id, users.owner.id, { expiresIn: -10 }),
+    blockedReports.signReportToken(id(), users.owner.id),
+    blockedReports.signReportToken(report.id, users.employee.id),
+    blockedReports.signReportToken(report.id, users.outsider.id),
+    jwt.sign({ id: users.owner.id }, secret),
+    jwt.sign({ purpose: "blocked-upload-report", report: report.id, user: users.owner.id }, secret),
+  ];
+  for (const token of refused) {
+    const result = await open(token);
+    assert.equal(result.status, 403);
+    assert.equal(result.html.includes("form.pdf"), false);
+  }
+
+  const malformed = await fetch(base + "/api/okr/blocked-uploads/not-an-id?token=x");
+  assert.equal(malformed.status, 403);
+
+  const missingId = id();
+  const missing = await fetch(
+    base +
+      "/api/okr/blocked-uploads/" +
+      missingId +
+      "?token=" +
+      encodeURIComponent(blockedReports.signReportToken(missingId, users.owner.id)),
+  );
+  assert.equal(missing.status, 404);
+
+  await Group.updateOne({ _id: sales._id }, { manager: null });
+  assert.equal(
+    (await open(blockedReports.signReportToken(report.id, users.groupManager.id))).status,
+    403,
+  );
+  assert.equal((await open(good)).status, 200);
+});
+
 test("a non-owner evidence upload creates one review notification", async () => {
   const key = await KeyResult.create({
     objective: objective._id,
@@ -2588,4 +2951,1091 @@ test("ambiguous legacy links require explicit admin selection and preserve other
     200,
   );
   assert.equal((await Calendar.findById(entries[1]._id)).title, "Original");
+});
+
+const reviewableFile = () => ({
+  filename: "form.pdf",
+  mimetype: "application/pdf",
+  body: Buffer.from("%PDF-1.4\n<< /S /Launch /F (cmd.exe) >>"),
+});
+
+async function assignedKey(title, assignedTo) {
+  return KeyResult.create({
+    objective: objective._id,
+    title,
+    weight: 30,
+    assignedTo: assignedTo || users.employee._id,
+    dueDate: "2026-12-01",
+  });
+}
+
+const evidencePathFor = (key) =>
+  pathForObjective() + "/key-results/" + key.id + "/evidence";
+
+async function decide(reportId, fields) {
+  const response = await fetch(
+    base + "/api/okr/blocked-uploads/" + reportId + "/decision",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(fields).toString(),
+    },
+  );
+  return {
+    status: response.status,
+    html: await response.text(),
+    headers: response.headers,
+  };
+}
+
+async function openReport(report, userId) {
+  const response = await fetch(
+    base +
+      "/api/okr/blocked-uploads/" +
+      report.id +
+      "?token=" +
+      encodeURIComponent(blockedReports.signReportToken(report.id, userId)),
+  );
+  return {
+    status: response.status,
+    html: await response.text(),
+    headers: response.headers,
+  };
+}
+
+const approveAs = (report, user) =>
+  decide(report.id, {
+    token: blockedReports.signDecisionToken(report.id, user.id),
+    decision: "approve",
+    confirm: "yes",
+  });
+
+test("a manager can approve a reviewable block and the sender can then upload that exact file once", async () => {
+  users.employee.supervisor = users.manager._id;
+  await users.employee.save();
+  const key = await assignedKey("Approval key");
+  const path = evidencePathFor(key);
+  const file = reviewableFile();
+
+  const blocked = await evidenceRequest("POST", path, {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(blocked.status, 400);
+  assert.match(
+    blocked.body.message,
+    /blocked by the security scan because the PDF contains scripts/,
+  );
+  assert.match(blocked.body.message, /A manager has been told and can approve it\./);
+
+  const record = await BlockedUpload.findOne({});
+  assert.equal(record.reviewable, true);
+  assert.equal(record.status, "blocked");
+  assert.equal(await Notification.countDocuments(), 3);
+
+  const again = await evidenceRequest("POST", path, {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(again.status, 400);
+  assert.match(again.body.message, /already been told/);
+  assert.equal(await BlockedUpload.countDocuments(), 1);
+  assert.equal(await Notification.countDocuments(), 3);
+
+  const alert = await Notification.findOne({ user: users.groupManager._id });
+  assert.match(alert.content, /Review this file and approve or decline it/);
+
+  const opened = await openReport(record, users.groupManager.id);
+  assert.equal(opened.status, 200);
+  assert.match(opened.headers.get("content-security-policy"), /form-action 'self'/);
+  assert.match(opened.html, /Approve this file/);
+  const token = /name="token" value="([^"]+)"/.exec(opened.html)[1];
+
+  const unconfirmed = await decide(record.id, { token, decision: "approve" });
+  assert.equal(unconfirmed.status, 400);
+  assert.equal((await BlockedUpload.findById(record.id)).status, "blocked");
+
+  const approved = await decide(record.id, {
+    token,
+    decision: "approve",
+    confirm: "yes",
+  });
+  assert.equal(approved.status, 200);
+  assert.match(approved.html, /File approved/);
+  assert.match(approved.headers.get("cache-control"), /no-store/);
+
+  const after = await BlockedUpload.findById(record.id);
+  assert.equal(after.status, "approved");
+  assert.equal(after.decidedBy.toString(), users.groupManager.id);
+  assert.equal(after.decidedByName, "groupManager Test");
+  const windowHours = (after.approvalExpiresAt - after.decidedAt) / 3600000;
+  assert.ok(windowHours > 47.9 && windowHours < 48.1);
+  assert.ok(after.expireAt - Date.now() > 80 * 24 * 3600000);
+
+  const senderNotes = await Notification.find({ user: users.employee._id });
+  assert.equal(senderNotes.length, 1);
+  assert.equal(senderNotes[0].category, "okr");
+  assert.match(senderNotes[0].content, /Your file was approved/);
+  assert.match(senderNotes[0].content, /within 48 hours/);
+  for (const manager of [users.owner, users.manager]) {
+    const notes = await Notification.find({ user: manager._id });
+    assert.equal(notes.length, 2);
+    assert.match(notes[1].content, /groupManager Test approved the blocked upload/);
+  }
+  assert.equal(await Notification.countDocuments({ user: users.groupManager._id }), 1);
+
+  const reopened = await openReport(record, users.groupManager.id);
+  assert.match(reopened.html, /A manager approved this file/);
+  assert.equal(reopened.html.includes("<form"), false);
+  const twice = await decide(record.id, { token, decision: "approve", confirm: "yes" });
+  assert.equal(twice.status, 409);
+  assert.match(twice.html, /Already decided/);
+
+  const uploaded = await evidenceRequest("POST", path, {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(uploaded.status, 201);
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 1);
+
+  const used = await BlockedUpload.findById(record.id);
+  assert.equal(used.status, "used");
+  assert.ok(used.usedAt);
+  assert.equal(used.usedEvidence.toString(), uploaded.body.id);
+
+  const reuse = await evidenceRequest("POST", path, {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(reuse.status, 400);
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 1);
+  assert.equal(await BlockedUpload.countDocuments(), 2);
+});
+
+test("an approval only works for the same file, sender, key result and time window", async () => {
+  const key = await assignedKey("Bound key");
+  const otherKey = await assignedKey("Other key");
+  const file = reviewableFile();
+
+  assert.equal(
+    (await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file })).status,
+    400,
+  );
+  const record = await BlockedUpload.findOne({});
+  assert.equal((await approveAs(record, users.groupManager)).status, 200);
+
+  const changed = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+    body: Buffer.from("%PDF-1.4\n<< /S /Launch /F (other.exe) >>"),
+  });
+  assert.equal(changed.status, 400);
+
+  const elsewhere = await evidenceRequest("POST", evidencePathFor(otherKey), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(elsewhere.status, 400);
+
+  const someoneElse = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "owner",
+    ...file,
+  });
+  assert.equal(someoneElse.status, 400);
+
+  await BlockedUpload.updateOne(
+    { _id: record._id },
+    { approvalExpiresAt: new Date(Date.now() - 1000) },
+  );
+  const expired = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(expired.status, 400);
+  assert.equal((await BlockedUpload.findById(record._id)).status, "approved");
+  assert.equal(await Evidence.countDocuments({}), 0);
+
+  await BlockedUpload.updateOne(
+    { _id: record._id },
+    { approvalExpiresAt: new Date(Date.now() + 3600000) },
+  );
+  const valid = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(valid.status, 201);
+  assert.equal((await BlockedUpload.findById(record._id)).status, "used");
+});
+
+test("final blocks cannot be approved and say so", async () => {
+  const key = await assignedKey("Final key");
+  const eicar = [
+    "X5O!P%@AP[4\\PZX54(P^)7CC)7}",
+    "$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!",
+    "$H+H*",
+  ].join("");
+
+  const blocked = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    filename: "notes.txt",
+    mimetype: "text/plain",
+    body: Buffer.from(eicar),
+  });
+  assert.equal(blocked.status, 400);
+  assert.match(blocked.body.message, /blocked by the security scan/);
+  assert.equal(blocked.body.message.includes("can approve"), false);
+
+  const record = await BlockedUpload.findOne({});
+  assert.equal(record.reviewable, false);
+
+  const alert = await Notification.findOne({ user: users.groupManager._id });
+  assert.match(alert.content, />Open the safe report<\/a>/);
+  assert.equal(alert.content.includes("approve or decline"), false);
+
+  const page = await openReport(record, users.groupManager.id);
+  assert.match(page.html, /This block is final/);
+  assert.equal(page.html.includes("<form"), false);
+
+  const forced = await approveAs(record, users.groupManager);
+  assert.equal(forced.status, 409);
+  assert.equal((await BlockedUpload.findById(record.id)).status, "blocked");
+
+  const retry = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    filename: "notes.txt",
+    mimetype: "text/plain",
+    body: Buffer.from(eicar),
+  });
+  assert.equal(retry.status, 400);
+  assert.equal(await BlockedUpload.countDocuments(), 1);
+  assert.equal((await BlockedUpload.findById(record.id)).attempts, 2);
+  assert.equal(await Notification.countDocuments(), 2);
+});
+
+test("declining keeps the file blocked and tells the sender", async () => {
+  const key = await assignedKey("Decline key");
+  const file = reviewableFile();
+
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file });
+  const record = await BlockedUpload.findOne({});
+
+  const declined = await decide(record.id, {
+    token: blockedReports.signDecisionToken(record.id, users.groupManager.id),
+    decision: "decline",
+  });
+  assert.equal(declined.status, 200);
+  assert.match(declined.html, /File declined/);
+
+  const after = await BlockedUpload.findById(record.id);
+  assert.equal(after.status, "declined");
+  assert.equal(after.decidedBy.toString(), users.groupManager.id);
+  assert.equal(after.approvalExpiresAt, undefined);
+
+  const notes = await Notification.find({ user: users.employee._id });
+  assert.equal(notes.length, 1);
+  assert.match(notes[0].content, /Your file was declined/);
+
+  const reopened = await openReport(record, users.groupManager.id);
+  assert.match(reopened.html, /This file was declined/);
+  assert.equal(reopened.html.includes("<form"), false);
+
+  assert.equal((await approveAs(record, users.groupManager)).status, 409);
+  assert.equal((await BlockedUpload.findById(record.id)).status, "declined");
+
+  const retry = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(retry.status, 400);
+  assert.match(retry.body.message, /A manager has already declined it\.$/);
+  assert.equal(retry.body.message.includes("can approve"), false);
+  assert.equal(await BlockedUpload.countDocuments(), 1);
+  assert.equal((await BlockedUpload.findById(record.id)).attempts, 2);
+  assert.equal(await Evidence.countDocuments({}), 0);
+
+  const elsewhere = await assignedKey("Another key");
+  const other = await evidenceRequest("POST", evidencePathFor(elsewhere), {
+    role: "employee",
+    ...file,
+  });
+  assert.match(other.body.message, /already declined it/);
+  assert.equal(await BlockedUpload.countDocuments(), 1);
+});
+
+test("decisions reject missing, forged, expired, wrong-report, sender and unauthorised tokens", async () => {
+  users.outsider = await User.create({
+    firstName: "outside",
+    lastName: "Test",
+    email: "outside@example.test",
+    password: "test-hash",
+    roles: ["employee"],
+    exec: "no",
+  });
+  const key = await assignedKey("Guarded key");
+  await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...reviewableFile(),
+  });
+  const record = await BlockedUpload.findOne({});
+  const tokenFor = (user, options) =>
+    blockedReports.signDecisionToken(record.id, user.id, options);
+
+  const attempts = [
+    undefined,
+    "",
+    "garbage",
+    tokenFor(users.groupManager, { expiresIn: -10 }),
+    blockedReports.signDecisionToken(id(), users.groupManager.id),
+    tokenFor(users.employee),
+    tokenFor(users.outsider),
+    blockedReports.signReportToken(record.id, users.groupManager.id),
+    jwt.sign({ id: users.groupManager.id }, secret),
+  ];
+  for (const token of attempts) {
+    const fields = { decision: "approve", confirm: "yes" };
+    if (token !== undefined) fields.token = token;
+    const result = await decide(record.id, fields);
+    assert.equal(result.status, 403);
+  }
+  assert.equal((await BlockedUpload.findById(record.id)).status, "blocked");
+
+  const doubled = await fetch(
+    base + "/api/okr/blocked-uploads/" + record.id + "/decision",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:
+        "token=" +
+        tokenFor(users.groupManager) +
+        "&token=" +
+        tokenFor(users.groupManager) +
+        "&decision=approve&confirm=yes",
+    },
+  );
+  assert.equal(doubled.status, 403);
+
+  const maybe = await decide(record.id, {
+    token: tokenFor(users.groupManager),
+    decision: "maybe",
+  });
+  assert.equal(maybe.status, 400);
+
+  assert.equal(
+    (await fetch(base + "/api/okr/blocked-uploads/not-an-id/decision", { method: "POST" })).status,
+    403,
+  );
+  const missingId = id();
+  assert.equal(
+    (
+      await decide(missingId, {
+        token: blockedReports.signDecisionToken(missingId, users.owner.id),
+        decision: "approve",
+        confirm: "yes",
+      })
+    ).status,
+    404,
+  );
+  assert.equal((await BlockedUpload.findById(record.id)).status, "blocked");
+
+  const stale = tokenFor(users.groupManager);
+  await Group.updateOne({ _id: sales._id }, { manager: null });
+  assert.equal(
+    (await decide(record.id, { token: stale, decision: "approve", confirm: "yes" })).status,
+    403,
+  );
+  assert.equal((await BlockedUpload.findById(record.id)).status, "blocked");
+  assert.equal((await approveAs(record, users.owner)).status, 200);
+  assert.equal((await BlockedUpload.findById(record.id)).decidedBy.toString(), users.owner.id);
+});
+
+test("a failed save gives the approval back so the sender can try again", async () => {
+  const key = await assignedKey("Full key");
+  const file = reviewableFile();
+
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file });
+  const record = await BlockedUpload.findOne({});
+  assert.equal((await approveAs(record, users.groupManager)).status, 200);
+
+  await Evidence.insertMany(
+    Array.from({ length: 10 }, (_, index) => ({
+      objective: objective._id,
+      keyResult: key._id,
+      filename: "filler-" + index + ".txt",
+      mimetype: "text/plain",
+      size: 1,
+      data: Buffer.from("x"),
+      uploadedBy: users.owner._id,
+    })),
+  );
+
+  const full = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(full.status, 400);
+  assert.match(full.body.message, /already has 10 evidence files/);
+  assert.equal((await BlockedUpload.findById(record.id)).status, "approved");
+
+  await Evidence.updateOne({ keyResult: key._id }, { deleted: true });
+  const retry = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(retry.status, 201);
+  assert.equal((await BlockedUpload.findById(record.id)).status, "used");
+});
+
+test("two uploads racing for one approval let exactly one through", async () => {
+  const key = await assignedKey("Race key");
+  const file = reviewableFile();
+
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file });
+  const record = await BlockedUpload.findOne({});
+  assert.equal((await approveAs(record, users.groupManager)).status, 200);
+
+  const results = await Promise.all([
+    evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file }),
+    evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file }),
+  ]);
+  assert.deepEqual(results.map((result) => result.status).sort(), [201, 400]);
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 1);
+});
+
+async function withEngine(answer, settings, run) {
+  const seen = [];
+  const engine = net.createServer((socket) => {
+    let received = Buffer.alloc(0);
+    socket.on("error", () => {});
+    socket.on("data", (chunk) => {
+      received = Buffer.concat([received, chunk]);
+      if (received.subarray(-4).equals(Buffer.alloc(4))) {
+        seen.push(received.length);
+        const reply = answer(received);
+        if (reply !== null) {
+          socket.end(reply);
+        }
+      }
+    });
+  });
+  await new Promise((resolve) => engine.listen(0, "127.0.0.1", resolve));
+
+  const saved = { ...process.env };
+  Object.assign(process.env, {
+    CLAMAV_HOST: "127.0.0.1",
+    CLAMAV_PORT: String(engine.address().port),
+    CLAMAV_REQUIRED: "false",
+    ...settings,
+  });
+
+  try {
+    return await run(seen);
+  } finally {
+    for (const name of ["CLAMAV_HOST", "CLAMAV_PORT", "CLAMAV_REQUIRED", "CLAMAV_TIMEOUT_MS"]) {
+      if (saved[name] === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = saved[name];
+      }
+    }
+    engine.close();
+  }
+}
+
+const cleanFile = () => ({
+  filename: "notes.txt",
+  mimetype: "text/plain",
+  body: Buffer.from("weekly notes"),
+});
+
+test("a clean answer from the antivirus engine lets a normal file through", async () => {
+  const key = await assignedKey("Engine clean key");
+
+  await withEngine(() => "stream: OK\0", {}, async (seen) => {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...cleanFile(),
+    });
+
+    assert.equal(response.status, 201);
+    assert.equal(seen.length, 1);
+  });
+});
+
+test("a file found by the antivirus engine is blocked for good and managers are told", async () => {
+  users.employee.supervisor = users.manager._id;
+  await users.employee.save();
+  const key = await assignedKey("Engine found key");
+
+  await withEngine(() => "stream: Win.Trojan.Demo-1 FOUND\0", {}, async () => {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...cleanFile(),
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal(
+      response.body.message,
+      "This file was blocked by the security scan because the antivirus engine found Win.Trojan.Demo-1.",
+    );
+  });
+
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 0);
+  const record = await BlockedUpload.findOne({});
+  assert.equal(record.reviewable, false);
+  assert.match(record.threat, /Win\.Trojan\.Demo-1/);
+  assert.equal(await Notification.countDocuments(), 3);
+
+  const alert = await Notification.findOne({ user: users.groupManager._id });
+  assert.match(alert.content, /Open the safe report/);
+  assert.match(alert.content, /Win\.Trojan\.Demo-1/);
+});
+
+test("the antivirus engine still checks a file that a manager approved", async () => {
+  const key = await assignedKey("Engine approved key");
+  const file = reviewableFile();
+
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file });
+  const record = await BlockedUpload.findOne({});
+  assert.equal((await approveAs(record, users.groupManager)).status, 200);
+
+  await withEngine(() => "stream: Pdf.Exploit.Demo FOUND\0", {}, async () => {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...file,
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(response.body.message, /antivirus engine found Pdf\.Exploit\.Demo/);
+  });
+
+  assert.equal((await BlockedUpload.findById(record.id)).status, "approved");
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 0);
+
+  const retry = await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...file,
+  });
+  assert.equal(retry.status, 201);
+});
+
+test("an engine that is down blocks uploads only when it is required", async () => {
+  const key = await assignedKey("Engine down key");
+
+  await withEngine(() => "ERROR\0", { CLAMAV_REQUIRED: "true" }, async () => {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...cleanFile(),
+    });
+
+    assert.equal(response.status, 503);
+    assert.match(response.body.message, /not available right now/);
+    assert.equal(response.body.message.includes("blocked by the security scan"), false);
+  });
+
+  assert.equal(await BlockedUpload.countDocuments(), 0);
+  assert.equal(await Notification.countDocuments(), 0);
+  assert.equal(await Evidence.countDocuments({ keyResult: key._id }), 0);
+
+  await withEngine(() => "ERROR\0", {}, async () => {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...cleanFile(),
+    });
+
+    assert.equal(response.status, 201);
+  });
+});
+
+test("a file with a program inside never reaches the antivirus engine", async () => {
+  const key = await assignedKey("Engine skipped key");
+
+  await withEngine(() => "stream: OK\0", {}, async (seen) => {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      filename: "notes.txt",
+      mimetype: "text/plain",
+      body: Buffer.from("This program cannot be run in DOS mode"),
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal(seen.length, 0);
+  });
+});
+
+const eicarText = [
+  "X5O!P%@AP[4\\PZX54(P^)7CC)7}",
+  "$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!",
+  "$H+H*",
+].join("");
+
+const numberedFile = (number, filename = "form" + number + ".pdf") => ({
+  filename,
+  mimetype: "application/pdf",
+  body: Buffer.from(
+    "%PDF-1.4\n<< /S /Launch /F (cmd" + number + ".exe) >>",
+  ),
+});
+
+const finalFile = (number = 0) => ({
+  filename: "notes.txt",
+  mimetype: "text/plain",
+  body: Buffer.from(eicarText + number),
+});
+
+const onThisServer = (href) => {
+  const url = new URL(href.replace(/&amp;/g, "&"));
+  return base + url.pathname + url.search;
+};
+
+const repeatAlerts = (user) =>
+  Notification.find({ user: user._id, content: /repeated blocked uploads/ });
+
+test("three different blocked files in a day tell the admins and executives once", async () => {
+  const key = await assignedKey("Spray key");
+
+  for (const number of [1, 2]) {
+    await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...numberedFile(number),
+    });
+  }
+  assert.equal((await repeatAlerts(users.admin)).length, 0);
+
+  await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...numberedFile(3),
+  });
+
+  for (const admin of [users.admin, users.exec]) {
+    const alerts = await repeatAlerts(admin);
+    assert.equal(alerts.length, 1);
+    assert.equal(alerts[0].category, "error");
+    assert.match(alerts[0].content, /Sent by: employee Test \(employee@example\.test\)/);
+    assert.match(alerts[0].content, /Files blocked in the last 24 hours: 3/);
+    const href = /href="([^"]+)"/.exec(alerts[0].content)[1];
+    const audit = await fetch(onThisServer(href));
+    assert.equal(audit.status, 200);
+    assert.match(await audit.text(), /form3\.pdf/);
+  }
+
+  await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...numberedFile(4),
+  });
+  assert.equal((await repeatAlerts(users.admin)).length, 1);
+  assert.equal(await BlockedUpload.countDocuments({ escalated: true }), 1);
+  assert.equal((await repeatAlerts(users.owner)).length, 0);
+  assert.equal(
+    await Notification.countDocuments({ user: users.owner._id }),
+    4,
+  );
+});
+
+test("one blocked file sent again and again counts attempts and tells the admins once", async () => {
+  const key = await assignedKey("Hammer key");
+
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const response = await evidenceRequest("POST", evidencePathFor(key), {
+      role: "employee",
+      ...finalFile(),
+    });
+    assert.equal(response.status, 400);
+  }
+  assert.equal((await repeatAlerts(users.admin)).length, 0);
+
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...finalFile() });
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...finalFile() });
+
+  const record = await BlockedUpload.findOne({});
+  assert.equal(await BlockedUpload.countDocuments(), 1);
+  assert.equal(record.attempts, 6);
+  assert.equal((await repeatAlerts(users.admin)).length, 1);
+  assert.match((await repeatAlerts(users.admin))[0].content, /Attempts with the latest file: 5/);
+  assert.equal(await Notification.countDocuments({ user: users.owner._id }), 1);
+});
+
+test("files that a manager approved do not count towards the repeat alert", async () => {
+  const key = await assignedKey("Approved key");
+
+  for (const number of [1, 2]) {
+    const file = numberedFile(number);
+    await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file });
+    const record = await BlockedUpload.findOne({ filename: file.filename });
+    assert.equal((await approveAs(record, users.groupManager)).status, 200);
+    assert.equal(
+      (await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file })).status,
+      201,
+    );
+  }
+
+  await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...numberedFile(3),
+  });
+  assert.equal((await repeatAlerts(users.admin)).length, 0);
+});
+
+test("a sender who is an admin never alerts themselves", async () => {
+  const key = await assignedKey("Admin sender key", users.admin._id);
+
+  for (const number of [1, 2, 3]) {
+    await evidenceRequest("POST", evidencePathFor(key), {
+      role: "admin",
+      ...numberedFile(number),
+    });
+  }
+
+  assert.equal((await repeatAlerts(users.admin)).length, 0);
+  assert.equal((await repeatAlerts(users.exec)).length, 1);
+});
+
+async function openAudit(user, query = {}) {
+  const params = new URLSearchParams({
+    token: blockedReports.signAuditToken(user.id),
+    ...query,
+  });
+  const response = await fetch(base + "/api/okr/blocked-uploads?" + params);
+  return {
+    status: response.status,
+    html: await response.text(),
+    headers: response.headers,
+  };
+}
+
+const chipCount = (html, label) =>
+  Number(new RegExp(label + " \\((\\d+)\\)").exec(html)[1]);
+
+async function twoObjectivesWithBlocks() {
+  const otherOwner = await User.create({
+    firstName: "other",
+    lastName: "Owner",
+    email: "other-owner@example.test",
+    password: "test-hash",
+    roles: ["employee"],
+    exec: "no",
+  });
+  const second = await Objective.create({
+    title: "Marketing goal",
+    owner: otherOwner._id,
+    group: "Marketing",
+    dueDate: "2026-12-01",
+  });
+  const mineKey = await assignedKey("Mine key");
+  const otherKey = await KeyResult.create({
+    objective: second._id,
+    title: "Other key",
+    weight: 30,
+    assignedTo: users.employee._id,
+    dueDate: "2026-12-01",
+  });
+
+  await evidenceRequest("POST", evidencePathFor(mineKey), {
+    role: "employee",
+    ...numberedFile(1, "sales-form.pdf"),
+  });
+  await evidenceRequest(
+    "POST",
+    "/api/okr/objectives/" + second.id + "/key-results/" + otherKey.id + "/evidence",
+    { role: "employee", ...numberedFile(2, "marketing-form.pdf") },
+  );
+
+  return { otherOwner, mineKey, otherKey };
+}
+
+test("the audit page only shows the uploads each person is allowed to review", async () => {
+  const { otherOwner } = await twoObjectivesWithBlocks();
+
+  const seen = async (user) => {
+    const page = await openAudit(user);
+    assert.equal(page.status, 200);
+    return [
+      page.html.includes("sales-form.pdf"),
+      page.html.includes("marketing-form.pdf"),
+    ];
+  };
+
+  assert.deepEqual(await seen(users.groupManager), [true, false]);
+  assert.deepEqual(await seen(users.owner), [true, false]);
+  assert.deepEqual(await seen(otherOwner), [false, true]);
+  assert.deepEqual(await seen(users.admin), [true, true]);
+  assert.deepEqual(await seen(users.exec), [true, true]);
+  assert.deepEqual(await seen(users.employee), [false, false]);
+  assert.deepEqual(await seen(users.manager), [false, false]);
+});
+
+test("a supervisor sees the uploads of the people they supervise", async () => {
+  users.employee.supervisor = users.manager._id;
+  await users.employee.save();
+  await twoObjectivesWithBlocks();
+
+  const page = await openAudit(users.manager);
+  assert.equal(page.status, 200);
+  assert.match(page.html, /sales-form\.pdf/);
+  assert.match(page.html, /marketing-form\.pdf/);
+});
+
+test("the audit page refuses missing, forged, expired and wrong-purpose tokens", async () => {
+  await twoObjectivesWithBlocks();
+  const record = await BlockedUpload.findOne({});
+  const bad = [
+    undefined,
+    "",
+    "garbage",
+    blockedReports.signAuditToken(users.admin.id, { expiresIn: -10 }),
+    blockedReports.signReportToken(record.id, users.admin.id),
+    blockedReports.signDecisionToken(record.id, users.admin.id),
+    blockedReports.signAuditToken(id()),
+    jwt.sign({ id: users.admin.id }, secret),
+  ];
+
+  for (const token of bad) {
+    const response = await fetch(
+      base + "/api/okr/blocked-uploads" + (token === undefined ? "" : "?token=" + encodeURIComponent(token)),
+    );
+    assert.equal(response.status, 403);
+    assert.equal((await response.text()).includes("sales-form.pdf"), false);
+  }
+
+  const noQuery = await fetch(base + "/api/okr/blocked-uploads?token[$ne]=x");
+  assert.equal(noQuery.status, 403);
+});
+
+test("the audit page sends safe headers and escapes everything it shows", async () => {
+  users.employee.firstName = "<b>Eve</b>";
+  await users.employee.save();
+  const key = await assignedKey("Escape key");
+  await evidenceRequest("POST", evidencePathFor(key), {
+    role: "employee",
+    ...numberedFile(1, "<img src=x onerror=alert(1)>.pdf"),
+  });
+
+  const page = await openAudit(users.admin, { q: '"><script>alert(1)</script>' });
+  assert.equal(page.status, 200);
+  assert.equal(page.html.includes("<script>alert(1)"), false);
+  assert.match(page.headers.get("content-security-policy"), /default-src 'none'/);
+  assert.match(page.headers.get("cache-control"), /no-store/);
+
+  const all = await openAudit(users.admin);
+  assert.equal(all.html.includes("<img src=x"), false);
+  assert.equal(all.html.includes("<b>Eve</b>"), false);
+  assert.match(all.html, /&lt;img src=x onerror=alert\(1\)&gt;\.pdf/);
+});
+
+test("the audit page filters by outcome and searches without breaking on odd input", async () => {
+  await twoObjectivesWithBlocks();
+  const salesRecord = await BlockedUpload.findOne({ filename: "sales-form.pdf" });
+  assert.equal((await approveAs(salesRecord, users.groupManager)).status, 200);
+  await evidenceRequest("POST", evidencePathFor(await KeyResult.findById(salesRecord.keyResult)), {
+    role: "employee",
+    ...numberedFile(1, "sales-form.pdf"),
+  });
+  await evidenceRequest("POST", evidencePathFor(await assignedKey("Final key")), {
+    role: "employee",
+    ...finalFile(),
+  });
+
+  const all = await openAudit(users.admin);
+  assert.equal(chipCount(all.html, "All"), 3);
+  assert.equal(chipCount(all.html, "Waiting"), 1);
+  assert.equal(chipCount(all.html, "Blocked for good"), 1);
+  assert.equal(chipCount(all.html, "Approved"), 1);
+  assert.equal(chipCount(all.html, "Declined"), 0);
+
+  const waiting = await openAudit(users.admin, { status: "waiting" });
+  assert.match(waiting.html, /marketing-form\.pdf/);
+  assert.equal(waiting.html.includes("sales-form.pdf"), false);
+
+  const approved = await openAudit(users.admin, { status: "approved" });
+  assert.match(approved.html, /sales-form\.pdf/);
+  assert.match(approved.html, /Approved and used/);
+  assert.match(approved.html, /by groupManager Test/);
+
+  const searched = await openAudit(users.admin, { q: "MARKETING" });
+  assert.match(searched.html, /marketing-form\.pdf/);
+  assert.equal(searched.html.includes("sales-form.pdf"), false);
+  assert.equal(chipCount(searched.html, "All"), 1);
+
+  const bySender = await openAudit(users.admin, { q: "employee@example.test" });
+  assert.equal(chipCount(bySender.html, "All"), 3);
+
+  for (const odd of ["(", ".*", "[", "\\", "a|b", "$", "x".repeat(500)]) {
+    const result = await openAudit(users.admin, { q: odd });
+    assert.equal(result.status, 200);
+  }
+  assert.equal((await openAudit(users.admin, { q: ".*" })).html.includes("sales-form.pdf"), false);
+
+  const inject = await fetch(
+    base +
+      "/api/okr/blocked-uploads?token=" +
+      encodeURIComponent(blockedReports.signAuditToken(users.admin.id)) +
+      "&status[$ne]=x&q[$ne]=x&page[$gt]=1",
+  );
+  assert.equal(inject.status, 200);
+  assert.equal(chipCount(await inject.text(), "All"), 3);
+});
+
+test("the audit page splits long lists into pages and keeps odd page numbers safe", async () => {
+  const key = await assignedKey("Long key");
+  await BlockedUpload.insertMany(
+    Array.from({ length: 30 }, (_, index) => ({
+      objective: objective._id,
+      keyResult: key._id,
+      uploadedBy: users.employee._id,
+      senderName: "employee Test",
+      senderEmail: "employee@example.test",
+      filename: "bulk-" + String(index).padStart(2, "0") + ".pdf",
+      size: 10,
+      sha256: "f".repeat(63) + (index % 10),
+      threat: "the PDF contains scripts, launch actions or embedded files",
+      reviewable: true,
+      createdAt: new Date(Date.now() - index * 60000),
+    })),
+  );
+
+  const first = await openAudit(users.admin);
+  assert.match(first.html, /Page 1 of 2/);
+  assert.match(first.html, /bulk-00\.pdf/);
+  assert.equal(first.html.includes("bulk-29.pdf"), false);
+  assert.equal(first.html.includes(">Newer<"), false);
+  assert.match(first.html, />Older</);
+
+  const second = await openAudit(users.admin, { page: "2" });
+  assert.match(second.html, /Page 2 of 2/);
+  assert.match(second.html, /bulk-29\.pdf/);
+  assert.match(second.html, />Newer</);
+  assert.equal(second.html.includes(">Older<"), false);
+
+  for (const odd of ["0", "-3", "999", "abc", "1.5", "NaN"]) {
+    const result = await openAudit(users.admin, { page: odd });
+    assert.equal(result.status, 200);
+    assert.match(result.html, /Page \d of 2/);
+  }
+});
+
+test("every blocked-upload alert links to an audit page the manager can open", async () => {
+  await evidenceRequest("POST", evidencePathFor(await assignedKey("Link key")), {
+    role: "employee",
+    ...numberedFile(1),
+  });
+
+  const alert = await Notification.findOne({ user: users.groupManager._id });
+  assert.match(alert.content, /View all blocked uploads/);
+  const hrefs = [...alert.content.matchAll(/href="([^"]+)"/g)].map((match) =>
+    onThisServer(match[1]),
+  );
+  assert.equal(hrefs.length, 2);
+  assert.equal(
+    [...alert.content.matchAll(/style="color:#1b4fd6;[^"]*underline"/g)].length,
+    2,
+  );
+
+  const audit = await fetch(hrefs[1]);
+  assert.equal(audit.status, 200);
+  const html = await audit.text();
+  assert.match(html, /form1\.pdf/);
+  const rowLink = /href="([^"]+blocked-uploads\/[a-f0-9]{24}\?[^"]+)"/.exec(html)[1];
+  assert.equal((await fetch(onThisServer(rowLink))).status, 200);
+});
+
+test("a report shows the sender's earlier blocks, the attempts and what to check", async () => {
+  const key = await assignedKey("History key");
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...numberedFile(1, "first.pdf") });
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...numberedFile(2, "second.pdf") });
+  await evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...numberedFile(2, "second.pdf") });
+
+  const first = await openReport(await BlockedUpload.findOne({ filename: "first.pdf" }), users.groupManager.id);
+  assert.match(first.html, /Earlier blocks from this sender/);
+  assert.match(first.html, /second\.pdf/);
+  assert.equal(first.html.includes("Attempts"), false);
+
+  const second = await openReport(await BlockedUpload.findOne({ filename: "second.pdf" }), users.groupManager.id);
+  assert.match(second.html, /<dt>Attempts<\/dt><dd class="warn">2, the latest on /);
+  assert.match(second.html, /first\.pdf/);
+  assert.match(second.html, /What to check:/);
+  assert.match(second.html, /\/Launch found 1 time\. The first one reads: &quot;\/Launch \/F \(cmd2\.exe\)/);
+
+  const lonely = await openReport(await BlockedUpload.findOne({ filename: "first.pdf" }), users.owner.id);
+  assert.equal(lonely.status, 200);
+});
+
+test("a final block gets no advice and a lone block says there is no history", async () => {
+  await evidenceRequest("POST", evidencePathFor(await assignedKey("Lone key")), {
+    role: "employee",
+    ...finalFile(),
+  });
+
+  const page = await openReport(await BlockedUpload.findOne({}), users.groupManager.id);
+  assert.equal(page.html.includes("What to check"), false);
+  assert.match(page.html, /No other blocked uploads from this sender are on record/);
+});
+
+test("an admin can read any report but only the managers can decide", async () => {
+  await evidenceRequest("POST", evidencePathFor(await assignedKey("Admin view key")), {
+    role: "employee",
+    ...numberedFile(1),
+  });
+  const record = await BlockedUpload.findOne({});
+
+  for (const viewer of [users.admin, users.exec]) {
+    const page = await openReport(record, viewer.id);
+    assert.equal(page.status, 200);
+    assert.match(page.html, /Waiting for a decision/);
+    assert.equal(page.html.includes("<form"), false);
+
+    const forced = await decide(record.id, {
+      token: blockedReports.signDecisionToken(record.id, viewer.id),
+      decision: "approve",
+      confirm: "yes",
+    });
+    assert.equal(forced.status, 403);
+  }
+
+  assert.equal((await BlockedUpload.findById(record.id)).status, "blocked");
+  assert.equal((await openReport(record, users.employee.id)).status, 403);
+  assert.equal((await openReport(record, users.manager.id)).status, 403);
+});
+
+test("the same file sent many times at once is reported to managers only once", async () => {
+  const key = await assignedKey("Burst key");
+  const file = reviewableFile();
+
+  const results = await Promise.all(
+    Array.from({ length: 8 }, () =>
+      evidenceRequest("POST", evidencePathFor(key), { role: "employee", ...file }),
+    ),
+  );
+
+  assert.deepEqual([...new Set(results.map((result) => result.status))], [400]);
+  assert.equal(await BlockedUpload.countDocuments({ keyResult: key._id }), 1);
+  const alerts = await Notification.find({ category: "error" });
+  assert.equal(
+    alerts.length,
+    new Set(alerts.map((alert) => String(alert.user))).size,
+  );
+});
+
+test("a reviewable block with nobody to approve it makes no promise", async () => {
+  await User.deleteMany({ _id: { $in: [users.admin._id, users.exec._id] } });
+  const lonely = await Objective.create({
+    title: "No manager",
+    owner: users.owner._id,
+    group: "Marketing",
+    dueDate: "2026-12-01",
+  });
+  const key = await KeyResult.create({
+    objective: lonely._id,
+    title: "Lonely key",
+    weight: 30,
+    dueDate: "2026-12-01",
+  });
+
+  const response = await evidenceRequest(
+    "POST",
+    "/api/okr/objectives/" + lonely.id + "/key-results/" + key.id + "/evidence",
+    { role: "owner", ...reviewableFile() },
+  );
+  assert.equal(response.status, 400);
+  assert.match(response.body.message, /blocked by the security scan/);
+  assert.equal(response.body.message.includes("can approve"), false);
+  assert.equal(await BlockedUpload.countDocuments(), 0);
 });

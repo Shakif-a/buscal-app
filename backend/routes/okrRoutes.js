@@ -28,6 +28,12 @@ const {
   restoreEvidence,
 } = require("../controllers/okrEvidenceController");
 
+const {
+  viewBlockedUpload,
+  viewAuditLog,
+  decideBlockedUpload,
+} = require("../controllers/okrBlockedUploadController");
+
 const { protect } = require("../middleware/authMiddleware");
 const { evidenceUploadLimiter } = require("../middleware/evidenceUploadLimiter");
 const {
@@ -99,5 +105,9 @@ router.post(
   protect,
   restoreEvidence,
 );
+
+router.get("/blocked-uploads", viewAuditLog);
+router.get("/blocked-uploads/:reportId", viewBlockedUpload);
+router.post("/blocked-uploads/:reportId/decision", decideBlockedUpload);
 
 module.exports = router;

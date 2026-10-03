@@ -155,6 +155,34 @@ test("evidence uploads use a safe generic type when the browser has no MIME valu
   }
 });
 
+test("evidence upload progress stays below 100 until the server finishes", async () => {
+  const originalPost = axios.post;
+  const progress = [];
+
+  axios.post = async (url, body, config) => {
+    config.onUploadProgress({ loaded: 50, total: 200 });
+    config.onUploadProgress({ loaded: 199, total: 200 });
+    config.onUploadProgress({ loaded: 200, total: 200 });
+    config.onUploadProgress({ loaded: 10 });
+    return { data: { _id: "evidence-3", filename: body.name } };
+  };
+
+  try {
+    await keyResultService.uploadEvidence(
+      "objective-1",
+      "result-1",
+      { name: "report.pdf", type: "application/pdf" },
+      "",
+      "test-token",
+      undefined,
+      (percent) => progress.push(percent),
+    );
+    assert.deepEqual(progress, [25, 99, 99]);
+  } finally {
+    axios.post = originalPost;
+  }
+});
+
 test("reports use the protected backend report route", async () => {
   const originalGet = axios.get;
 

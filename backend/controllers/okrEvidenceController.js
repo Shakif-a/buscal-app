@@ -5,6 +5,18 @@ const OkrEvidence = require("../models/okrEvidenceModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 const OkrObjective = require("../models/okrObjectiveModel");
 const writes = require("../services/okrWrites");
+const { findThreat, canBeApproved } = require("../services/evidenceScanner");
+const { scanWithEngine } = require("../services/virusEngine");
+const {
+  claimApproval,
+  releaseApproval,
+  attachEvidence,
+} = require("../services/blockedUploads/approval");
+const {
+  blockedMessage,
+  alertManagers,
+} = require("../services/blockedUploads/alerts");
+const { escapeHtml } = require("../services/blockedUploads/pages");
 const { canUserManageObjective } = require("../middleware/okrPermissions");
 const { generateNotifications } = require("./notificationController");
 
@@ -148,6 +160,7 @@ function validateFile(req, res) {
 
   return {
     filename,
+    extension,
     mimetype: genericFile ? knownExtension[0] : mimetype,
     note,
   };
@@ -217,9 +230,48 @@ function evidenceData(evidence) {
 
 const maximumEvidenceFiles = 10;
 
+async function checkFile(extension, body) {
+  const quick = findThreat(extension, body);
+
+  if (quick && !canBeApproved(quick)) {
+    return { threat: quick, unavailable: false };
+  }
+
+  const engine = await scanWithEngine(body);
+  return {
+    threat: engine.threat || quick,
+    unavailable: engine.unavailable,
+  };
+}
+
 const uploadEvidence = asyncHandler(async (req, res) => {
   validateIds(req, res);
   const file = validateFile(req, res);
+
+  const checkedTarget = await loadTarget(req, res);
+  const { threat, unavailable } = await checkFile(file.extension, req.body);
+  if (unavailable) {
+    fail(
+      res,
+      503,
+      "The security scan is not available right now. Please try again in a few minutes.",
+    );
+  }
+
+  let approval = null;
+  if (threat) {
+    if (canBeApproved(threat)) {
+      approval = await claimApproval(req.body, checkedTarget, req.user);
+    }
+
+    if (!approval) {
+      console.warn(
+        "Evidence upload blocked for user " + req.user._id + ": " + threat,
+      );
+      const outcome = await alertManagers(req, checkedTarget, file, threat);
+      fail(res, 400, blockedMessage(threat, outcome));
+    }
+  }
 
   const result = await writes.transaction(async (session) => {
     const target = await loadTarget(req, res, session, true);
@@ -262,7 +314,21 @@ const uploadEvidence = asyncHandler(async (req, res) => {
       objective: target.objective,
       keyResult: target.keyResult,
     };
+  }).catch(async (error) => {
+    if (approval) {
+      await releaseApproval(approval).catch((releaseError) =>
+        console.error("Could not restore approval:", releaseError.message),
+      );
+    }
+
+    throw error;
   });
+
+  if (approval) {
+    await attachEvidence(approval, result.evidence._id).catch((error) =>
+      console.error("Could not link approval to evidence:", error.message),
+    );
+  }
 
   await result.evidence.populate("uploadedBy", "firstName lastName");
 
@@ -271,7 +337,7 @@ const uploadEvidence = asyncHandler(async (req, res) => {
     try {
       await generateNotifications(
         [ownerId],
-        `New evidence was added to "${result.keyResult.title}" on "${result.objective.title}" and now needs review.`,
+        `New evidence was added to "${escapeHtml(result.keyResult.title)}" on "${escapeHtml(result.objective.title)}" and now needs review.`,
         ["web"],
         "okr",
         "/dashboard/okrtracker/objectives",
