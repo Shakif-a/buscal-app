@@ -4,6 +4,7 @@ import objectiveService from "./objectiveService";
 const initialState = {
   objectives: [],
   currentObjective: null,
+  keyResults: [],
   isError: false,
   isSuccess: false,
   isLoading: false,
@@ -46,6 +47,29 @@ export const getObjectiveById = createAsyncThunk(
         error.message ||
         error.toString();
       return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+export const getKeyResults = createAsyncThunk(
+  "objectives/getKeyResults",
+  async (objectiveId, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+
+      return await objectiveService.getKeyResults(
+        objectiveId,
+        token
+      );
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+
+        return thunkAPI.rejectWithValue(message);
     }
   }
 );
@@ -112,6 +136,31 @@ export const updateObjective = createAsyncThunk(
         error.message ||
         error.toString();
       return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+export const updateKeyResult = createAsyncThunk(
+  "objectives/updateKeyResult",
+  async ({ objectiveId, keyResultId, keyResultData}, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+
+      return await objectiveService.updateKeyResult(
+        objectiveId,
+        keyResultId,
+        keyResultData,
+        token
+      );
+    } catch (error) {
+      const message = 
+      (error.response &&
+        error.response.data &&
+        error.response.data.message) ||
+        error.message ||
+        error.toString();
+
+        return thunkAPI.rejectWithValue(message);
     }
   }
 );
@@ -208,8 +257,50 @@ export const objectiveSlice = createSlice({
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
+      })
+      .addCase(getKeyResults.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(getKeyResults.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.keyResults = action.payload;
+      })
+      .addCase(getKeyResults.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(updateKeyResult.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(updateKeyResult.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+
+        state.keyResults = state.keyResults.map((keyResult) =>
+          keyResult._id == action.payload._id ||
+          keyResult.id === action.payload.id
+            ? action.payload
+            : keyResult
+      );
+        state.message = "Key Result updated successfully"
+
+      })
+      .addCase(updateKeyResult.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
       });
   },
+
+
 });
 
 export const { reset } = objectiveSlice.actions;

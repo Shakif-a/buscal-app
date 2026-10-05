@@ -160,9 +160,10 @@ const createObjective = asyncHandler(async (req, res) => {
 
   // Best effort to create a calander entry to match the objective
   try {
-    await CalendarEntry.create({
+    const calendarEntry = await CalendarEntry.create({
       title: objective.title,
       description: objective.description,
+      objective: objective._id,
       userOwner: req.user.id,
       userAssigned: [objective.owner],
       endTime: objective.dueDate,
@@ -170,6 +171,13 @@ const createObjective = asyncHandler(async (req, res) => {
       category: "OKR Objective",
       priority: "normal",
     });
+
+    console.log("CREATED OBJECTIVE ID:", objective._id.toString());
+    console.log("CREATED CALENDAR ENTRY:", calendarEntry.toObject());
+    console.log(
+    "CALENDAR OBJECTIVE FIELD:",
+    calendarEntry.objective?.toString()
+  )
   } catch (error) {
     console.error("Could not create linked calendar entry for objective:", error);
   }
@@ -550,6 +558,35 @@ const updateKeyResult = asyncHandler(async (req, res) => {
 
       keyResult.assignedTo = req.body.assignedTo;
     }
+  }
+
+  //Update Progress
+  if (req.body.assignedTo !== undefined) {
+    const progress = Number(req.body.progress);
+
+    if (isNaN(progress) || progress < 0 || progress > 100) {
+      res.status(400);
+      throw new Error("Progress must be between 0 and 100");
+    }
+
+    keyResult.progress = progress;
+  }
+
+  //Update status
+  if (req.body.status !== undefined){
+    const allowedStatuses = [
+      "on-track",
+      "at-risk",
+      "overdue",
+      "completed"
+    ];
+
+    if (!allowedStatuses.includes(req.body.status)) {
+      res.status(400);
+      throw new Error("Invalid key result status");
+    }
+
+    keyResult.status = req.body.status;
   }
 
   await keyResult.save();

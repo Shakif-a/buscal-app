@@ -16,6 +16,7 @@ import {
   Edit,
   Person,
   Delete,
+  Key,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import ChangeCompletionStatus from "./ChangeCompletionStatus";
@@ -25,6 +26,7 @@ import DeleteModal from "./DeleteModal";
 import AddEditEntry from "./AddEditEntry";
 import AllOrOneModal from "./AllOrOneModal";
 import ProgressModal from "./ProgressModal";
+import KeyResultsModal from "./KeyResultsModal"
 
 import { generateReminderOptions, getCategoryColour } from "./UtilityFunctions";
 import {
@@ -65,7 +67,16 @@ const EntryViewer = ({ entryData, type }) => {
     updatedAt,
     file,
     notes,
+    objective,
   } = entryData;
+
+  console.log("CALENDAR ENTRY:", {
+  calendarEntryId: entryData._id,
+  title: entryData.title,
+  category: entryData.category,
+  objective: entryData.objective,
+  });
+  console.log("ENTRY OBJECTIVE", entryData.objective);
   const { users } = useSelector((state) => state.auth);
   const emailList = users.map((user) => user.email);
   let reminder = null;
@@ -168,6 +179,11 @@ const EntryViewer = ({ entryData, type }) => {
   const [openProgress, setOpenProgress] = useState(false);
   const handleOpenProgress = () => setOpenProgress(true);
   const handleCloseProgress = () => setOpenProgress(false);
+
+  //Open Key Results
+  const [openKeyResults, setOpenKeyResults] = useState(false);
+  const handleOpenKeyResults = () => setOpenKeyResults(true);
+  const handleCloseKeyResults = () => setOpenKeyResults(false);
 
   // All or one
   const handleJustThis = () => {
@@ -720,6 +736,12 @@ const EntryViewer = ({ entryData, type }) => {
                 ) : null}
                 {type !== "history" ? (
                   <GridLegacy item xs={12}>
+                    <Box
+                      sx={{
+                          display: "flex",
+                          gap: 1,
+                          marginTop: 1,
+                      }}>
                     <Button
                       variant="contained"
                       color="secondary"
@@ -728,6 +750,16 @@ const EntryViewer = ({ entryData, type }) => {
                     >
                       View Progress
                     </Button>
+
+                    <Button
+                    variant="contained"
+                      size="small"
+                      onClick={handleOpenKeyResults}
+                    >
+                      View Key Results
+                    </Button>
+                    </Box>
+
                     <Modal open={openProgress} onClose={handleCloseProgress}>
                       <Box sx={modalStyle}>
                         <ProgressModal
@@ -735,6 +767,19 @@ const EntryViewer = ({ entryData, type }) => {
                           users={users}
                           handleClose={handleCloseProgress}
                         />
+                      </Box>
+                    </Modal>
+
+                    <Modal
+                      open = {openKeyResults}
+                      onClose={handleCloseKeyResults}
+                      >
+                      <Box sx = {modalStyle}>
+                        <KeyResultsModal
+                          objectiveId={objective}
+                          objectiveTitle={title}
+                          handleClose={handleCloseKeyResults}
+                          />
                       </Box>
                     </Modal>
                   </GridLegacy>

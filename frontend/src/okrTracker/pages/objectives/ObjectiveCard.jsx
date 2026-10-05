@@ -322,9 +322,12 @@ function ObjectiveCard({ objective }) {
                         {editMode ? (
                           <input
                             className="key-result-input"
-                            type="text"
+                            type="date"
                             placeholder="DD/MM/YY"
-                            value={keyResult.dueDate}
+                            value={keyResult.dueDate
+                                ? keyResult.dueDate.substring(0, 10)
+                                : ""
+                            }
                             onChange={(event) =>
                               updateLocalKeyResult(
                                 keyResult._id || keyResult.id,

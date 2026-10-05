@@ -52,6 +52,30 @@ const getObjectiveById = async (objectiveId, token) => {
   }
 };
 
+//Function to get all KR for an Objective
+const getKeyResults = async (objectiveId, token) => {
+  try {
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+
+    const response = await axios.get(
+      `${API_URL}/api/okrTracker/objectives/${objectiveId}/key-results`,
+      config
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error retrieving the Key Results: ",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
 //-----------------------------------------------------------------------------------
 //--------------------------------------CREATORS-------------------------------------
 //-----------------------------------------------------------------------------------
@@ -139,13 +163,48 @@ const updateObjective = async (objectiveId, objectiveData, token) => {
   }
 };
 
+// Function to update an existing Key Results
+const updateKeyResult = async (
+  objectiveId,
+  keyResultId,
+  keyResultData,
+  token
+) => {
+  try {
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+
+    const response = await axios.put(
+      `${API_URL}/api/okrTracker/objectives/${objectiveId}/key-results/${keyResultId}`,
+      keyResultData,
+      config
+    );
+
+    return response.data;
+
+    
+  } catch (error) {
+    console.error(
+      "Error updating KeyResult:",
+      error.response?.data || error.message
+
+    );
+    throw error;
+  }
+};
+
 const okrService = {
   getObjectives,
   getObjectiveGroups,
   getObjectiveById,
+  getKeyResults,
   createObjective,
   deleteObjective,
   updateObjective,
+  updateKeyResult,
 };
 
 export default okrService;
