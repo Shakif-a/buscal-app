@@ -213,7 +213,7 @@ function RoleManagement() {
                       onClick={() => resetRole(roleName)}
                       className="role-reset-button"
                     >
-                      Reset
+                      Cancel
                     </button>
                     <button
                       onClick={() => saveRole(roleName)}
