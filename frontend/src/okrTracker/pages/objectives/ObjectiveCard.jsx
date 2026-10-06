@@ -1,37 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { 
-  getKeyResultsByObjective, 
   createKeyResult, 
   updateKeyResult, 
   deleteKeyResult 
-} from "../../features/keyResults/keyResultSlice"
+} from "../../features/keyResults/keyResultSlice";
+import keyResultService from "../../features/keyResults/keyResultService";
 
 function ObjectiveCard({ objective }) {
   const dispatch = useDispatch();
-  const { keyResults, isLoading: krLoading, isError: krError, message: krMessage } = useSelector(state => state.keyResults);
+  const { isLoading: krLoading, isError: krError, message: krMessage } = useSelector(state => state.keyResults);
   
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [localKeyResults, setLocalKeyResults] = useState([]);
+  const [loading, setLoading] = useState(false);
   const menuRef = useRef(null);
 
-  // Track local edits before saving
-  const [localKeyResults, setLocalKeyResults] = useState([]);
+  // Get token from auth state
+  const token = useSelector(state => state.auth.user?.token);
 
   // Load key results when expanding
   useEffect(() => {
     if (showKeyResults && objective.id) {
-      dispatch(getKeyResultsByObjective(objective.id));
+      setLoading(true);
+      keyResultService.getKeyResultsByObjective(objective.id, token)
+        .then(data => {
+          setLocalKeyResults(data);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Error fetching KRs:", err);
+          setLoading(false);
+        });
     }
-  }, [showKeyResults, objective.id, dispatch]);
+  }, [showKeyResults, objective.id, token]);
 
   // Sync Redux data to local state when it changes
-  useEffect(() => {
-    setLocalKeyResults(keyResults);
-  }, [keyResults]);
-
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
