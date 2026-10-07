@@ -106,21 +106,22 @@ const EntryViewer = ({ entryData, type }) => {
     borderRadius: "12px",
     backgroundColor:
       entryData.completionStatus === "cancelled" ? "#A9A9A9" : backgroundColor,
-    padding: "16px",
+    padding: "12px 16px",
     display: "flex",
+    borderLeft: "5px solid #72CDF4",
     alignItems: "center",
     justifyContent: "flex-start",
     gap: "12px",
     transition: "background-color 0.3s, cursor 0.3s",
     boxShadow:
       entryData.completionStatus === "overdue"
-        ? "0px 0px 15px rgba(255, 0, 0, 1)"
+        ? "0px 0px 15px rgba(255, 0, 0, 0.55)"
         : "0px 2px 4px rgba(0, 0, 0, 0.4)",
   };
-  const fontColour = "white";
+  const fontColour = "#1f1e40";
   // Get priority color
   const priorityColor =
-    priority.toLowerCase() === "high" ? "#ff9999" : "#99ff99"; // Red for high, Green for normal
+    priority.toLowerCase() === "high" ? "#ffcdd2" : "#00b085"; // Red for high, Green for normal
 
   // Icon Button click handlers
   const [openAllOrOne, setOpenAllOrOne] = useState({
@@ -321,9 +322,10 @@ const EntryViewer = ({ entryData, type }) => {
             justifyContent="space-between"
             alignItems="center"
             item
+            xs={12}
           >
             {/* Left window */}
-            <GridLegacy item xs={12} md={12} lg={12}>
+            <GridLegacy item xs={12} md={10} lg={10}>
               <GridLegacy
                 container
                 direction="row"
@@ -341,16 +343,17 @@ const EntryViewer = ({ entryData, type }) => {
                   xs={12}
                   sm={4}
                   md={3}
-                  lg={4}
+                  lg={3}
                 >
                   <GridLegacy item>
                     <Typography
                       variant="h6"
                       sx={{
-                        color:
-                          entryData.completionStatus === "overdue"
+                        color: fontColour,
+                        fontWeight: 600,
+                          /*entryData.completionStatus === "overdue"
                             ? "yellow"
-                            : fontColour,
+                            : fontColour,*/
                       }}
                     >
                       {category === "meeting" ? (
@@ -387,10 +390,10 @@ const EntryViewer = ({ entryData, type }) => {
                     <Typography
                       variant="body"
                       sx={{
-                        color:
-                          entryData.completionStatus === "overdue"
+                        color: "rgba(255, 255, 255, 0.8)",
+                          /*entryData.completionStatus === "overdue"
                             ? "yellow"
-                            : fontColour,
+                            : fontColour,*/
                       }}
                     >
                       {category === "event"
@@ -410,39 +413,61 @@ const EntryViewer = ({ entryData, type }) => {
                   xs={12}
                   sm={6}
                   md={5}
-                  lg={type === "history" ? 8 : 5}
+                  lg={5}
                 >
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="h5" sx={{ color: fontColour }}>
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        color: fontColour,
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                      }}
+                    >
                       {title}
                     </Typography>
                     <Box
                       sx={{
                         backgroundColor: priorityColor,
-                        borderRadius: "16px",
-                        padding: "4px 8px",
-                        display: "inline-block",
+                        borderRadius: "12px",
+                        padding: "2px 8px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        marginTop: "4px",
                       }}
                     >
-                      <Typography variant="caption" sx={{ color: "#000" }}>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                        }}
+                      >
                         Priority: {priority.toUpperCase()}
                       </Typography>
                     </Box>
                   </Box>
                 </GridLegacy>
 
-                <GridLegacy item xs={12} sm={2} md={2} lg={3}>
+                <GridLegacy item xs={12} sm={2} md={4} lg={4}>
                   {type !== "history" ? (
                     <div>
                       <Typography
                         variant="h6"
-                        sx={{ fontSize: "14px", color: fontColour }}
+                        sx={{ 
+                          color: fontColour,
+                          fontWeight: 600, 
+                        }}
                       >
                         Assigned to:
                       </Typography>
                       <Typography
                         variant="body"
-                        sx={{ fontSize: "12px", color: fontColour }}
+                        sx={{ 
+                          fontSize: "12px", 
+                          color: "rgba(255, 255, 255, 0.8)",
+                        }}
                       >
                         {userAssigned.map((user, index) => (
                           <React.Fragment key={index}>
@@ -458,20 +483,25 @@ const EntryViewer = ({ entryData, type }) => {
             </GridLegacy>
             {/* Right window */}
             {type !== "history" ? (
-              <GridLegacy item xs={12} md={12} lg={12}>
+              <GridLegacy 
+                item 
+                xs={12}
+                md={2}
+                lg={2}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                }}
+              >
                 {/* Icons box */}
-                <GridLegacy
-                  container
-                  direction="row"
-                  justifyContent="flex-end"
-                  alignItems="center"
-                >
                   <Box
                     sx={{
                       display: "flex",
                       flexDirection: "row",
-                      justifyContent: "center",
-                      alignItems: "flex-end",
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      gap: "4px"
                     }}
                   >
                     <IconButton
@@ -479,7 +509,12 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleCompletionClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.15)",
+                        },
+                      }}
                     >
                       {completionStatus === "not started" ? (
                         <PlayCircleOutline />
@@ -505,7 +540,12 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleEditClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.15)",
+                        },
+                      }}
                     >
                       <Edit />
                     </IconButton>
@@ -529,7 +569,12 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleAssignClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.15)",
+                        },
+                      }}
                     >
                       <Person />
                     </IconButton>
@@ -552,50 +597,61 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleDeleteClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          color: "#ffcccc",
+                          backgroundColor: "rgba(255, 0, 0, 0.15)",
+                        },
+                      }}
                     >
                       <Delete />
                     </IconButton>
-                    {/* Delete Modal */}
-                    <div>
-                      <Modal open={openDel} onClose={handleCloseDel}>
+                      {/* Delete Modal */}
+                      <div>
+                        <Modal open={openDel} onClose={handleCloseDel}>
+                          <Box sx={modalStyle}>
+                            <DeleteModal
+                              entryId={_id}
+                              onCancel={handleCloseDel}
+                              isDeleteNotes={isDeleteNotes}
+                              applyToSeries={applyToSeries}
+                            />
+                          </Box>
+                        </Modal>
+                      </div>
+                      <Modal
+                        open={openAllOrOne.visible}
+                        onClose={() =>
+                          setOpenAllOrOne({ type: "", visible: false })
+                        }
+                      >
                         <Box sx={modalStyle}>
-                          <DeleteModal
-                            entryId={_id}
-                            onCancel={handleCloseDel}
-                            isDeleteNotes={isDeleteNotes}
-                            applyToSeries={applyToSeries}
+                          <AllOrOneModal
+                            type={openAllOrOne.type}
+                            handleJustThis={handleJustThis}
+                            handleAllInSeries={handleAllInSeries}
                           />
                         </Box>
                       </Modal>
-                    </div>
-                    <Modal
-                      open={openAllOrOne.visible}
-                      onClose={() =>
-                        setOpenAllOrOne({ type: "", visible: false })
-                      }
-                    >
-                      <Box sx={modalStyle}>
-                        <AllOrOneModal
-                          type={openAllOrOne.type}
-                          handleJustThis={handleJustThis}
-                          handleAllInSeries={handleAllInSeries}
-                        />
-                      </Box>
-                    </Modal>
-                  </Box>
-                </GridLegacy>
-              </GridLegacy>
-            ) : null}
-          </GridLegacy>
+                    </Box>
+                  </GridLegacy>
+              ) : null}
+            </GridLegacy>
 
           {/* Bottom row */}
           <GridLegacy container item>
             {/* Description box */}
             {expanded && (
               <>
-                <br />
-                <GridLegacy item xs={12}>
+                <GridLegacy 
+                  item 
+                  xs={12}
+                  sx={{
+                    mt: 2,
+                    pt: 2,
+                    borderTop: "1px solid rgba(255, 255, 255, 0.3)",
+                  }}>
                   <Typography variant="subtitle2" sx={{ color: fontColour }}>
                     Category:{" "}
                     {category === "businessdeadline"
@@ -652,27 +708,35 @@ const EntryViewer = ({ entryData, type }) => {
                     sx={{
                       fontSize: "12px",
                       fontWeight: "bold",
-                      color:
-                        entryData.completionStatus === "overdue"
+                      color: fontColour,
+                      fontWeight: 600,
+                        /*</GridLegacy>entryData.completionStatus === "overdue"
                           ? "yellow"
-                          : fontColour,
+                          : fontColour,*/
                     }}
                   >
                     Status: {completionStatus}
                   </Typography>
                 </GridLegacy>
-                <GridLegacy item xs={9}>
+                <GridLegacy item xs={12}>
                   <Box
                     sx={{
                       display: "flex",
                       flexDirection: "column",
                       backgroundColor: "rgba(255, 255, 255, 0.5)",
+                      border: "2px solid #d9dfea",
                       borderRadius: "8px",
                       padding: "8px",
                       marginTop: "8px",
                     }}
                   >
-                    <Typography variant="subtitle2" sx={{ color: "#000" }}>
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        color: "#000",
+                        fontWeight: "bold",
+                        marginBottom: "2px",
+                      }}>
                       Description:
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#000" }}>
@@ -680,81 +744,121 @@ const EntryViewer = ({ entryData, type }) => {
                     </Typography>
                   </Box>
                 </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Created by: {userOwner}
-                  </Typography>
-                </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Date created: {createdDate.toLocaleDateString("en-AU")}
-                  </Typography>
-                </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Repeats: {recurrence ? recurrence.displayRule : "None"}
-                  </Typography>
-                </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Last Updated: {updatedDate.toLocaleString("en-AU")}
-                  </Typography>
+                <GridLegacy 
+                  container
+                  sx={{
+                    mt: 1.5,
+                  }}
+                >
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour, mb: 0.5}}>
+                      <strong>Created by:</strong> {userOwner}
+                    </Typography>
+                  </GridLegacy>
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour, mb: 0.5 }}>
+                      <strong>Date created:</strong>{" "}
+                      {createdDate.toLocaleDateString("en-AU")}
+                    </Typography>
+                  </GridLegacy>
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour }}>
+                      <strong>Repeats:</strong>{" "}
+                      {recurrence ? recurrence.displayRule : "None"}
+                    </Typography>
+                  </GridLegacy>
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour }}>
+                      <strong>Last Updated:</strong>{" "}
+                      {updatedDate.toLocaleString("en-AU")}
+                    </Typography>
+                  </GridLegacy>
                 </GridLegacy>
                 {whenAlarm ? (
                   <GridLegacy item xs={6}>
                     <Typography variant="body2" sx={{ color: fontColour }}>
-                      Reminder: {reminder}
+                      <strong>Reminder:</strong> {reminder}
                     </Typography>
                   </GridLegacy>
                 ) : null}
                 {notes ? (
                   <GridLegacy item xs={12}>
                     <Typography variant="body2" sx={{ color: fontColour }}>
-                      Notes: {notes}
+                      <strong>Notes:</strong> {notes}
                     </Typography>
                   </GridLegacy>
                 ) : null}
 
-                {file ? (
-                  <GridLegacy item xs={12}>
-                    <Typography variant="caption" sx={{ color: fontColour }}>
+                
+                  <GridLegacy item xs={12} sx={{mt:1}}>
+                    <Typography variant="body2" sx={{ color: fontColour }}>
                       Attachments:
                     </Typography>
-                    <Box
+                    {file && file.length > 0 ? (
+                      <Box
                       sx={{
                         display: "flex",
                         flexDirection: "column",
                         gap: 1,
-                        marginTop: 1,
+                        mt: 0.5,
                       }}
                     >
                       {file.map((id) => (
                         <FileDisplayDownload key={id} fileId={id} />
                       ))}
                     </Box>
+                    ):(
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: fontColour,
+                          opacity: 0.8,
+                        }}
+                      >
+                        None
+                      </Typography>
+                    )}
                   </GridLegacy>
-                ) : null}
+                
                 {type !== "history" ? (
                   <GridLegacy item xs={12}>
                     <Box
                       sx={{
                           display: "flex",
+                          justifyContent: "flex-end",
                           gap: 1,
-                          marginTop: 1,
+                          mt: 2,
+                          pt: 1.5,
+                          borderTop: "1px solid rgba(255, 255, 255, 0.25)",
                       }}>
                     <Button
                       variant="contained"
-                      color="secondary"
                       size="small"
                       onClick={handleOpenProgress}
+                      sx={{
+                        color: "#ffffff",
+                        borderColor: "#1f1e40",
+                        "&:hover": {
+                          borderColor: "#1f1e40",
+                          backgroundColor: "1f1e40",
+                        }
+                      }}
                     >
                       View Progress
                     </Button>
 
                     <Button
-                    variant="contained"
+                      variant="contained"
                       size="small"
                       onClick={handleOpenKeyResults}
+                      sx={{
+                        backgroundColor: "#00b085",
+                        color: "#ffffff",
+                        "&:hover": {
+                          borderColor: "#1f1e40",
+                          backgroundColor: "#009973",
+                        }
+                      }}
                     >
                       View Key Results
                     </Button>

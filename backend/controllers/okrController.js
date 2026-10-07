@@ -561,7 +561,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   //Update Progress
-  if (req.body.assignedTo !== undefined) {
+  if (req.body.progress !== undefined) {
     const progress = Number(req.body.progress);
 
     if (isNaN(progress) || progress < 0 || progress > 100) {
@@ -590,6 +590,12 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   await keyResult.save();
+  console.log("SAVED KEY RESULT:", {
+    id: keyResult._id.toString(),
+    progress: keyResult.progress,
+    status: keyResult.status,
+  });
+
   await keyResult.populate("assignedTo", "firstName lastName");
 
   const kr = keyResult.toObject();

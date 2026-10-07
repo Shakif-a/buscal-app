@@ -177,6 +177,11 @@ const updateKeyResult = async (
       },
     };
 
+    console.log("UPDATE KR REQUEST:");
+    console.log("Objective ID:", objectiveId);
+    console.log("Key Result ID:", keyResultId);
+    console.log("Data:", keyResultData);
+
     const response = await axios.put(
       `${API_URL}/api/okrTracker/objectives/${objectiveId}/key-results/${keyResultId}`,
       keyResultData,

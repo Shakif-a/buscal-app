@@ -60,6 +60,9 @@ const KeyResultsModal = ({
               },
             })
           ).unwrap();
+          //reload Key Results from backend
+          await dispatch(getKeyResults(objectiveId)).unwrap();
+          
           setExpandedKeyResult(null);
           setEditedKeyResult(null);
         } catch (error) {
@@ -67,6 +70,24 @@ const KeyResultsModal = ({
         }
         
     };
+    //formatting date dd/mm/yy
+    const formatDate = (date) => {
+      if (!date) return "";
+      return new Date(date).toLocaleDateString("en-AU");
+    };
+
+    //formatting status
+    const formatStatus = (status) => {
+      if (!status) return "";
+      const statusLabels = {
+        "on-track" : "On Track",
+        "at-risk" : "At Risk",
+        "overdue" : "Overdue",
+        "completed" : "Completed",
+      };
+
+      return statusLabels[status] || status;
+    }
 
     return (
         <Box
@@ -156,12 +177,12 @@ const KeyResultsModal = ({
 
                   <Typography variant="body2">
                     <strong>Due:</strong>{" "}
-                    {keyResult.dueDate}
+                    {formatDate(keyResult.dueDate)}
                   </Typography>
 
                   <Typography variant="body2">
                     <strong>Status:</strong>{" "}
-                    {keyResult.status}
+                    {formatStatus(keyResult.status)}
                   </Typography>
 
                   <Typography variant="body2">
@@ -212,7 +233,7 @@ const KeyResultsModal = ({
                     display: "flex",
                     gap: 4,
                     mt: 2,
-                    alignItems: "flex-start",
+                    alignItems: "stretch",
                   }}
                 >
                   {/* Status */}
@@ -224,6 +245,8 @@ const KeyResultsModal = ({
                     <FormControl
                       size="small"
                       fullWidth
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
                     >
                       <Select
                         value={editedKeyResult?.status ?? "on-track"}
@@ -254,7 +277,11 @@ const KeyResultsModal = ({
                   </Box>
 
                   {/* Evidence */}
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{
+                      flex: 1,
+                      borderLeft: "1px solid #d9dfea",
+                      pl: 4,
+                    }}>
                     <Typography sx={{ mb: 1 }}>
                       <strong>Evidence</strong>
                     </Typography>
@@ -313,9 +340,7 @@ const KeyResultsModal = ({
                   <Button
                     variant="contained"
                     size="small"
-                    onClick={() =>
-                      handleSave
-                    }
+                    onClick={handleSave}
                   >
                     Save
                   </Button>

@@ -285,7 +285,7 @@ export const objectiveSlice = createSlice({
         state.isError = false;
 
         state.keyResults = state.keyResults.map((keyResult) =>
-          keyResult._id == action.payload._id ||
+          keyResult._id === action.payload._id ||
           keyResult.id === action.payload.id
             ? action.payload
             : keyResult
