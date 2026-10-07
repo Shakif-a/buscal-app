@@ -924,7 +924,9 @@ function ObjectiveCard({ objective }) {
                           </button>
                         </div>
                       ) : (
-                        "Not available"
+                        <span title="Only the person assigned to this key result, or a manager of the objective, can view or upload evidence">
+                          Not available
+                        </span>
                       )}
                     </td>
                   </tr>
