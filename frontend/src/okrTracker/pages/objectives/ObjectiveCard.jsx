@@ -212,6 +212,16 @@ function ObjectiveCard({ objective }) {
     window.requestAnimationFrame(() => evidencePreviewCloseRef.current?.focus());
   }, [evidencePreview]);
 
+  useEffect(() => {
+    if (!evidenceResult || evidenceBusy || evidencePreview) {
+      return;
+    }
+
+    if (!evidenceDialogRef.current?.contains(document.activeElement)) {
+      evidenceCloseRef.current?.focus();
+    }
+  }, [evidenceResult, evidenceBusy, evidencePreview]);
+
   async function addKeyResult(event) {
     event.preventDefault();
     setSaving(true);
