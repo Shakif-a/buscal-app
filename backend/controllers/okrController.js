@@ -13,15 +13,12 @@ const {
 
 function getName(user) {
   let name = "";
-
   if (user && user.firstName) {
     name = user.firstName;
   }
-
   if (user && user.lastName) {
     name = name + " " + user.lastName;
   }
-
   return name.trim();
 }
 
@@ -34,21 +31,15 @@ async function loadObjective(objective) {
 
   const keyResults = [];
   let totalWeight = 0;
-  let totalProgress = 0;
-
   for (let i = 0; i < keyResultDocuments.length; i++) {
     const keyResult = keyResultDocuments[i].toObject();
-
     keyResult.id = keyResult._id.toString();
-
     if (keyResult.assignedTo) {
       keyResult.assigned = getName(keyResult.assignedTo);
     } else {
       keyResult.assigned = "Unassigned";
     }
-
     totalWeight = totalWeight + keyResult.weight;
-    totalProgress = totalProgress + keyResult.progress * keyResult.weight;
     keyResults.push(keyResult);
   }
 
@@ -66,12 +57,6 @@ async function loadObjective(objective) {
     objectiveData.type = "Committed";
   }
 
-  objectiveData.progress = 0;
-
-  if (totalWeight > 0) {
-    objectiveData.progress = Math.round(totalProgress / totalWeight);
-  }
-
   return {
     objective: objectiveData,
     keyResults: keyResults,
@@ -81,44 +66,38 @@ async function loadObjective(objective) {
 function compareObjectives(firstObjective, secondObjective) {
   const firstOwner = firstObjective.manager.toLowerCase();
   const secondOwner = secondObjective.manager.toLowerCase();
-
   if (firstOwner < secondOwner) {
     return -1;
   }
-
   if (firstOwner > secondOwner) {
     return 1;
   }
-
   const firstDueDate = new Date(firstObjective.dueDate);
   const secondDueDate = new Date(secondObjective.dueDate);
-
   return firstDueDate - secondDueDate;
 }
+
+// ============================================
+// OBJECTIVE CONTROLLER
+// ============================================
 
 const getObjectives = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find().populate(
     "owner",
     "firstName lastName"
   );
-
   const result = [];
-
   for (let i = 0; i < objectives.length; i++) {
     const data = await loadObjective(objectives[i]);
-
     data.objective.keyResults = data.keyResults;
     result.push(data.objective);
   }
-
   result.sort(compareObjectives);
-
   res.status(200).json(result);
 });
 
 const getObjectiveGroups = asyncHandler(async (req, res) => {
   const groups = await OkrObjective.distinct("group", { group: { $ne: "" } });
-
   res.status(200).json(groups.sort());
 });
 
@@ -127,12 +106,10 @@ const getObjective = asyncHandler(async (req, res) => {
     "owner",
     "firstName lastName"
   );
-
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
   }
-
   const data = await loadObjective(objective);
   res.status(200).json(data);
 });
@@ -142,19 +119,16 @@ const createObjective = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Please add a title");
   }
-
   if (!req.body.owner) {
     res.status(400);
     throw new Error("Please add an owner");
   }
-
   if (!req.body.dueDate) {
     res.status(400);
     throw new Error("Please add a due date");
   }
 
   let commitmentType = req.body.commitmentType;
-
   if (!commitmentType) {
     commitmentType = "committed";
   }
@@ -198,7 +172,6 @@ const createObjective = asyncHandler(async (req, res) => {
 
 const updateObjective = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
-
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
@@ -209,14 +182,11 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please add a valid title");
     }
-
     const title = req.body.title.trim();
-
     if (!title) {
       res.status(400);
       throw new Error("Please add a title");
     }
-
     objective.title = title;
   }
 
@@ -225,7 +195,6 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please add a valid description");
     }
-
     objective.description = req.body.description;
   }
 
@@ -234,14 +203,11 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please select a valid group");
     }
-
     const group = req.body.group.trim();
-
     if (!group) {
       res.status(400);
       throw new Error("Please select a group");
     }
-
     objective.group = group;
   }
 
@@ -250,14 +216,11 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please select a valid owner");
     }
-
     const ownerExists = await User.exists({ _id: req.body.owner });
-
     if (!ownerExists) {
       res.status(400);
       throw new Error("Selected owner was not found");
     }
-
     objective.owner = req.body.owner;
   }
 
@@ -266,19 +229,15 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please add a valid due date");
     }
-
     const dueDate = new Date(req.body.dueDate);
-
     if (isNaN(dueDate.getTime())) {
       res.status(400);
       throw new Error("Please add a valid due date");
     }
-
     objective.dueDate = dueDate;
   }
 
   let type = req.body.commitmentType;
-
   if (req.body.type !== undefined) {
     type = req.body.type;
   }
@@ -288,14 +247,11 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please select a valid objective type");
     }
-
     type = type.toLowerCase();
-
     if (type !== "committed" && type !== "aspirational") {
       res.status(400);
       throw new Error("Please select a valid objective type");
     }
-
     objective.commitmentType = type;
   }
 
@@ -321,7 +277,6 @@ const updateObjective = asyncHandler(async (req, res) => {
 
 const deleteObjective = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
-
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
@@ -347,9 +302,83 @@ const deleteObjective = asyncHandler(async (req, res) => {
   res.status(200).json({ id: req.params.id });
 });
 
-const createKeyResult = asyncHandler(async (req, res) => {
-  const objective = await OkrObjective.findById(req.params.id);
+// ============================================
+// KEY RESULT CONTROLLER
+// ============================================
 
+const getKeyResults = asyncHandler(async (req, res) => {
+  const { objectiveId } = req.params;
+  if (!mongoose.isValidObjectId(objectiveId)) {
+    res.status(400);
+    throw new Error("Invalid objective ID");
+  }
+
+  const objective = await OkrObjective.findById(objectiveId);
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found by ID");
+  }
+
+  const keyResults = await OkrKeyResult.find({ objective: objectiveId })
+    .populate("assignedTo", "firstName lastName")
+    .sort({ createdAt: 1 });
+
+  const formattedKeyResults = keyResults.map((keyResult) => {
+    const kr = keyResult.toObject();
+    kr.id = kr._id.toString();
+    if (kr.assignedTo) {
+      kr.assigned = getName(kr.assignedTo);
+    } else {
+      kr.assigned = "Unassigned";
+    }
+    return kr;
+  });
+
+  res.status(200).json(formattedKeyResults);
+});
+
+const getKeyResult = asyncHandler(async (req, res) => {
+  const { objectiveId, keyResultId } = req.params;
+  if (!mongoose.isValidObjectId(objectiveId) || !mongoose.isValidObjectId(keyResultId)) {
+    res.status(400);
+    throw new Error("Invalid ID");
+  }
+
+  const objective = await OkrObjective.findById(objectiveId);
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
+  const keyResult = await OkrKeyResult.findById(keyResultId).populate(
+    "assignedTo",
+    "firstName lastName"
+  );
+  if (!keyResult) {
+    res.status(404);
+    throw new Error("Key result not found");
+  }
+
+  if (keyResult.objective.toString() !== objectiveId) {
+    res.status(400);
+    throw new Error("Key result does not belong to this objective");
+  }
+
+  const kr = keyResult.toObject();
+  kr.id = kr._id.toString();
+  kr.assigned = kr.assignedTo ? getName(kr.assignedTo) : "Unassigned";
+
+  res.status(200).json(kr);
+});
+
+const createKeyResult = asyncHandler(async (req, res) => {
+  const { objectiveId } = req.params;
+  if (!mongoose.isValidObjectId(objectiveId)) {
+    res.status(400);
+    throw new Error("Invalid objective ID");
+  }
+
+  const objective = await OkrObjective.findById(objectiveId);
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
@@ -370,12 +399,14 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Please add a due date");
   }
 
-  const keyResults = await OkrKeyResult.find({ objective: objective._id });
+  // Validate weight doesn't exceed 100
+  const existingKeyResults = await OkrKeyResult.find({
+    objective: objectiveId,
+  });
 
   let usedWeight = 0;
-
-  for (let i = 0; i < keyResults.length; i++) {
-    usedWeight = usedWeight + keyResults[i].weight;
+  for (let i = 0; i < existingKeyResults.length; i++) {
+    usedWeight += existingKeyResults[i].weight;
   }
 
   const newWeight = Number(req.body.weight);
@@ -383,7 +414,9 @@ const createKeyResult = asyncHandler(async (req, res) => {
 
   if (newWeight > weightLeft) {
     res.status(400);
-    throw new Error("Weights cannot go over 100. Only " + weightLeft + " is left.");
+    throw new Error(
+      "Weights cannot go over 100. Only " + weightLeft + " is left."
+    );
   }
 
   // KRs with no assignee falls back to the objective owner
@@ -401,11 +434,14 @@ const createKeyResult = asyncHandler(async (req, res) => {
   let keyResult;
   try {
     keyResult = await OkrKeyResult.create({
-      objective: objective._id,
+      objective: objectiveId,
       title: req.body.title,
       weight: newWeight,
-      assignedTo: req.body.assignedTo,
+      assignedTo: req.body.assignedTo || null,
       dueDate: req.body.dueDate,
+      progress: req.body.progress || 0,
+      status: req.body.status || "on-track",
+      approved: req.body.approved || false,
       calendarEntry: calendarEntry._id,
     });
   } catch (error) {
@@ -419,15 +455,188 @@ const createKeyResult = asyncHandler(async (req, res) => {
   calendarEntry.linkedKeyResult = keyResult._id;
   await calendarEntry.save();
 
-  res.status(201).json(keyResult);
+  await keyResult.populate("assignedTo", "firstName lastName");
+  const kr = keyResult.toObject();
+  kr.id = kr._id.toString();
+  kr.assigned = kr.assignedTo ? getName(kr.assignedTo) : "Unassigned";
+
+  res.status(201).json(kr);
+});
+
+const updateKeyResult = asyncHandler(async (req, res) => {
+  const { objectiveId, keyResultId } = req.params;
+  if (!mongoose.isValidObjectId(objectiveId) || !mongoose.isValidObjectId(keyResultId)) {
+    res.status(400);
+    throw new Error("Invalid ID");
+  }
+
+  const objective = await OkrObjective.findById(objectiveId);
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
+  const keyResult = await OkrKeyResult.findById(keyResultId);
+  if (!keyResult) {
+    res.status(404);
+    throw new Error("Key result not found");
+  }
+
+  if (keyResult.objective.toString() !== objectiveId) {
+    res.status(400);
+    throw new Error("Key result does not belong to this objective");
+  }
+
+  // Update title
+  if (req.body.title !== undefined) {
+    const title = req.body.title.trim();
+    if (!title) {
+      res.status(400);
+      throw new Error("Please add a title");
+    }
+    keyResult.title = title;
+  }
+
+  // Update weight
+  if (req.body.weight !== undefined) {
+    const newWeight = Number(req.body.weight);
+    if (isNaN(newWeight) || newWeight < 1 || newWeight > 100) {
+      res.status(400);
+      throw new Error("Weight must be between 1 and 100");
+    }
+
+    const otherKeyResults = await OkrKeyResult.find({
+      objective: objectiveId,
+      _id: { $ne: keyResultId },
+    });
+
+    let usedWeight = 0;
+    for (let i = 0; i < otherKeyResults.length; i++) {
+      usedWeight += otherKeyResults[i].weight;
+    }
+
+    const weightLeft = 100 - usedWeight;
+    if (newWeight > weightLeft) {
+      res.status(400);
+      throw new Error(
+        "Weights cannot go over 100. Only " + weightLeft + " is left."
+      );
+    }
+    keyResult.weight = newWeight;
+  }
+
+  // Update dueDate
+  if (req.body.dueDate !== undefined) {
+    if (!req.body.dueDate) {
+      res.status(400);
+      throw new Error("Please add a valid due date");
+    }
+    const dueDate = new Date(req.body.dueDate);
+    if (isNaN(dueDate.getTime())) {
+      res.status(400);
+      throw new Error("Please add a valid due date");
+    }
+    keyResult.dueDate = dueDate;
+  }
+
+  // Update assignedTo
+  if (req.body.assignedTo !== undefined) {
+    if (req.body.assignedTo === null) {
+      keyResult.assignedTo = null;
+    } else {
+      if (!mongoose.isValidObjectId(req.body.assignedTo)) {
+        res.status(400);
+        throw new Error("Invalid user ID");
+      }
+      const userExists = await User.exists({ _id: req.body.assignedTo });
+      if (!userExists) {
+        res.status(400);
+        throw new Error("User not found");
+      }
+      keyResult.assignedTo = req.body.assignedTo;
+    }
+  }
+
+  // Update other fields from main
+  if (req.body.progress !== undefined) {
+    keyResult.progress = req.body.progress;
+  }
+  if (req.body.status !== undefined) {
+    keyResult.status = req.body.status;
+  }
+  if (req.body.approved !== undefined) {
+    keyResult.approved = req.body.approved;
+  }
+
+  // Sync calendar entry
+  if (keyResult.calendarEntry) {
+    await updateLinkedCalendarEntry({
+      entryId: keyResult.calendarEntry,
+      title: keyResult.title,
+      dueDate: keyResult.dueDate,
+      assignedId: keyResult.assignedTo || objective.owner,
+      actorUser: req.user,
+    });
+  }
+
+  await keyResult.save();
+  await keyResult.populate("assignedTo", "firstName lastName");
+
+  const kr = keyResult.toObject();
+  kr.id = kr._id.toString();
+  kr.assigned = kr.assignedTo ? getName(kr.assignedTo) : "Unassigned";
+
+  res.status(200).json(kr);
+});
+
+const deleteKeyResult = asyncHandler(async (req, res) => {
+  const { objectiveId, keyResultId } = req.params;
+  if (!mongoose.isValidObjectId(objectiveId) || !mongoose.isValidObjectId(keyResultId)) {
+    res.status(400);
+    throw new Error("Invalid ID");
+  }
+
+  const objective = await OkrObjective.findById(objectiveId);
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+
+  const keyResult = await OkrKeyResult.findById(keyResultId);
+  if (!keyResult) {
+    res.status(404);
+    throw new Error("Key result not found");
+  }
+
+  if (keyResult.objective.toString() !== objectiveId) {
+    res.status(400);
+    throw new Error("Key result does not belong to this objective");
+  }
+
+  // Delete calendar entry
+  if (keyResult.calendarEntry) {
+    await deleteLinkedCalendarEntry({
+      entryId: keyResult.calendarEntry,
+      actorUser: req.user,
+    });
+  }
+
+  await keyResult.deleteOne();
+  res.status(200).json({ id: keyResultId });
 });
 
 module.exports = {
+  // Objectives
   getObjectives,
   getObjectiveGroups,
   getObjective,
   createObjective,
   updateObjective,
   deleteObjective,
+  // Key Results
+  getKeyResults,
+  getKeyResult,
   createKeyResult,
+  updateKeyResult,
+  deleteKeyResult,
 };

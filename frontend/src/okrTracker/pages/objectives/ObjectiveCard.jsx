@@ -1,30 +1,76 @@
 import { useEffect, useRef, useState } from "react";
 import EditIcon from "@mui/icons-material/Edit";
-import { useDispatch } from "react-redux";
-import { deleteObjective, updateObjective, } from "../../features/objectives/objectiveSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { deleteObjective, updateObjective } from "../../features/objectives/objectiveSlice";
+import { createKeyResult, updateKeyResult, deleteKeyResult } from "../../features/keyResults/keyResultSlice";
+import keyResultService from "../../features/keyResults/keyResultService";
 
 function ObjectiveCard({ objective }) {
-  // Key Results
+  // Objective
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editOwner, setEditOwner] = useState("");
+  const [editGroup, setEditGroup] = useState("");
+  const [editCommitmentType, setEditCommitmentType] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  // Key results
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [keyResults, setKeyResults] = useState([]);
+  const [originalKeyResults, setOriginalKeyResults] = useState([]);
 
-  const[editTitle, setEditTitle] = useState("");
-  const[editDueDate, setEditDueDate] = useState("");
-  const[editOwner, setEditOwner] = useState("");
-  const[editGroup, setEditGroup] = useState("");
-  const[editCommitmentType, setEditCommitmentType] = useState("");
-  const[editDescription, setEditDescription] = useState("");
+  // Evidence
+  const [showEvidencePopup, setShowEvidencePopup] = useState(false);
+  const [selectedEvidenceKR, setSelectedEvidenceKR] = useState(null);
+  const [showViewEvidence, setShowViewEvidence] = useState(false);
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
+  const [evidenceNote, setEvidenceNote] = useState("");
 
+  // Weight popup
+  const [showWeightPopup, setShowWeightPopup] = useState(false);
+  const [weightDrafts, setWeightDrafts] = useState([]);
+
+  // Menu and delete
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const menuRef = useRef(null);
 
+  // Redux
   const dispatch = useDispatch();
+  const token = useSelector(state => state.auth.user?.token);
 
+  // Load key results
   useEffect(() => {
-    function handleClickOutside(event){
-      if (menuRef.current && !menuRef.current.contains(event.target)){
+    if (showKeyResults && objective.id) {
+      keyResultService.getKeyResultsByObjective(objective.id, token)
+        .then(data => {
+          // backend data matched to UI
+          const mappedData = data.map(kr => ({
+            id: kr._id || kr.id,
+            name: kr.title,
+            weight: kr.weight,
+            assigned: kr.assigned || "Unassigned",
+            assignedTo: kr.assignedTo,
+            progress: kr.progress || 0,
+            dueDate: kr.dueDate ? new Date(kr.dueDate).toISOString().split('T')[0] : "",
+            status: kr.status ? kr.status.charAt(0).toUpperCase() + kr.status.slice(1).replace("-", " ") : "Choose Progress",
+            approved: kr.approved || false,
+            evidence: kr.evidence || "",
+          }));
+          setKeyResults(mappedData);
+        })
+        .catch(err => {
+          console.error("Error fetching KRs:", err);
+        });
+    }
+  }, [showKeyResults, objective.id, token]);
+
+  // Click outside menu?
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
       }
     }
@@ -34,12 +80,13 @@ function ObjectiveCard({ objective }) {
     };
   }, []);
 
+  // Open objective edit
   function openEditModal() {
     setEditTitle(objective.title || "");
     setEditOwner(objective.owner?._id || objective.owner || "");
     setEditGroup(objective.group || "");
-    setEditCommitmentType (objective.commitmentType || "committed");
-    setEditDescription (objective.description || "");
+    setEditCommitmentType(objective.commitmentType || "committed");
+    setEditDescription(objective.description || "");
 
     if (objective.dueDate) {
       const date = new Date(objective.dueDate);
@@ -52,35 +99,27 @@ function ObjectiveCard({ objective }) {
     setShowMenu(false);
     setShowEditModal(true);
   }
-  
 
-  // Evidence
-  const [showEvidencePopup, setShowEvidencePopup] = useState(false);
-  const [selectedEvidenceKR, setSelectedEvidenceKR] = useState(null);
-  const [showViewEvidence, setShowViewEvidence] = useState(false);
-  const [evidenceFiles, setEvidenceFiles] = useState([]);
-  const [evidenceNote, setEvidenceNote] = useState("");
-
-  // Key Results Data
-  const [keyResults, setKeyResults] = useState([]);
-  const [originalKeyResults, setOriginalKeyResults] = useState([]);
-
+  // Add new key result
   function addKeyResult() {
     const newKeyResult = {
       id: Date.now(),
       name: "",
       weight: 0,
       assigned: "",
+      assignedTo: null,
       progress: 0,
       dueDate: "",
       status: "Choose Progress",
       approved: false,
+      isNew: true,
     };
 
     setKeyResults([...keyResults, newKeyResult]);
     setEditMode(true);
   }
 
+  // Update key result (local)
   function updateKeyResult(id, field, value) {
     const updatedKeyResults = keyResults.map((keyResult) => {
       if (keyResult.id === id) {
@@ -89,42 +128,104 @@ function ObjectiveCard({ objective }) {
           [field]: value,
         };
       }
-
       return keyResult;
     });
 
     setKeyResults(updatedKeyResults);
   }
 
+  // Delete key result
   function deleteKeyResult(id) {
-    const updatedKeyResults = keyResults.filter(
-      (keyResult) => keyResult.id !== id
-    );
+    const keyResult = keyResults.find(kr => kr.id === id);
 
-    setKeyResults(updatedKeyResults);
+    if (keyResult && !keyResult.isNew) {
+      // Existing KR - delete from backend
+      dispatch(deleteKeyResult({
+        objectiveId: objective.id || objective._id,
+        keyResultId: keyResult.id
+      }));
+    }
+
+    // Remove from local
+    setKeyResults(keyResults.filter(keyResult => keyResult.id !== id));
   }
 
+  // Edit button, edit mode and save
   function handleEditButton() {
-    if (!editMode){
-      //Entering edit mode
+    if (!editMode) {
+      // Edit mode
       setOriginalKeyResults(
-        keyResults.map((keyResult) => ({...keyResult}))
+        keyResults.map((keyResult) => ({ ...keyResult }))
       );
-
       setEditMode(true);
     } else {
-      //Save Changes
+      // Save (new) to backend
+      const newKRs = keyResults.filter(kr => kr.isNew);
+      const updatedKRs = keyResults.filter(kr => !kr.isNew);
+
+      // Create new key results
+      newKRs.forEach(kr => {
+        if (kr.name && kr.weight && kr.dueDate) {
+          dispatch(createKeyResult({
+            objectiveId: objective.id || objective._id,
+            keyResultData: {
+              title: kr.name,
+              weight: Number(kr.weight),
+              dueDate: kr.dueDate,
+              assignedTo: kr.assignedTo || null,
+              progress: kr.progress || 0,
+              status: kr.status.toLowerCase().replace(" ", "-"),
+              approved: kr.approved,
+            }
+          }));
+        }
+      });
+
+      // Update existing key results
+      updatedKRs.forEach(kr => {
+        const original = originalKeyResults.find(o => o.id === kr.id);
+        if (original && JSON.stringify(kr) !== JSON.stringify(original)) {
+          dispatch(updateKeyResult({
+            objectiveId: objective.id || objective._id,
+            keyResultId: kr.id,
+            keyResultData: {
+              title: kr.name,
+              weight: Number(kr.weight),
+              dueDate: kr.dueDate,
+              assignedTo: kr.assignedTo || null,
+              progress: kr.progress || 0,
+              status: kr.status.toLowerCase().replace(" ", "-"),
+              approved: kr.approved,
+            }
+          }));
+        }
+      });
+
       setEditMode(false);
       setOriginalKeyResults([]);
     }
   }
 
+  // Calc total weight
   const totalKeyResultWeight = keyResults.reduce(
     (total, keyResult) => total + Number(keyResult.weight),
     0
   );
 
-  {/*delete objective*/}
+  // KR save checks for valid
+  const keyResultsValid =
+    keyResults.length === 0 ||
+    (
+      keyResults.every((keyResult) =>
+        keyResult.name.trim() !== "" &&
+        Number(keyResult.weight) > 0 &&
+        keyResult.assigned !== "" &&
+        keyResult.dueDate !== ""
+      ) &&
+      totalKeyResultWeight === 100
+    );
+
+  // Delete objective
   const handleDeleteObjective = async () => {
     try {
       const objectiveId = objective._id || objective.id;
@@ -137,6 +238,7 @@ function ObjectiveCard({ objective }) {
     }
   };
 
+  // Update objective
   const handleUpdateObjective = async () => {
     try {
       const objectiveId = objective._id || objective.id;
@@ -163,23 +265,7 @@ function ObjectiveCard({ objective }) {
     }
   };
 
-  // KR Save Validity Check
-  const keyResultsValid =
-    keyResults.length === 0 ||
-    (
-      keyResults.every((keyResult) =>
-      keyResult.name.trim() !== "" &&
-      Number(keyResult.weight) > 0 &&
-      keyResult.assigned !== "" &&
-      keyResult.dueDate !== ""
-    ) &&
-    totalKeyResultWeight === 100
-    );
-
-  //Weight Popup
-  const [showWeightPopup, setShowWeightPopup] = useState(false);
-  const [weightDrafts, setWeightDrafts] = useState([]);
-
+  // Weight popup functions
   const openWeightPopup = () => {
     setWeightDrafts(
       keyResults.map((keyResult) => ({
@@ -190,7 +276,6 @@ function ObjectiveCard({ objective }) {
     setShowWeightPopup(true);
   };
 
-  {/*Weighting Popup*/ }
   const handleWeightChange = (id, newWeight) => {
     const weight = Math.max(0, Math.min(100, Number(newWeight)));
 
@@ -253,28 +338,36 @@ function ObjectiveCard({ objective }) {
 
         <p className="objective-due-date">
           Due: <strong>
-            {objective.dueDate 
+            {objective.dueDate
               ? new Date(objective.dueDate).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
               : "No due date"}
           </strong>
         </p>
 
-        <div className="objective-menu-container"
-        ref={menuRef}>
-          <button type="button"
-          className="objective-menu-button"
-          onClick={() => setShowMenu(!showMenu)}>...</button>
+        <div className="objective-menu-container" ref={menuRef}>
+          <button
+            type="button"
+            className="objective-menu-button"
+            onClick={() => setShowMenu(!showMenu)}
+          >
+            ...
+          </button>
           {showMenu && (
             <div className="objective-menu-dropdown">
-              <button type="button"
-              className="objective-menu-item"
-              onClick={openEditModal}
-              >Edit</button>
-              <button type="button"
-              className="objective-menu-item delete-menu-item"
-              onClick={() => {setShowMenu(false);
-                setShowDeleteModal(true);
-              }}
+              <button
+                type="button"
+                className="objective-menu-item"
+                onClick={openEditModal}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="objective-menu-item delete-menu-item"
+                onClick={() => {
+                  setShowMenu(false);
+                  setShowDeleteModal(true);
+                }}
               >
                 Delete
               </button>
@@ -560,17 +653,17 @@ function ObjectiveCard({ objective }) {
               {editMode && keyResults.length > 0 && (
                 <>
                   {!keyResults.every((keyResult) =>
-                  keyResult.name.trim() !== "" &&
-                  Number(keyResult.weight) > 0 &&
-                  keyResult.assigned !== "" &&
-                  keyResult.dueDate !== ""
+                    keyResult.name.trim() !== "" &&
+                    Number(keyResult.weight) > 0 &&
+                    keyResult.assigned !== "" &&
+                    keyResult.dueDate !== ""
                   ) && (
                     <p className="key-result-validation">
-                    Key Results Title, Weight, Assigned Employee and Due Date are required fields.
+                      Key Results Title, Weight, Assigned Employee and Due Date are required fields.
                     </p>
                   )}
-                  
-                  {totalKeyResultWeight !== 100 &&(
+
+                  {totalKeyResultWeight !== 100 && (
                     <p className="key-result-validation">
                       Combined Key Result Weight must equal 100%
                       <br />
@@ -656,8 +749,6 @@ function ObjectiveCard({ objective }) {
                       <span className="weight-slider-title">{keyResult.name}</span>
 
                       <span className="weight-slider-employee">- {keyResult.assigned}</span>
-
-                      {/*<span className="weight-slider-percentage">{keyResult.weight}%</span>*/}
                     </div>
 
                     <div className="weight-slider-controls">
@@ -852,11 +943,11 @@ function ObjectiveCard({ objective }) {
 
             <div className="popup-buttons">
               <button type="button"
-              className="popup-cancel-button"
-              onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                className="popup-cancel-button"
+                onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button type="button"
-              className="popup-delete-button"
-              onClick={handleDeleteObjective}
+                className="popup-delete-button"
+                onClick={handleDeleteObjective}
               >
                 Delete
               </button>
@@ -872,73 +963,73 @@ function ObjectiveCard({ objective }) {
               <h2>Edit Objective</h2>
 
               <button type="button"
-              className="edit-popup-close"
-              onClick={() => setShowEditModal(false)}>x</button>
+                className="edit-popup-close"
+                onClick={() => setShowEditModal(false)}>x</button>
             </div>
 
             <div className="edit-objective-form">
               <div className="edit-form-left">
                 <label>Title</label>
                 <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Enter Objective Title"/>
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Enter Objective Title" />
 
                 <label>Due Date</label>
                 <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    />
-                
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                />
+
                 <label>Owner</label>
                 <input
-                    type="text"
-                    value={editOwner}
-                    onChange={(e) => setEditOwner(e.target.value)}
-                    />
-                
+                  type="text"
+                  value={editOwner}
+                  onChange={(e) => setEditOwner(e.target.value)}
+                />
+
                 <label>Group</label>
                 <input
-                    type="text"
-                    value={editGroup}
-                    onChange={(e) => setEditGroup(e.target.value)}
-                    />
-                
+                  type="text"
+                  value={editGroup}
+                  onChange={(e) => setEditGroup(e.target.value)}
+                />
+
                 <label>Type</label>
                 <select
-                    value={editCommitmentType}
-                    onChange={(e) => setEditCommitmentType(e.target.value)}
+                  value={editCommitmentType}
+                  onChange={(e) => setEditCommitmentType(e.target.value)}
                 >
-                  <option value = "committed">Committed</option>
-                  <option value = "aspirational">Aspirational</option>
+                  <option value="committed">Committed</option>
+                  <option value="aspirational">Aspirational</option>
                 </select>
               </div>
 
               <div className="edit-form-right">
                 <label>Description</label>
                 <textarea
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    placeholder="Describe the Objective"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Describe the Objective"
                 />
               </div>
             </div>
 
             <div className="edit-popup-buttons">
               <button
-                  type="button"
-                  className="edit-cancel-button"
-                  onClick={() => setShowEditModal(false)}
+                type="button"
+                className="edit-cancel-button"
+                onClick={() => setShowEditModal(false)}
               >
                 Cancel
               </button>
 
               <button
-                  type="button"
-                  className="edit-save-button"
-                  onClick={handleUpdateObjective}
+                type="button"
+                className="edit-save-button"
+                onClick={handleUpdateObjective}
               >
                 Save Changes
               </button>
