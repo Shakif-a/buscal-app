@@ -4,8 +4,65 @@ import { useDispatch, useSelector } from "react-redux";
 import { deleteObjective, updateObjective } from "../../features/objectives/objectiveSlice";
 import { createKeyResult, updateKeyResult, deleteKeyResult } from "../../features/keyResults/keyResultSlice";
 import keyResultService from "../../features/keyResults/keyResultService";
+import { getAllUsers } from "../../features/users/userSlice";
+
+// Backend labels matched to UI labels
+const API_TO_UI_STATUS = {
+  "on-track": "On Track",
+  "at-risk": "At Risk",
+  "overdue": "Overdue",
+  "completed": "Completed",
+};
+
+const UI_TO_API_STATUS = {
+  "On Track": "on-track",
+  "At Risk": "at-risk",
+  "Overdue": "overdue",
+  "Completed": "completed",
+};
+
+// Map a backend KR to the this component shape
+function mapKeyResult(kr) {
+  return {
+    id: kr._id || kr.id,
+    name: kr.title || "",
+    weight: kr.weight ?? 0,
+    assigned: kr.assigned || "Unassigned",
+    // Populated objects returned as: _id, firstName, lastName
+    assignedTo: kr.assignedTo?._id || kr.assignedTo || null,
+    progress: kr.progress ?? 0,
+    dueDate: kr.dueDate ? new Date(kr.dueDate).toISOString().split("T")[0] : "",
+    status: API_TO_UI_STATUS[kr.status] || "Choose Progress",
+    approved: kr.approved || false,
+    evidence: kr.evidence || [],
+  };
+}
+
+// Validate before send to backend. Undefined is dropped.
+function buildKeyResultPayload(kr) {
+  return {
+    title: kr.name.trim(),
+    weight: Number(kr.weight),
+    dueDate: kr.dueDate,
+    assignedTo: kr.assignedTo || null,
+    progress: Number(kr.progress) || 0,
+    status: UI_TO_API_STATUS[kr.status], // undefined for "Choose Progress", backend default applies
+    approved: kr.approved,
+  };
+}
+
+function isKeyResultComplete(kr) {
+  return (
+    kr.name.trim() !== "" &&
+    Number(kr.weight) > 0 &&
+    !!kr.assignedTo &&
+    kr.dueDate !== ""
+  );
+}
 
 function ObjectiveCard({ objective }) {
+  const objectiveId = objective.id || objective._id;
+
   // Objective
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -39,35 +96,33 @@ function ObjectiveCard({ objective }) {
 
   // Redux
   const dispatch = useDispatch();
-  const token = useSelector(state => state.auth.user?.token);
+  const token = useSelector((state) => state.auth.user?.token);
+  const { users: employees } = useSelector((state) => state.users);
 
-  // Load key results
+  // Fetch real user objects when in edit mode
   useEffect(() => {
-    if (showKeyResults && objective.id) {
-      keyResultService.getKeyResultsByObjective(objective.id, token)
-        .then(data => {
-          // backend data matched to UI
-          const mappedData = data.map(kr => ({
-            id: kr._id || kr.id,
-            name: kr.title,
-            weight: kr.weight,
-            assigned: kr.assigned || "Unassigned",
-            assignedTo: kr.assignedTo,
-            progress: kr.progress || 0,
-            dueDate: kr.dueDate ? new Date(kr.dueDate).toISOString().split('T')[0] : "",
-            status: kr.status ? kr.status.charAt(0).toUpperCase() + kr.status.slice(1).replace("-", " ") : "Choose Progress",
-            approved: kr.approved || false,
-            evidence: kr.evidence || "",
-          }));
-          setKeyResults(mappedData);
-        })
-        .catch(err => {
-          console.error("Error fetching KRs:", err);
-        });
+    if ((editMode || showEditModal) && token) {
+      dispatch(getAllUsers(token));
     }
-  }, [showKeyResults, objective.id, token]);
+  }, [editMode, showEditModal, token, dispatch]);
 
-  // Click outside menu?
+  // Fetch objective's key results
+  async function fetchKeyResults() {
+    try {
+      const data = await keyResultService.getKeyResultsByObjective(objectiveId, token);
+      setKeyResults(data.map(mapKeyResult));
+    } catch (err) {
+      console.error("Error fetching KRs:", err);
+    }
+  }
+
+  useEffect(() => {
+    if (showKeyResults && objectiveId) {
+      fetchKeyResults();
+    }
+  }, [showKeyResults, objectiveId, token]);
+
+  // Click outside menu = close
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -90,8 +145,7 @@ function ObjectiveCard({ objective }) {
 
     if (objective.dueDate) {
       const date = new Date(objective.dueDate);
-      const formattedDate = date.toISOString().split("T")[0];
-      setEditDueDate(formattedDate);
+      setEditDueDate(date.toISOString().split("T")[0]);
     } else {
       setEditDueDate("");
     }
@@ -103,10 +157,10 @@ function ObjectiveCard({ objective }) {
   // Add new key result
   function addKeyResult() {
     const newKeyResult = {
-      id: Date.now(),
+      id: `new-${Date.now()}`,
       name: "",
       weight: 0,
-      assigned: "",
+      assigned: "Unassigned",
       assignedTo: null,
       progress: 0,
       dueDate: "",
@@ -119,119 +173,84 @@ function ObjectiveCard({ objective }) {
     setEditMode(true);
   }
 
-  // Update key result (local)
-  function updateKeyResult(id, field, value) {
-    const updatedKeyResults = keyResults.map((keyResult) => {
-      if (keyResult.id === id) {
-        return {
-          ...keyResult,
-          [field]: value,
-        };
-      }
-      return keyResult;
-    });
-
-    setKeyResults(updatedKeyResults);
+  // Update key result field(s) (local)
+  function updateLocalKeyResult(id, changes) {
+    setKeyResults((previous) =>
+      previous.map((kr) => (kr.id === id ? { ...kr, ...changes } : kr))
+    );
   }
 
-  // Delete key result
-  function deleteKeyResult(id) {
-    const keyResult = keyResults.find(kr => kr.id === id);
+  // Remove a key result. Existing ones are also deleted on backend.
+  async function removeKeyResult(kr) {
+    if (!kr.isNew) {
+      try {
+        await dispatch(
+          deleteKeyResult({ objectiveId, keyResultId: kr.id })
+        ).unwrap();
+      } catch (err) {
+        console.error("Failed to delete key result", err);
+        return;
+      }
+    }
+    setKeyResults((previous) => previous.filter((item) => item.id !== kr.id));
+  }
 
-    if (keyResult && !keyResult.isNew) {
-      // Existing KR - delete from backend
-      dispatch(deleteKeyResult({
-        objectiveId: objective.id || objective._id,
-        keyResultId: keyResult.id
-      }));
+  // Enter edit mode/save changes
+  async function handleEditButton() {
+    if (!editMode) {
+      setOriginalKeyResults(keyResults.map((kr) => ({ ...kr })));
+      setEditMode(true);
+      return;
     }
 
-    // Remove from local
-    setKeyResults(keyResults.filter(keyResult => keyResult.id !== id));
-  }
-
-  // Edit button, edit mode and save
-  function handleEditButton() {
-    if (!editMode) {
-      // Edit mode
-      setOriginalKeyResults(
-        keyResults.map((keyResult) => ({ ...keyResult }))
-      );
-      setEditMode(true);
-    } else {
-      // Save (new) to backend
-      const newKRs = keyResults.filter(kr => kr.isNew);
-      const updatedKRs = keyResults.filter(kr => !kr.isNew);
-
-      // Create new key results
-      newKRs.forEach(kr => {
-        if (kr.name && kr.weight && kr.dueDate) {
-          dispatch(createKeyResult({
-            objectiveId: objective.id || objective._id,
-            keyResultData: {
-              title: kr.name,
-              weight: Number(kr.weight),
-              dueDate: kr.dueDate,
-              assignedTo: kr.assignedTo || null,
-              progress: kr.progress || 0,
-              status: kr.status.toLowerCase().replace(" ", "-"),
-              approved: kr.approved,
-            }
-          }));
+    try {
+      for (const kr of keyResults) {
+        if (kr.isNew) {
+          await dispatch(
+            createKeyResult({
+              objectiveId,
+              keyResultData: buildKeyResultPayload(kr),
+            })
+          ).unwrap();
+        } else {
+          const original = originalKeyResults.find((o) => o.id === kr.id);
+          if (original && JSON.stringify(kr) !== JSON.stringify(original)) {
+            await dispatch(
+              updateKeyResult({
+                objectiveId,
+                keyResultId: kr.id,
+                keyResultData: buildKeyResultPayload(kr),
+              })
+            ).unwrap();
+          }
         }
-      });
+      }
 
-      // Update existing key results
-      updatedKRs.forEach(kr => {
-        const original = originalKeyResults.find(o => o.id === kr.id);
-        if (original && JSON.stringify(kr) !== JSON.stringify(original)) {
-          dispatch(updateKeyResult({
-            objectiveId: objective.id || objective._id,
-            keyResultId: kr.id,
-            keyResultData: {
-              title: kr.name,
-              weight: Number(kr.weight),
-              dueDate: kr.dueDate,
-              assignedTo: kr.assignedTo || null,
-              progress: kr.progress || 0,
-              status: kr.status.toLowerCase().replace(" ", "-"),
-              approved: kr.approved,
-            }
-          }));
-        }
-      });
-
+      // Pull fresh data. New KRs get real _ids + not flagged as isNew
+      await fetchKeyResults();
       setEditMode(false);
       setOriginalKeyResults([]);
+    } catch (err) {
+      console.error("Failed to save key results", err);
     }
   }
 
   // Calc total weight
   const totalKeyResultWeight = keyResults.reduce(
-    (total, keyResult) => total + Number(keyResult.weight),
+    (total, kr) => total + Number(kr.weight),
     0
   );
 
-  // KR save checks for valid
+  const allKeyResultsComplete = keyResults.every(isKeyResultComplete);
+
   const keyResultsValid =
     keyResults.length === 0 ||
-    (
-      keyResults.every((keyResult) =>
-        keyResult.name.trim() !== "" &&
-        Number(keyResult.weight) > 0 &&
-        keyResult.assigned !== "" &&
-        keyResult.dueDate !== ""
-      ) &&
-      totalKeyResultWeight === 100
-    );
+    (allKeyResultsComplete && totalKeyResultWeight === 100);
 
   // Delete objective
   const handleDeleteObjective = async () => {
     try {
-      const objectiveId = objective._id || objective.id;
-
       await dispatch(deleteObjective(objectiveId)).unwrap();
-
       setShowDeleteModal(false);
     } catch (error) {
       console.error("Failed to delete objective", error);
@@ -241,8 +260,6 @@ function ObjectiveCard({ objective }) {
   // Update objective
   const handleUpdateObjective = async () => {
     try {
-      const objectiveId = objective._id || objective.id;
-
       const objectiveData = {
         title: editTitle,
         dueDate: editDueDate,
@@ -252,26 +269,17 @@ function ObjectiveCard({ objective }) {
         description: editDescription,
       };
 
-      await dispatch(
-        updateObjective({
-          objectiveId,
-          objectiveData,
-        })
-      ).unwrap();
-
+      await dispatch(updateObjective({ objectiveId, objectiveData })).unwrap();
       setShowEditModal(false);
     } catch (error) {
       console.error("Failed to update objective", error);
     }
   };
 
-  // Weight popup functions
+  // Weight popup
   const openWeightPopup = () => {
     setWeightDrafts(
-      keyResults.map((keyResult) => ({
-        id: keyResult.id,
-        weight: keyResult.weight,
-      }))
+      keyResults.map((kr) => ({ id: kr.id, weight: kr.weight }))
     );
     setShowWeightPopup(true);
   };
@@ -279,12 +287,8 @@ function ObjectiveCard({ objective }) {
   const handleWeightChange = (id, newWeight) => {
     const weight = Math.max(0, Math.min(100, Number(newWeight)));
 
-    setWeightDrafts((previousWeights) =>
-      previousWeights.map((item) =>
-        item.id === id
-          ? { ...item, weight: weight }
-          : item
-      )
+    setWeightDrafts((previous) =>
+      previous.map((item) => (item.id === id ? { ...item, weight } : item))
     );
   };
 
@@ -301,19 +305,14 @@ function ObjectiveCard({ objective }) {
   const saveWeights = () => {
     if (totalWeight !== 100) return;
 
-    setKeyResults((previousKeyResults) =>
-      previousKeyResults.map((keyResult) => {
-        const draft = weightDrafts.find(
-          (item) => item.id === keyResult.id
-        );
-
-        return draft
-          ? { ...keyResult, weight: draft.weight }
-          : keyResult
+    setKeyResults((previous) =>
+      previous.map((kr) => {
+        const draft = weightDrafts.find((item) => item.id === kr.id);
+        return draft ? { ...kr, weight: draft.weight } : kr;
       })
     );
     setShowWeightPopup(false);
-    setWeightDrafts([])
+    setWeightDrafts([]);
   };
 
   return (
@@ -339,7 +338,7 @@ function ObjectiveCard({ objective }) {
         <p className="objective-due-date">
           Due: <strong>
             {objective.dueDate
-              ? new Date(objective.dueDate).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
+              ? new Date(objective.dueDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
               : "No due date"}
           </strong>
         </p>
@@ -444,7 +443,7 @@ function ObjectiveCard({ objective }) {
                         <button
                           type="button"
                           className="remove-key-result"
-                          onClick={() => deleteKeyResult(keyResult.id)}
+                          onClick={() => removeKeyResult(keyResult)}
                         >
                           −
                         </button>
@@ -457,11 +456,7 @@ function ObjectiveCard({ objective }) {
                           placeholder="Enter Key Result"
                           value={keyResult.name}
                           onChange={(event) =>
-                            updateKeyResult(
-                              keyResult.id,
-                              "name",
-                              event.target.value
-                            )
+                            updateLocalKeyResult(keyResult.id, { name: event.target.value })
                           }
                         />
                       ) : (
@@ -485,25 +480,30 @@ function ObjectiveCard({ objective }) {
                       )}
                     </td>
 
-                    {/* Assigned */}
+                    {/* Assigned: real users, stores the user _id */}
                     <td>
                       {editMode ? (
                         <select
-                          value={keyResult.assigned}
-                          onChange={(event) =>
-                            updateKeyResult(
-                              keyResult.id,
-                              "assigned",
-                              event.target.value
-                            )
-                          }
+                          value={keyResult.assignedTo || ""}
+                          onChange={(event) => {
+                            const selectedId = event.target.value;
+                            const selectedUser = employees.find(
+                              (employee) => employee._id === selectedId
+                            );
+                            updateLocalKeyResult(keyResult.id, {
+                              assignedTo: selectedId || null,
+                              assigned: selectedUser
+                                ? `${selectedUser.firstName} ${selectedUser.lastName}`.trim()
+                                : "Unassigned",
+                            });
+                          }}
                         >
                           <option value="">Assign Employee</option>
-                          <option value="Employee 1">Employee 1</option>
-                          <option value="Employee 2">Employee 2</option>
-                          <option value="Employee 3">Employee 3</option>
-                          <option value="Employee 4">Employee 4</option>
-                          <option value="Employee 5">Employee 5</option>
+                          {employees.map((employee) => (
+                            <option key={employee._id} value={employee._id}>
+                              {employee.firstName} {employee.lastName}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         keyResult.assigned
@@ -518,11 +518,7 @@ function ObjectiveCard({ objective }) {
                           type="date"
                           value={keyResult.dueDate}
                           onChange={(event) =>
-                            updateKeyResult(
-                              keyResult.id,
-                              "dueDate",
-                              event.target.value
-                            )
+                            updateLocalKeyResult(keyResult.id, { dueDate: event.target.value })
                           }
                         />
                       ) : (
@@ -540,11 +536,9 @@ function ObjectiveCard({ objective }) {
                           max="100"
                           value={keyResult.progress}
                           onChange={(event) =>
-                            updateKeyResult(
-                              keyResult.id,
-                              "progress",
-                              event.target.value
-                            )
+                            updateLocalKeyResult(keyResult.id, {
+                              progress: Number(event.target.value),
+                            })
                           }
                         />
                       ) : (
@@ -555,36 +549,18 @@ function ObjectiveCard({ objective }) {
                     {/* Status */}
                     <td>
                       <select
-                        className={`status-select ${keyResult.status.toLowerCase().replace(" ", "-")}`}
+                        className={`status-select ${keyResult.status.toLowerCase().replace(/ /g, "-")}`}
                         value={keyResult.status}
                         disabled={!editMode}
                         onChange={(event) =>
-                          updateKeyResult(
-                            keyResult.id,
-                            "status",
-                            event.target.value
-                          )
+                          updateLocalKeyResult(keyResult.id, { status: event.target.value })
                         }
                       >
-                        <option value="Choose Progress">
-                          Choose Progress
-                        </option>
-
-                        <option value="On Track">
-                          On Track
-                        </option>
-
-                        <option value="At Risk">
-                          At Risk
-                        </option>
-
-                        <option value="Overdue">
-                          Overdue
-                        </option>
-
-                        <option value="Completed">
-                          Completed
-                        </option>
+                        <option value="Choose Progress">Choose Progress</option>
+                        <option value="On Track">On Track</option>
+                        <option value="At Risk">At Risk</option>
+                        <option value="Overdue">Overdue</option>
+                        <option value="Completed">Completed</option>
                       </select>
                     </td>
 
@@ -622,12 +598,9 @@ function ObjectiveCard({ objective }) {
                         checked={keyResult.approved}
                         onChange={(event) => {
                           if (!editMode) return;
-
-                          updateKeyResult(
-                            keyResult.id,
-                            "approved",
-                            event.target.checked
-                          );
+                          updateLocalKeyResult(keyResult.id, {
+                            approved: event.target.checked,
+                          });
                         }}
                       />
                     </td>
@@ -652,12 +625,7 @@ function ObjectiveCard({ objective }) {
 
               {editMode && keyResults.length > 0 && (
                 <>
-                  {!keyResults.every((keyResult) =>
-                    keyResult.name.trim() !== "" &&
-                    Number(keyResult.weight) > 0 &&
-                    keyResult.assigned !== "" &&
-                    keyResult.dueDate !== ""
-                  ) && (
+                  {!allKeyResultsComplete && (
                     <p className="key-result-validation">
                       Key Results Title, Weight, Assigned Employee and Due Date are required fields.
                     </p>
@@ -673,8 +641,8 @@ function ObjectiveCard({ objective }) {
                 </>
               )}
             </div>
-            <div className="footer-buttons">
 
+            <div className="footer-buttons">
               {editMode && (
                 <button
                   type="button"
@@ -698,17 +666,15 @@ function ObjectiveCard({ objective }) {
               >
                 {editMode ? "Save Key Results" : "Edit Key Results"}
               </button>
-
             </div>
           </div>
         </div>
       )}
 
-      {/* Weight - Popup*/}
+      {/* Weight Popup */}
       {showWeightPopup && (
         <div className="weight-popup-overlay">
           <div className="weight-popup">
-            {/*Weight Popup Header*/}
             <div className="weight-popup-header">
               <h3>Edit Key Result Weights</h3>
 
@@ -720,34 +686,25 @@ function ObjectiveCard({ objective }) {
                 x
               </button>
 
-              <p className="weight-popup-objective">Objective:
+              <p className="weight-popup-objective">
+                Objective:
                 <strong> {objective.title}</strong>
               </p>
 
               <p className="weight-popup-description">
                 Combined Weighting Must Equal 100%
               </p>
-
             </div>
 
-            {/*Weight Popup Content*/}
             <div className="weight-popup-content">
-              {/*Sliders here */}
               {keyResults.map((keyResult) => {
-                const draft = weightDrafts.find(
-                  (item) => item.id === keyResult.id
-                );
-
+                const draft = weightDrafts.find((item) => item.id === keyResult.id);
                 const currentWeight = draft?.weight ?? keyResult.weight;
 
                 return (
-                  <div className="weight-slider-item"
-                    key={keyResult.id}
-                  >
-                    {/*KR Title & Employee Name*/}
+                  <div className="weight-slider-item" key={keyResult.id}>
                     <div className="weight-slider-info">
                       <span className="weight-slider-title">{keyResult.name}</span>
-
                       <span className="weight-slider-employee">- {keyResult.assigned}</span>
                     </div>
 
@@ -758,12 +715,7 @@ function ObjectiveCard({ objective }) {
                         max="100"
                         step="1"
                         value={currentWeight}
-                        onChange={(e) =>
-                          handleWeightChange(
-                            keyResult.id,
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleWeightChange(keyResult.id, e.target.value)}
                         className="weight-slider"
                       />
 
@@ -773,43 +725,25 @@ function ObjectiveCard({ objective }) {
                           min="0"
                           max="100"
                           value={currentWeight}
-                          onChange={(e) =>
-                            handleWeightChange(
-                              keyResult.id,
-                              e.target.value
-                            )
-                          }
+                          onChange={(e) => handleWeightChange(keyResult.id, e.target.value)}
                         />
-
                         <span>%</span>
                       </div>
                     </div>
-
                   </div>
                 );
               })}
             </div>
 
-            {/* Total Weight */}
             <div className="weight-total">
               <span>Total Weight</span>
-              <strong className={
-                totalWeight === 100
-                  ? "weight-total-valid"
-                  : "weight-total-invalid"
-              }
-              >
+              <strong className={totalWeight === 100 ? "weight-total-valid" : "weight-total-invalid"}>
                 {totalWeight}%
               </strong>
             </div>
 
-            {/*Weight Popup buttons*/}
             <div className="weight-popup-buttons">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={closeWeightPopup}
-              >
+              <button type="button" className="cancel-button" onClick={closeWeightPopup}>
                 Cancel
               </button>
 
@@ -822,7 +756,6 @@ function ObjectiveCard({ objective }) {
                 Save
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -848,11 +781,10 @@ function ObjectiveCard({ objective }) {
               <input
                 type="file"
                 multiple
-                onChange={(event) =>
-                  setEvidenceFiles(Array.from(event.target.files))
-                }
+                onChange={(event) => setEvidenceFiles(Array.from(event.target.files))}
               />
             </div>
+
             <div className="evidence-popup-buttons">
               <button
                 type="button"
@@ -862,10 +794,7 @@ function ObjectiveCard({ objective }) {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                className="save-button"
-              >
+              <button type="button" className="save-button">
                 Upload
               </button>
             </div>
@@ -883,20 +812,15 @@ function ObjectiveCard({ objective }) {
               Key Result: <strong>{selectedEvidenceKR?.name}</strong>
             </p>
 
-            {/* Evidence List */}
             <div className="evidence-list">
               {selectedEvidenceKR?.evidence?.length > 0 ? (
                 selectedEvidenceKR.evidence.map((evidence) => (
                   <div className="evidence-item" key={evidence.id}>
                     <div>
                       <strong>{evidence.fileName}</strong>
-
-                      {evidence.note && (
-                        <p>{evidence.note}</p>
-                      )}
+                      {evidence.note && <p>{evidence.note}</p>}
                     </div>
 
-                    {/* Evidence Actions */}
                     <div className="evidence-actions">
                       <a
                         href={evidence.fileUrl}
@@ -907,10 +831,7 @@ function ObjectiveCard({ objective }) {
                         Open
                       </a>
 
-                      <button
-                        type="button"
-                        className="action-link"
-                      >
+                      <button type="button" className="action-link">
                         Delete
                       </button>
                     </div>
@@ -934,18 +855,26 @@ function ObjectiveCard({ objective }) {
         </div>
       )}
 
+      {/* Delete Objective Popup */}
       {showDeleteModal && (
         <div className="popup-overlay">
           <div className="delete-objective-popup">
             <h2>Delete Objective</h2>
-            <p>Are you sure you want to delete <strong>{objective.title}</strong>?</p>
+            <p>
+              Are you sure you want to delete <strong>{objective.title}</strong>?
+            </p>
             <p>This action cannot be undone.</p>
 
             <div className="popup-buttons">
-              <button type="button"
+              <button
+                type="button"
                 className="popup-cancel-button"
-                onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button type="button"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
                 className="popup-delete-button"
                 onClick={handleDeleteObjective}
               >
@@ -956,15 +885,20 @@ function ObjectiveCard({ objective }) {
         </div>
       )}
 
+      {/* Edit Objective Popup */}
       {showEditModal && (
         <div className="edit-popup-overlay">
           <div className="edit-objective-popup">
             <div className="edit-popup-header">
               <h2>Edit Objective</h2>
 
-              <button type="button"
+              <button
+                type="button"
                 className="edit-popup-close"
-                onClick={() => setShowEditModal(false)}>x</button>
+                onClick={() => setShowEditModal(false)}
+              >
+                x
+              </button>
             </div>
 
             <div className="edit-objective-form">
@@ -974,7 +908,8 @@ function ObjectiveCard({ objective }) {
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="Enter Objective Title" />
+                  placeholder="Enter Objective Title"
+                />
 
                 <label>Due Date</label>
                 <input
@@ -984,11 +919,17 @@ function ObjectiveCard({ objective }) {
                 />
 
                 <label>Owner</label>
-                <input
-                  type="text"
+                <select
                   value={editOwner}
                   onChange={(e) => setEditOwner(e.target.value)}
-                />
+                >
+                  <option value="">Select owner</option>
+                  {employees.map((employee) => (
+                    <option key={employee._id} value={employee._id}>
+                      {employee.firstName} {employee.lastName}
+                    </option>
+                  ))}
+                </select>
 
                 <label>Group</label>
                 <input
