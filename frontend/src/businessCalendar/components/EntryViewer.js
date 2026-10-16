@@ -33,6 +33,7 @@ import {
   updateEntry,
   updateRecurringEntries,
 } from "../features/calendar/calendarSlice";
+import { minHeight } from "@mui/system";
 
 const modalStyle = {
   position: "absolute",
@@ -68,15 +69,17 @@ const EntryViewer = ({ entryData, type }) => {
     file,
     notes,
     objective,
+    linkedObjective,
   } = entryData;
 
-  console.log("CALENDAR ENTRY:", {
-  calendarEntryId: entryData._id,
-  title: entryData.title,
-  category: entryData.category,
-  objective: entryData.objective,
-  });
-  console.log("ENTRY OBJECTIVE", entryData.objective);
+  const objectiveReference = linkedObjective || objective;
+
+  const objectiveId = 
+    objectiveReference?._id || objectiveReference || null;
+
+  const isObjectiveEntry = 
+    category === "OKR Objective" && Boolean(objectiveId);
+
   const { users } = useSelector((state) => state.auth);
   const emailList = users.map((user) => user.email);
   let reminder = null;
@@ -102,11 +105,12 @@ const EntryViewer = ({ entryData, type }) => {
   const backgroundColor = getCategoryColour(category);
   const boxStyles = {
     width: "100%",
+    minHeight: "130px",
     height: "fit-content",
     borderRadius: "12px",
     backgroundColor:
       entryData.completionStatus === "cancelled" ? "#A9A9A9" : backgroundColor,
-    padding: "12px 16px",
+    padding: "20px 24px",
     display: "flex",
     borderLeft: "5px solid #72CDF4",
     alignItems: "center",
@@ -118,7 +122,7 @@ const EntryViewer = ({ entryData, type }) => {
         ? "0px 0px 15px rgba(255, 0, 0, 0.55)"
         : "0px 2px 4px rgba(0, 0, 0, 0.4)",
   };
-  const fontColour = "#1f1e40";
+  const fontColour = "#ffffff";
   // Get priority color
   const priorityColor =
     priority.toLowerCase() === "high" ? "#ffcdd2" : "#00b085"; // Red for high, Green for normal
@@ -421,6 +425,7 @@ const EntryViewer = ({ entryData, type }) => {
                       sx={{ 
                         color: fontColour,
                         fontWeight: 600,
+                        fontSize: "26px",
                         lineHeight: 1.2,
                       }}
                     >
@@ -846,7 +851,7 @@ const EntryViewer = ({ entryData, type }) => {
                     >
                       View Progress
                     </Button>
-
+                  {isObjectiveEntry && (
                     <Button
                       variant="contained"
                       size="small"
@@ -862,6 +867,8 @@ const EntryViewer = ({ entryData, type }) => {
                     >
                       View Key Results
                     </Button>
+                  )}
+                    
                     </Box>
 
                     <Modal open={openProgress} onClose={handleCloseProgress}>
@@ -875,32 +882,6 @@ const EntryViewer = ({ entryData, type }) => {
                     </Modal>
 
                     <Modal
-                      open = {openKeyResults}
-                      onClose={handleCloseKeyResults}
-                      >
-                      <Box sx = {modalStyle}>
-                        <KeyResultsModal
-                          objectiveId={objective}
-                          objectiveTitle={title}
-                          handleClose={handleCloseKeyResults}
-                          />
-                      </Box>
-                    </Modal>
-
-                    <Modal
-                      open = {openKeyResults}
-                      onClose={handleCloseKeyResults}
-                      >
-                      <Box sx = {modalStyle}>
-                        <KeyResultsModal
-                          objectiveId={objective}
-                          objectiveTitle={title}
-                          handleClose={handleCloseKeyResults}
-                          />
-                      </Box>
-                    </Modal>
-
-                    <Modal
                       open={openKeyResults && isObjectiveEntry}
                       onClose={handleCloseKeyResults}
                     >
@@ -909,7 +890,7 @@ const EntryViewer = ({ entryData, type }) => {
                       >
                         <KeyResultsModal
                           objectiveId={objectiveId}
-                          entryId={_id}
+                          //entryId={_id}
                           objectiveTitle={title}
                           handleClose={handleCloseKeyResults}
                         />

@@ -156,12 +156,6 @@ const createObjective = asyncHandler(async (req, res) => {
       calendarEntry: calendarEntry._id,
     });
 
-    console.log("CREATED OBJECTIVE ID:", objective._id.toString());
-    console.log("CREATED CALENDAR ENTRY:", calendarEntry.toObject());
-    console.log(
-    "CALENDAR OBJECTIVE FIELD:",
-    calendarEntry.objective?.toString()
-  )
   } catch (error) {
     // Roll back the calendar entry if objective fails
     await deleteLinkedCalendarEntry({
@@ -593,12 +587,24 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     keyResult.status = req.body.status;
   }
 
+  //Update approval
+  if (req.body.approved !== undefined) {
+    keyResult.approved = req.body.approved;
+  }
+
+  //sync calendar entry
+
+  if (keyResult.calendarEntry) {
+    await updateLinkedCalendarEntry({
+      entryId: keyResult.calendarEntry,
+      title: keyResult.title,
+      dueDate: keyResult.dueDate,
+      assignedId: keyResult.assignedTo || objective.owner,
+      actorUser: req.user,
+    });
+  }
+
   await keyResult.save();
-  console.log("SAVED KEY RESULT:", {
-    id: keyResult._id.toString(),
-    progress: keyResult.progress,
-    status: keyResult.status,
-  });
 
   await keyResult.populate("assignedTo", "firstName lastName");
 

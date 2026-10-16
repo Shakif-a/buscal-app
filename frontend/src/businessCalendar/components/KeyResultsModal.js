@@ -172,7 +172,10 @@ const KeyResultsModal = ({
 
                   <Typography variant="body2">
                     <strong>Progress:</strong>{" "}
-                    {editedKeyResult?.progress ?? keyResult.progress}%
+                    {isExpanded
+                      ? editedKeyResult?.progress ?? keyResult.progress
+                      : keyResult.progress
+                    }%
                   </Typography>
 
                   <Typography variant="body2">
@@ -213,7 +216,10 @@ const KeyResultsModal = ({
                     </Typography>
 
                     <Typography sx={{fontWeight: 600}}>
-                      {editedKeyResult?.progress ?? keyResult.progress}%
+                      {isExpanded
+                      ? editedKeyResult?.progress ?? keyResult.progress
+                      : keyResult.progress
+                      }%
                     </Typography>
                   </Box>
                     <Slider
