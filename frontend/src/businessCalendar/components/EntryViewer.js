@@ -26,7 +26,7 @@ import DeleteModal from "./DeleteModal";
 import AddEditEntry from "./AddEditEntry";
 import AllOrOneModal from "./AllOrOneModal";
 import ProgressModal from "./ProgressModal";
-import KeyResultsModal from "./KeyResultsModal"
+import KeyResultsModal from "./KeyResultsModal";
 
 import { generateReminderOptions, getCategoryColour } from "./UtilityFunctions";
 import {
@@ -884,6 +884,35 @@ const EntryViewer = ({ entryData, type }) => {
                           objectiveTitle={title}
                           handleClose={handleCloseKeyResults}
                           />
+                      </Box>
+                    </Modal>
+
+                    <Modal
+                      open = {openKeyResults}
+                      onClose={handleCloseKeyResults}
+                      >
+                      <Box sx = {modalStyle}>
+                        <KeyResultsModal
+                          objectiveId={objective}
+                          objectiveTitle={title}
+                          handleClose={handleCloseKeyResults}
+                          />
+                      </Box>
+                    </Modal>
+
+                    <Modal
+                      open={openKeyResults && isObjectiveEntry}
+                      onClose={handleCloseKeyResults}
+                    >
+                      <Box
+                        sx={modalStyle}
+                      >
+                        <KeyResultsModal
+                          objectiveId={objectiveId}
+                          entryId={_id}
+                          objectiveTitle={title}
+                          handleClose={handleCloseKeyResults}
+                        />
                       </Box>
                     </Modal>
                   </GridLegacy>

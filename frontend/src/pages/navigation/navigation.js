@@ -195,24 +195,6 @@ function Navbar() {
         { label: "Group Management", path: "/dashboard/okrtracker/admin/groups" },
       ])}
 
-      {/* Profile icon */}
-      <div style={{ marginLeft: "auto" }}>
-        <div
-          style={{
-            width: "42px",
-            height: "42px",
-            borderRadius: "50%",
-            backgroundColor: "#e8ebf0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "20px",
-            cursor: "pointer",
-          }}
-        >
-          &#128100;
-        </div>
-      </div>
     </div>
   );
 }
