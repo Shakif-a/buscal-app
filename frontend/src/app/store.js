@@ -5,6 +5,7 @@ import calendarReducer from "../businessCalendar/features/calendar/calendarSlice
 // Add your own slices here as you build new modules (e.g. OKR)
 import okrReducer from "../okrTracker/features/objectives/objectiveSlice";
 import keyResultReducer from "../okrTracker/features/keyResults/keyResultSlice";
+import userReducer from "../okrTracker/features/users/userSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,5 +13,6 @@ export const store = configureStore({
     calendar: calendarReducer,
     okr: okrReducer,
     keyResults: keyResultReducer,
+    users: userReducer,
   },
 });
