@@ -11,6 +11,8 @@ const {
   deleteLinkedCalendarEntry,
 } = require("../services/okrCalendarSyncService");
 
+const CalendarEntry = require("../models/calendarEntryModel");
+
 function getName(user) {
   let name = "";
   if (user && user.firstName) {
@@ -278,6 +280,7 @@ const updateObjective = asyncHandler(async (req, res) => {
 
 const deleteObjective = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
+
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
@@ -285,22 +288,50 @@ const deleteObjective = asyncHandler(async (req, res) => {
 
   const keyResults = await OkrKeyResult.find({ objective: objective._id });
 
-  await deleteLinkedCalendarEntry({
-    entryId: objective.calendarEntry,
-    actorUser: req.user,
+  //find Objectives linked calendar entries
+  const objectiveEntries = await CalendarEntry.find({
+    $or: [
+      { _id: objective.calendarEntry || null },
+      {linkedObjective: objective._id },
+    ],
   });
 
-  for (let i = 0; i < keyResults.length; i++) {
+  for (const entry of objectiveEntries) {
     await deleteLinkedCalendarEntry({
-      entryId: keyResults[i].calendarEntry,
+      entryId: entry._id,
       actorUser: req.user,
     });
   }
 
-  await OkrKeyResult.deleteMany({ objective: objective._id });
-  await objective.deleteOne();
+  //find and delete each KR calendar entry
+  for (const kr of keyResults) {
+    const keyResultEntries = await CalendarEntry.find({
+      $or: [
+        { _id: kr.calendarEntry || null },
+        { linkedKeyResult: kr._id },
+      ],
+    });
 
-  res.status(200).json({ id: req.params.id });
+    for (const entry of keyResultEntries) {
+      await deleteLinkedCalendarEntry({
+        entryId: entry._id,
+        actorUser: req.user,
+      });
+    }
+  }
+console.log("Starting OKR database deletion");
+
+await OkrKeyResult.deleteMany({
+  objective: objective._id,
+});
+
+console.log("Key Results deleted");
+
+await objective.deleteOne();
+
+console.log("Objective deleted", objective.title);
+
+res.status(200).json({ id: req.params.id });
 });
 
 // ============================================

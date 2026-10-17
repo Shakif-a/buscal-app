@@ -46,6 +46,14 @@
   height: auto;
 }
 
+.top-pagination {
+  margin-bottom: 20px;
+}
+
+.top-pagination .objectives-footer {
+  margin-top: 0;
+}
+
 /* ---------------- Filters ---------------- */
 
 .objective-filters {
@@ -569,25 +577,44 @@
 
 /* ---------------- Key Result Status Colours ---------------- */
 
-.status-select.on-track {
-  background-color: #4A78A8;
+.key-results-table .status-select {
+  color: #1f1e40;
+  border: 1px solid #d9dfea;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
 }
 
-.status-select.completed {
-  background-color: #449d44;
+.key-results-table .status-select.choose-progress {
+  background-color: #ffffff;
 }
 
-.status-select.at-risk {
-  background-color: #f0ad4e;
+.key-results-table .status-select.on-track {
+  background-color: #a5dfc9;
 }
 
-.status-select.overdue {
-  background-color: #d9534f;
+.key-results-table .status-select.completed {
+  background-color: #b6e3f8;
 }
 
-.status-select option {
-  background-color: white;
-  color: #20203f;
+.key-results-table .status-select.at-risk {
+  background-color: #ffe29a;
+}
+
+.key-results-table .status-select.overdue {
+  background-color: #f4a6a6;
+}
+
+.key-results-table .status-select:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: #1f1e40;
+  cursor: default;
+}
+
+.key-results-table .status-select option{
+  background-color: #ffffff;
+  color: #1f1e40;
 }
 
 /* ---------------- Evidence Popup ---------------- */

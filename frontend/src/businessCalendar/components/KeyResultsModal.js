@@ -78,7 +78,6 @@ const KeyResultsModal = ({
 
     //formatting status
     const formatStatus = (status) => {
-      if (!status) return "";
       const statusLabels = {
         "on-track" : "On Track",
         "at-risk" : "At Risk",
@@ -86,8 +85,22 @@ const KeyResultsModal = ({
         "completed" : "Completed",
       };
 
-      return statusLabels[status] || status;
+      return statusLabels[status] || "Choose Progress";
     }
+
+    const statusColours = {
+      "on-track": "#00b085",
+      "at-risk": "#f4b400",
+      overdue: "#e53935",
+      completed: "#72cdf4",
+    };
+
+    const statusBackgroundColours = {
+      "on-track": "#a5dfc9",
+      "at-risk": "#ffe29a",
+      overdue: "#f4a6a6",
+      completed: "#b6e3f8",
+    };
 
     return (
         <Box
@@ -115,11 +128,11 @@ const KeyResultsModal = ({
             {/*Key Results */}
             {keyResults.map((keyResult, index) =>{
                 const isExpanded =
-                    expandedKeyResult === keyResult.id;
+                    expandedKeyResult === (keyResult._id || keyResult.id);
             
             return (
                 <Box
-                key={keyResult.id}
+                key={keyResult._id || keyResult.id}
                 sx={{
                     border: "1px solid #d9dfea",
                     borderRadius: "12px",
@@ -185,7 +198,15 @@ const KeyResultsModal = ({
 
                   <Typography variant="body2">
                     <strong>Status:</strong>{" "}
-                    {formatStatus(keyResult.status)}
+                    <Box
+                      component="span"
+                      sx={{
+                        color: statusColours[keyResult.status] || "666",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {formatStatus(keyResult.status)}
+                    </Box>
                   </Typography>
 
                   <Typography variant="body2">
@@ -255,14 +276,38 @@ const KeyResultsModal = ({
                       onMouseDown={(event) => event.stopPropagation()}
                     >
                       <Select
-                        value={editedKeyResult?.status ?? "on-track"}
+                        value={editedKeyResult?.status ?? ""}
+                        displayEmpty
                         onChange={(event) =>
                           setEditedKeyResult((previous) =>({
                             ...previous,
                             status: event.target.value,
                           }))
                         }
+                        sx= {{
+                          backgroundColor:
+                            statusBackgroundColours[editedKeyResult?.status] || "#ffffff",
+                          color: "#1f1e40",
+                          borderRadius: "8px",
+                          fontWeight: 500,
+
+                          "& .MuiSelect-select": {
+                            padding: "10px 14px",
+                          },
+
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "1f1e40",
+                          },
+
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "#1f1e40",
+                          },
+                        }}
                       >
+                        <MenuItem value="" disabled>
+                          Choose Progress
+                        </MenuItem>
+
                         <MenuItem value="on-track">
                           On Track
                         </MenuItem>
@@ -356,7 +401,7 @@ const KeyResultsModal = ({
                   variant="outlined"
                   size="small"
                   onClick={() => {
-                    setExpandedKeyResult(keyResult.id);
+                    setExpandedKeyResult(keyResult._id || keyResult.id);
                     setEditedKeyResult({...keyResult});
                   }}
                 >
