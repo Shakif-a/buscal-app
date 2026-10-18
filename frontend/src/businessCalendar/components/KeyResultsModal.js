@@ -1,7 +1,8 @@
 import React, {useEffect, useState} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getKeyResults, updateKeyResult, } from "../../okrTracker/features/objectives/objectiveSlice";
-import {Box, 
+import {
+    Box, 
     Typography, 
     Button, 
     IconButton, 
@@ -10,6 +11,7 @@ import {Box,
     MenuItem, 
     FormControl, 
     Divider,
+    TextField,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -105,8 +107,9 @@ const KeyResultsModal = ({
     return (
         <Box
             sx={{
-                width: "650px",
-                maxWidth: "90vw",
+                width: "100%",
+                boxSizing: "border-box",
+                //maxWidth: "90vw",
             }}>
             <Box sx={{
                     display: "flex",
@@ -155,17 +158,29 @@ const KeyResultsModal = ({
                 sx={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 3,
+                    flexWrap: "wrap",
+                    columnGap: 3,
+                    rowGap: 0.5,
+                    minWidth: 0,
                 }}
                 >
                     <Typography
                         variant="subtitle1"
-                        sx={{ fontWeight: "bold" }}
+                        sx={{ 
+                          fontWeight: "bold",
+                          overflowWrap: "anywhere",
+                          minWidth: 0,
+                        }}
                     >
                         {keyResult.title}
                     </Typography>
 
-                    <Typography variant="body2">
+                    <Typography 
+                      variant="body2"
+                      sx={{
+                        flexShrink: 0,
+                      }}
+                    >
                     <strong>Assigned:</strong> {keyResult.assigned}
                     </Typography>
                     </Box>
@@ -174,16 +189,30 @@ const KeyResultsModal = ({
                   sx={{
                     display: "flex",
                     flexWrap: "wrap",
-                    gap: 3,
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    columnGap: 2,
+                    rowGap: 1.5,
                     mt: 1,
+                    width: "100%",
                   }}
                 >
-                  <Typography variant="body2">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
                     <strong>Weight:</strong>{" "}
                     {keyResult.weight}%
                   </Typography>
 
-                  <Typography variant="body2">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
                     <strong>Progress:</strong>{" "}
                     {isExpanded
                       ? editedKeyResult?.progress ?? keyResult.progress
@@ -191,12 +220,22 @@ const KeyResultsModal = ({
                     }%
                   </Typography>
 
-                  <Typography variant="body2">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
                     <strong>Due:</strong>{" "}
                     {formatDate(keyResult.dueDate)}
                   </Typography>
 
-                  <Typography variant="body2">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
                     <strong>Status:</strong>{" "}
                     <Box
                       component="span"
@@ -209,7 +248,12 @@ const KeyResultsModal = ({
                     </Box>
                   </Typography>
 
-                  <Typography variant="body2">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
                     <strong>Approval:</strong>{" "}
                     {keyResult.approved ? "Approved" : "Pending"}
                   </Typography>
@@ -236,17 +280,59 @@ const KeyResultsModal = ({
                       <strong>Progress</strong>
                     </Typography>
 
-                    <Typography sx={{fontWeight: 600}}>
-                      {isExpanded
-                      ? editedKeyResult?.progress ?? keyResult.progress
-                      : keyResult.progress
-                      }%
-                    </Typography>
+                    <Box sx={{display: "flex", alignItems: "center", gap: 0.5}}>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={editedKeyResult?.progress ?? 0}
+                        onChange={(event) => {
+                          const value = event.target.value;
+
+                          if (value === "") {
+                            setEditedKeyResult((previous) => ({
+                              ...previous,
+                              progress: 0,
+                            }));
+                            return;
+                          }
+
+                          const number = Math.min(100, Math.max(0, Number(value)));
+
+                          setEditedKeyResult((previous) => ({
+                            ...previous,
+                            progress: number,
+                          }));
+                        }}
+
+                        slotProps={{
+                          htmlInput: {
+                            min: 0,
+                            max: 100,
+                            step: 1,
+                          },
+                        }}
+
+                        sx={{
+                          width: "85px",
+                          "& input" : {
+                            textAlign: "right",
+                            fontWeight: 600,
+                          },
+                        }}
+                      />
+                      <Typography sx={{fontWeight: 600}}>
+                        %
+                      </Typography>
+                    </Box>
                   </Box>
                     <Slider
                       value={editedKeyResult?.progress ?? 0}
                       min={0}
                       max={100}
+                      step={1}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
                       onChange={(event, newValue) =>
                         setEditedKeyResult((previous) =>({
                           ...previous,

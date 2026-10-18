@@ -5,7 +5,7 @@ import { IconButton, Box } from "@mui/material";
 import FilterModal from "./FilterModal";
 
 const FilterButton = ({
-  size = "50px",
+  size = "22px",
   setFilterOptions,
   emailList,
   filterOptions,
@@ -34,18 +34,25 @@ const FilterButton = ({
   };
 
   return (
-    <Box
-      sx={{
-        border: "1px solid black",
-        borderRadius: "4px",
-        display: "inline-flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "2px",
-        boxShadow: "0px 3px 5px 2px rgba(0,0,0,0.3)",
-      }}
-    >
-      <IconButton title={"Filter"} onClick={handleClick}>
+    <>
+      <IconButton
+        title={"Filter"}
+        aria-label="Filter calendar entries"
+        onClick={handleClick}
+        sx={{
+          width: 44,
+          height: 44,
+          border: "1px solid #d9dfea",
+          borderRadius: "10px",
+          backgroundColor: "#ffffff",
+          color: "1f1e40",
+          flexShrink: 0,
+          "&:hover": {
+            backgroundColor: "#cfe2ff",
+            borderColor: "#72cdf4",
+          },
+        }}
+      >
         <FilterAltSharpIcon style={iconStyles} />
       </IconButton>
       <Modal
@@ -61,7 +68,7 @@ const FilterButton = ({
           filterOptions={filterOptions}
         />
       </Modal>
-    </Box>
+    </>
   );
 };
 

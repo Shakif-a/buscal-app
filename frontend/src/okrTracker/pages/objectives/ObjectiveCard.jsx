@@ -21,6 +21,18 @@ const UI_TO_API_STATUS = {
   "Completed": "completed",
 };
 
+const STATUS_COLOURS = {
+  "not started": "#72cdf4",
+  "in progress": "#00b085",
+  "on-track": "#00b085",
+  "at-risk": "#f4b400",
+  overdue: "#e57373",
+  completed: "#72cdf4",
+};
+
+const getStatusColour = (status) => 
+  STATUS_COLOURS[status?.toLowerCase().replace(/\s+/g, "-")] || "#72cdf4";
+
 // Map a backend KR to the this component shape
 function mapKeyResult(kr) {
   return {
@@ -62,6 +74,15 @@ function isKeyResultComplete(kr) {
 
 function ObjectiveCard({ objective }) {
   const objectiveId = objective.id || objective._id;
+
+  //Temporary until Objective Status integration is completed
+  const objectiveStatus = null;
+
+  const objectiveStatusLabel = objectiveStatus
+    ? API_TO_UI_STATUS[objectiveStatus] || objectiveStatus
+    : "Not Started";
+  
+  const objectiveStatusColour = getStatusColour(objectiveStatus);
 
   // Objective
   const [showEditModal, setShowEditModal] = useState(false);
@@ -316,7 +337,12 @@ function ObjectiveCard({ objective }) {
   };
 
   return (
-    <div className="objective-card">
+    <div
+      className="objective-card"
+      style={{
+        borderLeft: `6px solid ${objectiveStatusColour}`,
+      }}
+    >
       {/* Objective information */}
       <div className="objective-details">
         <div className="objective-info">
@@ -332,6 +358,10 @@ function ObjectiveCard({ objective }) {
 
           <p>
             Type: <strong>{objective.type}</strong>
+          </p>
+
+          <p>
+            Status: <strong style={{ color: objectiveStatusColour}}>{objectiveStatusLabel}</strong>
           </p>
         </div>
 
@@ -435,7 +465,13 @@ function ObjectiveCard({ objective }) {
                 </tr>
               ) : (
                 keyResults.map((keyResult) => (
-                  <tr key={keyResult.id}>
+                  <tr
+                    key={keyResult.id}
+                    className="key-result-row"
+                    style={{
+                      "--status-colour": getStatusColour(keyResult.status),
+                    }}
+                  >
 
                     {/* Key Result name */}
                     <td>

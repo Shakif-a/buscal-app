@@ -334,6 +334,8 @@ console.log("Objective deleted", objective.title);
 res.status(200).json({ id: req.params.id });
 });
 
+
+
 // ============================================
 // KEY RESULT CONTROLLER
 // ============================================
@@ -451,41 +453,16 @@ const createKeyResult = asyncHandler(async (req, res) => {
     );
   }
 
-  // KRs with no assignee falls back to the objective owner
-  const assignedId = req.body.assignedTo || objective.owner;
-
-  const calendarEntry = await createLinkedCalendarEntry({
-    title: req.body.title,
-    dueDate: req.body.dueDate,
-    ownerId: req.user.id,
-    assignedId: assignedId,
-    category: KEY_RESULT_CATEGORY,
-    actorUser: req.user,
-  });
-
-  let keyResult;
-  try {
-    keyResult = await OkrKeyResult.create({
-      objective: objectiveId,
-      title: req.body.title,
-      weight: newWeight,
-      assignedTo: req.body.assignedTo || null,
-      dueDate: req.body.dueDate,
-      progress: req.body.progress || 0,
-      status: req.body.status || "on-track",
-      approved: req.body.approved || false,
-      calendarEntry: calendarEntry._id,
-    });
-  } catch (error) {
-    await deleteLinkedCalendarEntry({
-      entryId: calendarEntry._id,
-      actorUser: req.user,
-    });
-    throw error;
-  }
-
-  calendarEntry.linkedKeyResult = keyResult._id;
-  await calendarEntry.save();
+const keyResult = await OkrKeyResult.create({
+  objective: objectiveId,
+  title: req.body.title,
+  weight: newWeight,
+  assignedTo: req.body.assignedTo || null,
+  dueDate: req.body.dueDate,
+  progress: req.body.progress ?? 0,
+  status: req.body.status || "on-track",
+  approved: req.body.approved ?? false,
+})
 
   await keyResult.populate("assignedTo", "firstName lastName");
   const kr = keyResult.toObject();
@@ -623,18 +600,6 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     keyResult.approved = req.body.approved;
   }
 
-  //sync calendar entry
-
-  if (keyResult.calendarEntry) {
-    await updateLinkedCalendarEntry({
-      entryId: keyResult.calendarEntry,
-      title: keyResult.title,
-      dueDate: keyResult.dueDate,
-      assignedId: keyResult.assignedTo || objective.owner,
-      actorUser: req.user,
-    });
-  }
-
   await keyResult.save();
 
   await keyResult.populate("assignedTo", "firstName lastName");
@@ -670,7 +635,7 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result does not belong to this objective");
   }
 
-  // Delete calendar entry
+  // Delete old key result calendar entries
   if (keyResult.calendarEntry) {
     await deleteLinkedCalendarEntry({
       entryId: keyResult.calendarEntry,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 import {
   alpha,
@@ -33,7 +33,7 @@ import {
   updateEntry,
   updateRecurringEntries,
 } from "../features/calendar/calendarSlice";
-import { minHeight } from "@mui/system";
+import { boxSizing, maxWidth, minHeight, width } from "@mui/system";
 
 const modalStyle = {
   position: "absolute",
@@ -47,6 +47,18 @@ const modalStyle = {
   border: "2px solid #000",
   boxShadow: 24,
   p: 4,
+};
+
+const KeyResultsModalStyle = {
+  ...modalStyle,
+  width: {
+    xs: "calc(100vw - 32px)",
+    md: "75%",
+    lg: "65%",
+  },
+  maxWidth: "1100px",
+  boxSizing: "border-box",
+  overflowX: "hidden",
 };
 
 const EntryViewer = ({ entryData, type }) => {
@@ -80,6 +92,15 @@ const EntryViewer = ({ entryData, type }) => {
   const isObjectiveEntry = 
     category === "OKR Objective" && Boolean(objectiveId);
 
+  console.log("Calendar Entry:", {
+    title,
+    category,
+    objective,
+    linkedObjective,
+    objectiveId,
+    isObjectiveEntry,
+  });
+
   const { users } = useSelector((state) => state.auth);
   const emailList = users.map((user) => user.email);
   let reminder = null;
@@ -88,6 +109,17 @@ const EntryViewer = ({ entryData, type }) => {
   }
   // New condition to set the expanded state permanently for "history" type
   const [expanded, setExpanded] = useState(type === "history" ? true : false);
+  const entryRef = useRef(null);
+
+  useEffect(() => {
+    if (expanded && type !== "history") {
+      entryRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [expanded, type]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [mouseDownPos, setMouseDownPos] = useState({ x: 0, y: 0 });
   const [applyToSeries, setApplyToSeries] = useState(false);
@@ -103,6 +135,19 @@ const EntryViewer = ({ entryData, type }) => {
     completionStatus === "not started"
   );
   const backgroundColor = getCategoryColour(category);
+  // Objective status colours
+  const objectiveStatusColours = {
+      "not started": "#72cdf4",
+      "in progress": "#00b085",
+      "at-risk": "#f4b400",
+      overdue: "#e57373",
+      completed: "#4caf50",
+    };
+  //Temporary status
+  const objectiveStatus = null;
+
+  const statusColour = objectiveStatusColours[objectiveStatus] || "#72cdf4";
+
   const boxStyles = {
     width: "100%",
     minHeight: "130px",
@@ -112,7 +157,7 @@ const EntryViewer = ({ entryData, type }) => {
       entryData.completionStatus === "cancelled" ? "#A9A9A9" : backgroundColor,
     padding: "20px 24px",
     display: "flex",
-    borderLeft: "5px solid #72CDF4",
+    borderLeft: `6px solid ${isObjectiveEntry ? statusColour : "#72cdf4"}`,
     alignItems: "center",
     justifyContent: "flex-start",
     gap: "12px",
@@ -263,7 +308,14 @@ const EntryViewer = ({ entryData, type }) => {
   };
 
   return (
-    <Container maxWidth="xl" style={{ marginBottom: "5px" }}>
+    <Container 
+      ref={entryRef}
+      maxWidth="xl" 
+      style={{ 
+        marginBottom: "5px",
+        scrollMarginTop: "20px",
+      }}
+    >
       <Box
         sx={
           type !== "history"
@@ -292,6 +344,11 @@ const EntryViewer = ({ entryData, type }) => {
         }}
         onClick={(event) => {
           event.stopPropagation();
+
+          //Ignore clicks originating inside Material UI modal
+          if (event.target.closest(".MuiModal-root")) {
+            return;
+          }
 
           // Don't toggle if user was dragging (selecting text)
           if (isDragging) {
@@ -420,17 +477,40 @@ const EntryViewer = ({ entryData, type }) => {
                   lg={5}
                 >
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        color: fontColour,
-                        fontWeight: 600,
-                        fontSize: "26px",
-                        lineHeight: 1.2,
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        minWidth: 0,
                       }}
                     >
-                      {title}
-                    </Typography>
+                      {isObjectiveEntry && (
+                        <Box
+                          sx={{
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            backgroundColor: statusColour,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          color: fontColour,
+                          fontWeight: 600,
+                          fontSize: "26px",
+                          lineHeight: 1.2,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {title}
+                      </Typography>
+                    </Box>
+
                     <Box
                       sx={{
                         backgroundColor: priorityColor,
@@ -712,15 +792,21 @@ const EntryViewer = ({ entryData, type }) => {
                     variant="overline"
                     sx={{
                       fontSize: "12px",
-                      fontWeight: "bold",
-                      color: fontColour,
                       fontWeight: 600,
-                        /*</GridLegacy>entryData.completionStatus === "overdue"
-                          ? "yellow"
-                          : fontColour,*/
+                      color: fontColour,
                     }}
                   >
-                    Status: {completionStatus}
+                    Status: {" "}
+                    <Box
+                      component="span"
+                      sx={{
+                        color: isObjectiveEntry ? statusColour : fontColour,
+                        fontWeight: 800,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {completionStatus}
+                    </Box>
                   </Typography>
                 </GridLegacy>
                 <GridLegacy item xs={12}>
@@ -886,7 +972,7 @@ const EntryViewer = ({ entryData, type }) => {
                       onClose={handleCloseKeyResults}
                     >
                       <Box
-                        sx={modalStyle}
+                        sx={KeyResultsModalStyle}
                       >
                         <KeyResultsModal
                           objectiveId={objectiveId}

@@ -226,7 +226,8 @@
 
 .key-results-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .key-results-table th {
@@ -303,6 +304,25 @@
 .key-results-table th .required {
   color: #d9534f !important;
   font-weight: bold;
+}
+
+/* -------------- Key Result Status Border -------------- */
+
+.key-results-table .key-result-row td:first-child {
+  position: relative;
+  border-left: none;
+  padding-left: 18px;
+}
+
+.key-results-table .key-result-row td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background-color: var(--status-colour);
+  border-radius: 14px 0 0 14px;
 }
 
 /* ---------------- Editable Key Results ---------------- */
