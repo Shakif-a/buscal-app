@@ -194,11 +194,15 @@ function BusinessCalendarHome() {
   );
 
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: "grid",
-        gridTemplateRows: "auto 1fr auto",
-        gap: "16px",
+        gridTemplateRows: "auto auto 1fr",
+        gap: 3,
+        px: {xs: 2, md: 3},
+        py: 3,
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       <div
@@ -224,28 +228,6 @@ function BusinessCalendarHome() {
             emailList={emailList}
             handleAddNewEntry={handleAddNewEntry}
           />
-          <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-            <Box>
-              <FilterButton
-                setFilterOptions={setFilterOptions}
-                emailList={emailList}
-                filterOptions={filterOptions}
-              />
-              {homepageSupEntries && homepageSupEntries.length > 0 && (
-                <Typography variant="subtitle2">User's Own</Typography>
-              )}
-            </Box>
-            {homepageSupEntries && homepageSupEntries.length > 0 && (
-              <Box>
-                <FilterButton
-                  setFilterOptions={setFilterOptions2}
-                  emailList={emailList}
-                  filterOptions={filterOptions2}
-                />
-                <Typography variant="subtitle2">Supervisees</Typography>
-              </Box>
-            )}
-          </div>
         </div>
 
         <div style={{ display: "flex", gap: "20px", marginLeft: "auto" }}>
@@ -253,13 +235,61 @@ function BusinessCalendarHome() {
           <LinkCard link={card1.link} image={card1.image} title={card1.title} />
         </div>
       </div>
-      <div>
-        <SearchField
-          setSearchText={handleSearchChange}
-          placeholder="Search Through Entries"
-          initialValue={searchText}
-        />
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          flexWrap: "wrap",
+          columnGap: 1,
+          rowGap: 2,
+          width: "fit-content",
+          maxWidth: "100%",
+        }}
+      >
+        {/* Search Bar */}
+        <Box sx={{
+          width: "416px",
+          maxWidth: "100%",
+          minWidth: 0,
+          flexShrink: 0,
+        }}>
+          <SearchField
+            setSearchText={handleSearchChange}
+            placeholder="Search Through Entries"
+            initialValue={searchText}
+          />
+        </Box>
+        
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1}}>
+          <FilterButton
+            size="22px"
+            setFilterOptions={setFilterOptions}
+            emailList={emailList}
+            filterOptions={filterOptions}
+          />
+
+          {homepageSupEntries && homepageSupEntries.length > 0 && (
+            <Typography variant="subtitle2" sx={{ whiteSpace: "nowrap"}}>
+              User's Own
+            </Typography>
+          )}
+        </Box>
+
+        {homepageSupEntries && homepageSupEntries.length > 0 && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1}}>
+            <FilterButton
+              size="22px"
+              setFilterOptions={setFilterOptions2}
+              emailList={emailList}
+              filterOptions={filterOptions2}
+            />
+            <Typography variant="subtitle2" sx={{ whiteSpace: "nowrap"}}>
+              Supervisees
+            </Typography>
+          </Box>
+        )}
+      </Box>
 
       <div
         style={{
@@ -297,7 +327,7 @@ function BusinessCalendarHome() {
           )}
         </GridLegacy>
       </div>
-    </div>
+    </Box>
   );
 }
 

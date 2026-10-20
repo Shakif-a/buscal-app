@@ -4,6 +4,36 @@ import { getObjectives, reset } from "../../features/objectives/objectiveSlice";
 import "./ObjectivesPage.css";
 import ObjectiveCard from "./ObjectiveCard";
 
+function PaginationControls({
+  currentPage,
+  totalPages,
+  onPageChange,
+}) {
+  return (
+    <div className="objectives-footer">
+        <button
+          className="page-button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
+        >
+          ← Previous
+        </button>
+
+        <span className="page-count">
+          {currentPage} of {Math.max(1, totalPages)}
+        </span>
+
+        <button
+          className="page-button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+        >
+          Next →
+        </button>
+    </div>
+  );
+}
+
 function ObjectivesPage() {
   const dispatch = useDispatch();
 
@@ -17,6 +47,14 @@ function ObjectivesPage() {
   // Pagination - 5 objectives limit
   const [currentPage, setCurrentPage] = useState(1);
   const objectivesPerPage = 5;
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
 
   // Connect to global Redux state
@@ -96,6 +134,16 @@ function ObjectivesPage() {
   const totalPages = Math.ceil(
     filteredObjectives.length / objectivesPerPage
   );
+
+  useEffect(() => {
+    if (currentPage > Math.max(1, totalPages)) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [currentPage, totalPages]);
+  // reset pagination when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedGroup, selectedOwner, selectedType]);
 
   const startIndex = (currentPage - 1) * objectivesPerPage;
 
@@ -205,6 +253,13 @@ function ObjectivesPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
+      <div className="top-pagination">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      </div>
 
       {/* Clean alternative view when dataset returns completely empty */}
       {filteredObjectives.length === 0 ? (
@@ -219,10 +274,16 @@ function ObjectivesPage() {
           />
         ))
       )}
+      
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
 
 
       {/* Pagination controls */}
-      <div className="objectives-footer">
+      {/*<div className="objectives-footer">
         <button
           className="page-button"
           onClick={() => setCurrentPage(currentPage - 1)}
@@ -242,7 +303,7 @@ function ObjectivesPage() {
         >
           Next →
         </button>
-      </div>
+      </div>*/}
     </div>
   );
 }

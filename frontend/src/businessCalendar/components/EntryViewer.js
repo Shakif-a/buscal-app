@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
 import {
   alpha,
@@ -16,6 +16,7 @@ import {
   Edit,
   Person,
   Delete,
+  Key,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import ChangeCompletionStatus from "./ChangeCompletionStatus";
@@ -32,6 +33,7 @@ import {
   updateEntry,
   updateRecurringEntries,
 } from "../features/calendar/calendarSlice";
+import { boxSizing, maxWidth, minHeight, width } from "@mui/system";
 
 const modalStyle = {
   position: "absolute",
@@ -45,6 +47,18 @@ const modalStyle = {
   border: "2px solid #000",
   boxShadow: 24,
   p: 4,
+};
+
+const KeyResultsModalStyle = {
+  ...modalStyle,
+  width: {
+    xs: "calc(100vw - 32px)",
+    md: "75%",
+    lg: "65%",
+  },
+  maxWidth: "1100px",
+  boxSizing: "border-box",
+  overflowX: "hidden",
 };
 
 const EntryViewer = ({ entryData, type }) => {
@@ -66,7 +80,27 @@ const EntryViewer = ({ entryData, type }) => {
     updatedAt,
     file,
     notes,
+    objective,
+    linkedObjective,
   } = entryData;
+
+  const objectiveReference = linkedObjective || objective;
+
+  const objectiveId = 
+    objectiveReference?._id || objectiveReference || null;
+
+  const isObjectiveEntry = 
+    category === "OKR Objective" && Boolean(objectiveId);
+
+  console.log("Calendar Entry:", {
+    title,
+    category,
+    objective,
+    linkedObjective,
+    objectiveId,
+    isObjectiveEntry,
+  });
+
   const { users } = useSelector((state) => state.auth);
   const emailList = users.map((user) => user.email);
   let reminder = null;
@@ -75,6 +109,17 @@ const EntryViewer = ({ entryData, type }) => {
   }
   // New condition to set the expanded state permanently for "history" type
   const [expanded, setExpanded] = useState(type === "history" ? true : false);
+  const entryRef = useRef(null);
+
+  useEffect(() => {
+    if (expanded && type !== "history") {
+      entryRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [expanded, type]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [mouseDownPos, setMouseDownPos] = useState({ x: 0, y: 0 });
   const [applyToSeries, setApplyToSeries] = useState(false);
@@ -90,27 +135,42 @@ const EntryViewer = ({ entryData, type }) => {
     completionStatus === "not started"
   );
   const backgroundColor = getCategoryColour(category);
+  // Objective status colours
+  const objectiveStatusColours = {
+      "not started": "#72cdf4",
+      "in progress": "#00b085",
+      "at-risk": "#f4b400",
+      overdue: "#e57373",
+      completed: "#4caf50",
+    };
+  //Temporary status
+  const objectiveStatus = null;
+
+  const statusColour = objectiveStatusColours[objectiveStatus] || "#72cdf4";
+
   const boxStyles = {
     width: "100%",
+    minHeight: "130px",
     height: "fit-content",
     borderRadius: "12px",
     backgroundColor:
       entryData.completionStatus === "cancelled" ? "#A9A9A9" : backgroundColor,
-    padding: "16px",
+    padding: "20px 24px",
     display: "flex",
+    borderLeft: `6px solid ${isObjectiveEntry ? statusColour : "#72cdf4"}`,
     alignItems: "center",
     justifyContent: "flex-start",
     gap: "12px",
     transition: "background-color 0.3s, cursor 0.3s",
     boxShadow:
       entryData.completionStatus === "overdue"
-        ? "0px 0px 15px rgba(255, 0, 0, 1)"
+        ? "0px 0px 15px rgba(255, 0, 0, 0.55)"
         : "0px 2px 4px rgba(0, 0, 0, 0.4)",
   };
-  const fontColour = "white";
+  const fontColour = "#ffffff";
   // Get priority color
   const priorityColor =
-    priority.toLowerCase() === "high" ? "#ff9999" : "#99ff99"; // Red for high, Green for normal
+    priority.toLowerCase() === "high" ? "#ffcdd2" : "#00b085"; // Red for high, Green for normal
 
   // Icon Button click handlers
   const [openAllOrOne, setOpenAllOrOne] = useState({
@@ -170,6 +230,7 @@ const EntryViewer = ({ entryData, type }) => {
   const handleOpenProgress = () => setOpenProgress(true);
   const handleCloseProgress = () => setOpenProgress(false);
 
+  //Open Key Results
   const [openKeyResults, setOpenKeyResults] = useState(false);
   const handleOpenKeyResults = () => setOpenKeyResults(true);
   const handleCloseKeyResults = () => setOpenKeyResults(false);
@@ -247,7 +308,14 @@ const EntryViewer = ({ entryData, type }) => {
   };
 
   return (
-    <Container maxWidth="xl" style={{ marginBottom: "5px" }}>
+    <Container 
+      ref={entryRef}
+      maxWidth="xl" 
+      style={{ 
+        marginBottom: "5px",
+        scrollMarginTop: "20px",
+      }}
+    >
       <Box
         sx={
           type !== "history"
@@ -276,6 +344,11 @@ const EntryViewer = ({ entryData, type }) => {
         }}
         onClick={(event) => {
           event.stopPropagation();
+
+          //Ignore clicks originating inside Material UI modal
+          if (event.target.closest(".MuiModal-root")) {
+            return;
+          }
 
           // Don't toggle if user was dragging (selecting text)
           if (isDragging) {
@@ -310,9 +383,10 @@ const EntryViewer = ({ entryData, type }) => {
             justifyContent="space-between"
             alignItems="center"
             item
+            xs={12}
           >
             {/* Left window */}
-            <GridLegacy item xs={12} md={12} lg={12}>
+            <GridLegacy item xs={12} md={10} lg={10}>
               <GridLegacy
                 container
                 direction="row"
@@ -330,16 +404,17 @@ const EntryViewer = ({ entryData, type }) => {
                   xs={12}
                   sm={4}
                   md={3}
-                  lg={4}
+                  lg={3}
                 >
                   <GridLegacy item>
                     <Typography
                       variant="h6"
                       sx={{
-                        color:
-                          entryData.completionStatus === "overdue"
+                        color: fontColour,
+                        fontWeight: 600,
+                          /*entryData.completionStatus === "overdue"
                             ? "yellow"
-                            : fontColour,
+                            : fontColour,*/
                       }}
                     >
                       {category === "meeting" ? (
@@ -376,10 +451,10 @@ const EntryViewer = ({ entryData, type }) => {
                     <Typography
                       variant="body"
                       sx={{
-                        color:
-                          entryData.completionStatus === "overdue"
+                        color: "rgba(255, 255, 255, 0.8)",
+                          /*entryData.completionStatus === "overdue"
                             ? "yellow"
-                            : fontColour,
+                            : fontColour,*/
                       }}
                     >
                       {category === "event"
@@ -399,39 +474,85 @@ const EntryViewer = ({ entryData, type }) => {
                   xs={12}
                   sm={6}
                   md={5}
-                  lg={type === "history" ? 8 : 5}
+                  lg={5}
                 >
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="h5" sx={{ color: fontColour }}>
-                      {title}
-                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        minWidth: 0,
+                      }}
+                    >
+                      {isObjectiveEntry && (
+                        <Box
+                          sx={{
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            backgroundColor: statusColour,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          color: fontColour,
+                          fontWeight: 600,
+                          fontSize: "26px",
+                          lineHeight: 1.2,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {title}
+                      </Typography>
+                    </Box>
+
                     <Box
                       sx={{
                         backgroundColor: priorityColor,
-                        borderRadius: "16px",
-                        padding: "4px 8px",
-                        display: "inline-block",
+                        borderRadius: "12px",
+                        padding: "2px 8px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        marginTop: "4px",
                       }}
                     >
-                      <Typography variant="caption" sx={{ color: "#000" }}>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                        }}
+                      >
                         Priority: {priority.toUpperCase()}
                       </Typography>
                     </Box>
                   </Box>
                 </GridLegacy>
 
-                <GridLegacy item xs={12} sm={2} md={2} lg={3}>
+                <GridLegacy item xs={12} sm={2} md={4} lg={4}>
                   {type !== "history" ? (
                     <div>
                       <Typography
                         variant="h6"
-                        sx={{ fontSize: "14px", color: fontColour }}
+                        sx={{ 
+                          color: fontColour,
+                          fontWeight: 600, 
+                        }}
                       >
                         Assigned to:
                       </Typography>
                       <Typography
                         variant="body"
-                        sx={{ fontSize: "12px", color: fontColour }}
+                        sx={{ 
+                          fontSize: "12px", 
+                          color: "rgba(255, 255, 255, 0.8)",
+                        }}
                       >
                         {userAssigned.map((user, index) => (
                           <React.Fragment key={index}>
@@ -447,20 +568,25 @@ const EntryViewer = ({ entryData, type }) => {
             </GridLegacy>
             {/* Right window */}
             {type !== "history" ? (
-              <GridLegacy item xs={12} md={12} lg={12}>
+              <GridLegacy 
+                item 
+                xs={12}
+                md={2}
+                lg={2}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                }}
+              >
                 {/* Icons box */}
-                <GridLegacy
-                  container
-                  direction="row"
-                  justifyContent="flex-end"
-                  alignItems="center"
-                >
                   <Box
                     sx={{
                       display: "flex",
                       flexDirection: "row",
-                      justifyContent: "center",
-                      alignItems: "flex-end",
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      gap: "4px"
                     }}
                   >
                     <IconButton
@@ -468,7 +594,12 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleCompletionClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.15)",
+                        },
+                      }}
                     >
                       {completionStatus === "not started" ? (
                         <PlayCircleOutline />
@@ -494,7 +625,12 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleEditClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.15)",
+                        },
+                      }}
                     >
                       <Edit />
                     </IconButton>
@@ -518,7 +654,12 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleAssignClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.15)",
+                        },
+                      }}
                     >
                       <Person />
                     </IconButton>
@@ -541,50 +682,61 @@ const EntryViewer = ({ entryData, type }) => {
                       onClick={() => {
                         handleDeleteClick();
                       }}
-                      color="default"
+                      sx={{
+                        color: fontColour,
+                        "&:hover": {
+                          color: "#ffcccc",
+                          backgroundColor: "rgba(255, 0, 0, 0.15)",
+                        },
+                      }}
                     >
                       <Delete />
                     </IconButton>
-                    {/* Delete Modal */}
-                    <div>
-                      <Modal open={openDel} onClose={handleCloseDel}>
+                      {/* Delete Modal */}
+                      <div>
+                        <Modal open={openDel} onClose={handleCloseDel}>
+                          <Box sx={modalStyle}>
+                            <DeleteModal
+                              entryId={_id}
+                              onCancel={handleCloseDel}
+                              isDeleteNotes={isDeleteNotes}
+                              applyToSeries={applyToSeries}
+                            />
+                          </Box>
+                        </Modal>
+                      </div>
+                      <Modal
+                        open={openAllOrOne.visible}
+                        onClose={() =>
+                          setOpenAllOrOne({ type: "", visible: false })
+                        }
+                      >
                         <Box sx={modalStyle}>
-                          <DeleteModal
-                            entryId={_id}
-                            onCancel={handleCloseDel}
-                            isDeleteNotes={isDeleteNotes}
-                            applyToSeries={applyToSeries}
+                          <AllOrOneModal
+                            type={openAllOrOne.type}
+                            handleJustThis={handleJustThis}
+                            handleAllInSeries={handleAllInSeries}
                           />
                         </Box>
                       </Modal>
-                    </div>
-                    <Modal
-                      open={openAllOrOne.visible}
-                      onClose={() =>
-                        setOpenAllOrOne({ type: "", visible: false })
-                      }
-                    >
-                      <Box sx={modalStyle}>
-                        <AllOrOneModal
-                          type={openAllOrOne.type}
-                          handleJustThis={handleJustThis}
-                          handleAllInSeries={handleAllInSeries}
-                        />
-                      </Box>
-                    </Modal>
-                  </Box>
-                </GridLegacy>
-              </GridLegacy>
-            ) : null}
-          </GridLegacy>
+                    </Box>
+                  </GridLegacy>
+              ) : null}
+            </GridLegacy>
 
           {/* Bottom row */}
           <GridLegacy container item>
             {/* Description box */}
             {expanded && (
               <>
-                <br />
-                <GridLegacy item xs={12}>
+                <GridLegacy 
+                  item 
+                  xs={12}
+                  sx={{
+                    mt: 2,
+                    pt: 2,
+                    borderTop: "1px solid rgba(255, 255, 255, 0.3)",
+                  }}>
                   <Typography variant="subtitle2" sx={{ color: fontColour }}>
                     Category:{" "}
                     {category === "businessdeadline"
@@ -640,28 +792,42 @@ const EntryViewer = ({ entryData, type }) => {
                     variant="overline"
                     sx={{
                       fontSize: "12px",
-                      fontWeight: "bold",
-                      color:
-                        entryData.completionStatus === "overdue"
-                          ? "yellow"
-                          : fontColour,
+                      fontWeight: 600,
+                      color: fontColour,
                     }}
                   >
-                    Status: {completionStatus}
+                    Status: {" "}
+                    <Box
+                      component="span"
+                      sx={{
+                        color: isObjectiveEntry ? statusColour : fontColour,
+                        fontWeight: 800,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {completionStatus}
+                    </Box>
                   </Typography>
                 </GridLegacy>
-                <GridLegacy item xs={9}>
+                <GridLegacy item xs={12}>
                   <Box
                     sx={{
                       display: "flex",
                       flexDirection: "column",
                       backgroundColor: "rgba(255, 255, 255, 0.5)",
+                      border: "2px solid #d9dfea",
                       borderRadius: "8px",
                       padding: "8px",
                       marginTop: "8px",
                     }}
                   >
-                    <Typography variant="subtitle2" sx={{ color: "#000" }}>
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        color: "#000",
+                        fontWeight: "bold",
+                        marginBottom: "2px",
+                      }}>
                       Description:
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#000" }}>
@@ -669,86 +835,128 @@ const EntryViewer = ({ entryData, type }) => {
                     </Typography>
                   </Box>
                 </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Created by: {userOwner}
-                  </Typography>
-                </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Date created: {createdDate.toLocaleDateString("en-AU")}
-                  </Typography>
-                </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Repeats: {recurrence ? recurrence.displayRule : "None"}
-                  </Typography>
-                </GridLegacy>
-                <GridLegacy item xs={6}>
-                  <Typography variant="body2" sx={{ color: fontColour }}>
-                    Last Updated: {updatedDate.toLocaleString("en-AU")}
-                  </Typography>
+                <GridLegacy 
+                  container
+                  sx={{
+                    mt: 1.5,
+                  }}
+                >
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour, mb: 0.5}}>
+                      <strong>Created by:</strong> {userOwner}
+                    </Typography>
+                  </GridLegacy>
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour, mb: 0.5 }}>
+                      <strong>Date created:</strong>{" "}
+                      {createdDate.toLocaleDateString("en-AU")}
+                    </Typography>
+                  </GridLegacy>
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour }}>
+                      <strong>Repeats:</strong>{" "}
+                      {recurrence ? recurrence.displayRule : "None"}
+                    </Typography>
+                  </GridLegacy>
+                  <GridLegacy item xs={6}>
+                    <Typography variant="body2" sx={{ color: fontColour }}>
+                      <strong>Last Updated:</strong>{" "}
+                      {updatedDate.toLocaleString("en-AU")}
+                    </Typography>
+                  </GridLegacy>
                 </GridLegacy>
                 {whenAlarm ? (
                   <GridLegacy item xs={6}>
                     <Typography variant="body2" sx={{ color: fontColour }}>
-                      Reminder: {reminder}
+                      <strong>Reminder:</strong> {reminder}
                     </Typography>
                   </GridLegacy>
                 ) : null}
                 {notes ? (
                   <GridLegacy item xs={12}>
                     <Typography variant="body2" sx={{ color: fontColour }}>
-                      Notes: {notes}
+                      <strong>Notes:</strong> {notes}
                     </Typography>
                   </GridLegacy>
                 ) : null}
 
-                {file ? (
-                  <GridLegacy item xs={12}>
-                    <Typography variant="caption" sx={{ color: fontColour }}>
+                
+                  <GridLegacy item xs={12} sx={{mt:1}}>
+                    <Typography variant="body2" sx={{ color: fontColour }}>
                       Attachments:
                     </Typography>
-                    <Box
+                    {file && file.length > 0 ? (
+                      <Box
                       sx={{
                         display: "flex",
                         flexDirection: "column",
                         gap: 1,
-                        marginTop: 1,
+                        mt: 0.5,
                       }}
                     >
                       {file.map((id) => (
                         <FileDisplayDownload key={id} fileId={id} />
                       ))}
                     </Box>
+                    ):(
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: fontColour,
+                          opacity: 0.8,
+                        }}
+                      >
+                        None
+                      </Typography>
+                    )}
                   </GridLegacy>
-                ) : null}
+                
                 {type !== "history" ? (
                   <GridLegacy item xs={12}>
                     <Box
                       sx={{
-                        display: "flex",
-                        gap: 1,
-                        marinTop: 1,
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          gap: 1,
+                          mt: 2,
+                          pt: 1.5,
+                          borderTop: "1px solid rgba(255, 255, 255, 0.25)",
+                      }}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={handleOpenProgress}
+                      sx={{
+                        color: "#ffffff",
+                        borderColor: "#1f1e40",
+                        "&:hover": {
+                          borderColor: "#1f1e40",
+                          backgroundColor: "1f1e40",
+                        }
                       }}
                     >
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        size="small"
-                        onClick={handleOpenProgress}
-                      >
-                        View Progress
-                      </Button>
+                      View Progress
+                    </Button>
+                  {isObjectiveEntry && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={handleOpenKeyResults}
+                      sx={{
+                        backgroundColor: "#00b085",
+                        color: "#ffffff",
+                        "&:hover": {
+                          borderColor: "#1f1e40",
+                          backgroundColor: "#009973",
+                        }
+                      }}
+                    >
+                      View Key Results
+                    </Button>
+                  )}
                     
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleOpenKeyResults}
-                      >
-                        View Key Results
-                      </Button>
                     </Box>
+
                     <Modal open={openProgress} onClose={handleCloseProgress}>
                       <Box sx={modalStyle}>
                         <ProgressModal
@@ -760,14 +968,15 @@ const EntryViewer = ({ entryData, type }) => {
                     </Modal>
 
                     <Modal
-                      open={openKeyResults}
+                      open={openKeyResults && isObjectiveEntry}
                       onClose={handleCloseKeyResults}
                     >
                       <Box
-                        sx={modalStyle}
+                        sx={KeyResultsModalStyle}
                       >
                         <KeyResultsModal
-                          entryId={_id}
+                          objectiveId={objectiveId}
+                          //entryId={_id}
                           objectiveTitle={title}
                           handleClose={handleCloseKeyResults}
                         />

@@ -19,6 +19,11 @@ const calendarEntrySchema = new mongoose.Schema(
       },
     ],
     description: String,
+    objective: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OkrObjective",
+      default: null,
+    },
     startTime: {
       type: Date,
     },

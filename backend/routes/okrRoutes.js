@@ -30,7 +30,12 @@ router.get("/", (req, res) => {
   res.json({ message: "OKR Tracker API endpoint" });
 });
 
+//Objectives
+console.log("OKR ROUTES FILE LOADED");
+
 //Key Results
+console.log("protect =", typeof protect);
+console.log("getKeyResults =", typeof getKeyResults);
 router.get("/objectives/:objectiveId/key-results", protect, getKeyResults);
 router.post("/objectives/:objectiveId/key-results", protect, canManageObjective, createKeyResult);
 router.get("/objectives/:objectiveId/key-results/:keyResultId", protect, getKeyResult);

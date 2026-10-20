@@ -36,3 +36,5 @@ pids/
 *.pid
 *.seed
 *.pid.lock
+
+/backend/mongodb-backup/
