@@ -51,6 +51,11 @@ const keyResultSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    calendarEntry: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CalendarEntry",
+      default: null,
+    },
   },
   { timestamps: true },
 );

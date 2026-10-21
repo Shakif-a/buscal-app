@@ -382,7 +382,6 @@ function RoleManagement() {
                         </div>
                       )}
                     </div>
-
                   </div>
                 </div>
 

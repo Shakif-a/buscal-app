@@ -4,6 +4,7 @@ import objectiveService from "./objectiveService.js";
 const initialState = {
   objectives: [],
   currentObjective: null,
+  keyResults: [],
   isError: false,
   isSuccess: false,
   isLoading: false,
@@ -46,6 +47,29 @@ export const getObjectiveById = createAsyncThunk(
         error.message ||
         error.toString();
       return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+export const getKeyResults = createAsyncThunk(
+  "objectives/getKeyResults",
+  async (objectiveId, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+
+      return await objectiveService.getKeyResults(
+        objectiveId,
+        token
+      );
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString();
+
+        return thunkAPI.rejectWithValue(message);
     }
   }
 );
@@ -116,6 +140,31 @@ export const updateObjective = createAsyncThunk(
   }
 );
 
+export const updateKeyResult = createAsyncThunk(
+  "objectives/updateKeyResult",
+  async ({ objectiveId, keyResultId, keyResultData}, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+
+      return await objectiveService.updateKeyResult(
+        objectiveId,
+        keyResultId,
+        keyResultData,
+        token
+      );
+    } catch (error) {
+      const message = 
+      (error.response &&
+        error.response.data &&
+        error.response.data.message) ||
+        error.message ||
+        error.toString();
+
+        return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 //-------------------------------------CREATE SLICE------------------------------------
 
 export const objectiveSlice = createSlice({
@@ -144,6 +193,9 @@ export const objectiveSlice = createSlice({
       // Fetch Single Objective By ID
       .addCase(getObjectiveById.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = "";
       })
       .addCase(getObjectiveById.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -159,6 +211,9 @@ export const objectiveSlice = createSlice({
       // Create Objective
       .addCase(createObjective.pending, (state) => {
         state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = "";
       })
       .addCase(createObjective.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -171,12 +226,15 @@ export const objectiveSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
-
       // Delete Objective
       .addCase(deleteObjective.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
         state.message = "";
       })
       .addCase(deleteObjective.fulfilled, (state, action) => {
+        state.isLoading = false;
         state.isSuccess = true;
         state.objectives = state.objectives.filter(
           (obj) => obj._id !== action.payload.id && obj.id !== action.payload.id
@@ -184,14 +242,20 @@ export const objectiveSlice = createSlice({
         state.message = "Objective deleted successfully.";
       })
       .addCase(deleteObjective.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
         state.message = action.payload;
       })
 
       // Update Objective
       .addCase(updateObjective.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
         state.message = "";
       })
       .addCase(updateObjective.fulfilled, (state, action) => {
+        state.isLoading = false;
         state.isSuccess = true;
         state.objectives = state.objectives.map((obj) =>
           obj._id === action.payload._id || obj.id === action.payload.id
@@ -201,9 +265,53 @@ export const objectiveSlice = createSlice({
         state.message = "Objective updated successfully.";
       })
       .addCase(updateObjective.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(getKeyResults.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(getKeyResults.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.keyResults = action.payload;
+      })
+      .addCase(getKeyResults.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(updateKeyResult.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = "";
+      })
+      .addCase(updateKeyResult.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+
+        state.keyResults = state.keyResults.map((keyResult) =>
+          keyResult._id === action.payload._id ||
+          keyResult.id === action.payload.id
+            ? action.payload
+            : keyResult
+      );
+        state.message = "Key Result updated successfully"
+
+      })
+      .addCase(updateKeyResult.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
         state.message = action.payload;
       });
   },
+
+
 });
 
 export const { reset } = objectiveSlice.actions;

@@ -174,6 +174,15 @@ function CalendarView() {
     // Get all entries for calendar
     const calendarEntries = [...userEntriesNoDup, ...supervisorEntries];
 
+    console.log("RAW CALENDAR ENTRIES:", calendarEntries);
+
+    const okrEntry = calendarEntries.find(
+      (entry) => entry.category === "OKR Objective"
+    );
+
+    console.log("RAW OKR ENTRY:", okrEntry);
+    console.log("RAW OKR OBJECTIVE ID:", okrEntry?.objective);
+
     let calendarPageEntries;
     if (filterOptions.completionStatus === "cancelled") {
       calendarPageEntries = filterEntriesByStatus(calendarEntries, [

@@ -12,13 +12,13 @@ function CreateObjectives() {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const navy = "#1a2b4a";
- 
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("");
   const [group, setGroup] = useState("");
   const [commitmentType, setCommitmentType] = useState("");
- 
+
   const [ownerOptions, setOwnerOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,13 +32,13 @@ function CreateObjectives() {
           objectiveService.getObjectiveGroups(user.token),
           userService.getUsers(user.token),
         ]);
- 
+
         setGroupOptions(
           Array.isArray(groupsData)
             ? groupsData
             : groupsData.groups || []
         );
- 
+
         setOwnerOptions(
           usersData.map((u) => ({
             id: u._id,
@@ -52,24 +52,24 @@ function CreateObjectives() {
         console.error("Could not load owners:", error);
       }
     }
- 
+
     if (user?.token) {
       loadOptions();
     }
   }, [user?.token]);
- 
+
   const today = new Date();
- 
+
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
-// user can choose date
+  // user can choose date
   const [selectedDate, setSelectedDate] = useState(null);
- 
+
   const commitmentTypeOptions = [
     { value: "committed", label: "Committed" },
     { value: "aspirational", label: "Aspirational" },
   ];
- 
+
   // calendar heading.
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -78,12 +78,12 @@ function CreateObjectives() {
   function daysInMonth(year, month) {
     return new Date(year, month + 1, 0).getDate();
   }
- 
+
   function firstWeekdayMondayFirst(year, month) {
     const jsDay = new Date(year, month, 1).getDay();
     return (jsDay + 6) % 7;
   }
- 
+
   function previousMonth() {
     if (viewMonth === 0) {
       setViewMonth(11);
@@ -92,7 +92,7 @@ function CreateObjectives() {
       setViewMonth(viewMonth - 1);
     }
   }
- 
+
   // Move the calendar forward
   function nextMonth() {
     if (viewMonth === 11) {
@@ -102,12 +102,12 @@ function CreateObjectives() {
       setViewMonth(viewMonth + 1);
     }
   }
- 
+
   // Pick a day
   function selectDay(day) {
     setSelectedDate({ year: viewYear, month: viewMonth, day: day });
   }
- 
+
   function isSelected(day) {
     return (
       selectedDate &&
@@ -116,7 +116,7 @@ function CreateObjectives() {
       selectedDate.day === day
     );
   }
- 
+
   // Build the list of cells for the calendar
   function buildCalendarCells() {
     const total = daysInMonth(viewYear, viewMonth);
@@ -130,7 +130,7 @@ function CreateObjectives() {
     }
     return cells;
   }
- 
+
   // Clear the form back to empty.
   function cancel() {
     setTitle("");
@@ -140,37 +140,43 @@ function CreateObjectives() {
     setCommitmentType("");
     setSelectedDate(null);
   }
- 
+
   async function createObjective() {
-    if (!user?.token) {
-      alert("Your session has expired. Please log in again.");
-      return;
-    }
- 
-    if (!title.trim()) {
-      alert("Please enter an objective title.");
-      return;
-    }
- 
-    if (!selectedDate) {
-      alert("Please select a due date.");
-      return;
-    }
- 
-    if (!owner) {
-      alert("Please select an owner.");
-      return;
-    }
- 
-    if (!commitmentType) {
-      alert("Please select a type.");
-      return;
-    }
- 
+  if (!user?.token) {
+    alert("Your session has expired. Please log in again.");
+    return;
+  }
+
+  if (!title.trim()) {
+    alert("Please enter an objective title.");
+    return;
+  }
+
+  if (!selectedDate) {
+    alert("Please select a due date.");
+    return;
+  }
+
+  // Validate Create Objective fields
+  if (!owner) {
+    alert("Please select an owner.");
+    return;
+  }
+
+  if (!group) {
+    alert("Please select a group.");
+    return;
+  }
+
+  if (!commitmentType) {
+    alert("Please select a type.");
+    return;
+  }
+
     const month = String(selectedDate.month + 1).padStart(2, "0");
     const day = String(selectedDate.day).padStart(2, "0");
     const dueDate = `${selectedDate.year}-${month}-${day}`;
- 
+
     try {
       setIsSubmitting(true);
       await dispatch(
@@ -193,7 +199,7 @@ function CreateObjectives() {
       setIsSubmitting(false);
     }
   }
- 
+
   // A shared style for the three dropdowns.
   const selectStyle = {
     width: "220px",
@@ -206,7 +212,7 @@ function CreateObjectives() {
     cursor: "pointer",
     outline: "none",
   };
- 
+
   // A shared style for the field labels.
   const labelStyle = {
     color: navy,
@@ -215,27 +221,27 @@ function CreateObjectives() {
     marginBottom: "10px",
     display: "block",
   };
- 
+
   return (
     <div className="create-objectives">
- 
+
       {/* Page header */}
       <div style={{ padding: "30px 40px" }}>
         <div className="create-header">
           <div className="create-header-title">
             <img
               src="/images/okr/ArrowLogoLeft.png"
-              alt = "Arrow Logo L"
-              className = "logo"/>
+              alt="Arrow Logo L"
+              className="logo" />
             <h1>Create Objectives</h1>
           </div>
           <img
-              src="/images/okr/ArrowLogoRight.png"
-              alt = "Arrow Logo R"
-              className = "logo"/>
+            src="/images/okr/ArrowLogoRight.png"
+            alt="Arrow Logo R"
+            className="logo" />
         </div>
       </div>
- 
+
       {/* Main form*/}
       <div>
         <div
@@ -267,7 +273,7 @@ function CreateObjectives() {
                   marginBottom: "30px",
                 }}
               />
- 
+
               {/* Due Date with the calendar */}
               <label style={labelStyle}>Due Date</label>
               <div
@@ -302,7 +308,7 @@ function CreateObjectives() {
                     ›
                   </button>
                 </div>
- 
+
                 {/* Weekday headings */}
                 <div
                   style={{
@@ -322,7 +328,7 @@ function CreateObjectives() {
                   <div>Sa</div>
                   <div>Su</div>
                 </div>
- 
+
                 {/* The day cells */}
                 <div
                   style={{
@@ -358,7 +364,7 @@ function CreateObjectives() {
                   })}
                 </div>
               </div>
- 
+
               {/* Owner dropdown */}
               <label style={labelStyle}>Owner</label>
               <div style={{ marginBottom: "24px" }}>
@@ -373,7 +379,7 @@ function CreateObjectives() {
                   ))}
                 </select>
               </div>
- 
+
               {/* Group dropdown */}
               <label style={labelStyle}>Group</label>
               <div style={{ marginBottom: "24px" }}>
@@ -383,12 +389,11 @@ function CreateObjectives() {
                   style={selectStyle}
                 >
                   <option value="">Select group</option>
-                  {groupOptions.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
+                  <option value="Group 1">Group 1</option>
+                  <option value="Group 2">Group 2</option>
                 </select>
               </div>
- 
+
               {/* Type dropdown */}
               <label style={labelStyle}>Type</label>
               <div>
@@ -406,7 +411,7 @@ function CreateObjectives() {
                 </select>
               </div>
             </div>
- 
+
             {/* Right column: description */}
             <div>
               <label style={labelStyle}>Description</label>
@@ -429,7 +434,7 @@ function CreateObjectives() {
               />
             </div>
           </div>
- 
+
           {/* Cancel and Create buttons */}
           <div
             style={{
@@ -449,7 +454,7 @@ function CreateObjectives() {
               onClick={createObjective}
               disabled={isSubmitting}
               className="create-objective-button"
-              >
+            >
               {isSubmitting ? "Creating..." : "Create New Objective"}
             </button>
           </div>
@@ -470,5 +475,5 @@ function CreateObjectives() {
     </div>
   );
 }
- 
+
 export default CreateObjectives;

@@ -1,27 +1,42 @@
 import React from "react";
-import { Paper } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import EntryViewer from "./EntryViewer";
 import { removeDomain } from "./UtilityFunctions";
-import Typography from "@mui/material/Typography";
+import { display, flexDirection } from "@mui/system";
 
 function UserEntryList({ userName, entries, type }) {
   const newEntries = removeDomain(entries);
   return (
-    <div>
+    <Box
+      sx={{width: "100%", mt: 3}}
+    >
       {/* Display user-specific or generic task header */}
-      {userName ? (
-        <Typography variant="h5">{userName}'s Tasks</Typography>
-      ) : (
-        <Typography variant="h5">Your Tasks</Typography>
-      )}
+      <Typography
+        variant="h5"
+        sx={{
+          fontFamily: "Avenir, sans-serif",
+          fontSize: "26px",
+          fontWeight: 500,
+          color: "#44445a",
+          mb: 2.5,
+        }}
+      >
+        {userName ? `${userName}'s Tasks` : "Your Tasks"}
+      </Typography>
 
       {/* Render task entries */}
-      <Paper
+      <Box
         sx={{
-          padding: "5px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          width: "100%",
           maxHeight: 670, // Maximum height
-          minHeight: 400, // Minimum height
-          overflow: "auto",
+          overflowY: "auto",
+          overflowX: "hidden",
+          backgroundColor: "transparent",
+          pr: 1,
+          pb: 2,
         }}
       >
         {newEntries && newEntries.length > 0 ? (
@@ -29,10 +44,10 @@ function UserEntryList({ userName, entries, type }) {
             <EntryViewer key={entry._id} entryData={entry} type={type} />
           ))
         ) : (
-          <Typography variant="body1">No entries found.</Typography>
+          <Typography sx={{ color: "#666", py: 2}}>No entries found.</Typography>
         )}
-      </Paper>
-    </div>
+      </Box>
+    </Box>
   );
 }
 

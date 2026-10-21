@@ -19,6 +19,11 @@ const calendarEntrySchema = new mongoose.Schema(
       },
     ],
     description: String,
+    objective: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OkrObjective",
+      default: null,
+    },
     startTime: {
       type: Date,
     },
@@ -57,6 +62,16 @@ const calendarEntrySchema = new mongoose.Schema(
         ref: "File",
       },
     ],
+    linkedObjective: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OkrObjective",
+      default: null,
+    },
+    linkedKeyResult: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OkrKeyResult",
+      default: null,
+    },
   },
   { timestamps: true },
 );

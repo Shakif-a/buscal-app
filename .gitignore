@@ -40,3 +40,6 @@ pids/
 # Browser test outputs
 frontend/cypress/screenshots/
 frontend/cypress/videos/
+
+# Mongo backups
+/backend/mongodb-backup/

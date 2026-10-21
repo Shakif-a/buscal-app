@@ -1,0 +1,521 @@
+import React, {useEffect, useState} from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { getKeyResults, updateKeyResult, } from "../../okrTracker/features/objectives/objectiveSlice";
+import {
+    Box, 
+    Typography, 
+    Button, 
+    IconButton, 
+    Slider, 
+    Select, 
+    MenuItem, 
+    FormControl, 
+    Divider,
+    TextField,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+
+const KeyResultsModal = ({
+    objectiveId,
+    objectiveTitle,
+    handleClose,
+}) => {
+    const [expandedKeyResult, setExpandedKeyResult] = useState(null);
+    const [editedKeyResult, setEditedKeyResult] = useState(null);
+
+    const dispatch = useDispatch();
+
+    const {
+      keyResults,
+      isLoading,
+      isError,
+      message,
+    } = useSelector((state) => state.okr);
+
+    console.log("KEY RESULTS FROM REDUX:", keyResults);
+    console.log("KR LOADING:", isLoading);
+    console.log("KR ERROR:", isError);
+    console.log("KR MESSAGE:", message);
+
+    console.log("Objective ID received by KeyResultsModal:", objectiveId);
+
+    useEffect(() => {
+      if (objectiveId) {
+        dispatch(getKeyResults(objectiveId));
+      }
+    }, [dispatch, objectiveId]);
+
+    const handleSave = async () => {
+        //console.log("Saving Key Result:", keyResult);
+        //Backend update here
+        if (!editedKeyResult) return;
+        const keyResultId = editedKeyResult._id || editedKeyResult.id
+
+        try{
+          await dispatch(
+            updateKeyResult({
+              objectiveId,
+              keyResultId,
+              keyResultData: {
+                progress: editedKeyResult.progress,
+                status: editedKeyResult.status,
+              },
+            })
+          ).unwrap();
+          //reload Key Results from backend
+          await dispatch(getKeyResults(objectiveId)).unwrap();
+          
+          setExpandedKeyResult(null);
+          setEditedKeyResult(null);
+        } catch (error) {
+          console.error("Failed to update Key Result: ", error);
+        }
+        
+    };
+    //formatting date dd/mm/yy
+    const formatDate = (date) => {
+      if (!date) return "";
+      return new Date(date).toLocaleDateString("en-AU");
+    };
+
+    //formatting status
+    const formatStatus = (status) => {
+      const statusLabels = {
+        "on-track" : "On Track",
+        "at-risk" : "At Risk",
+        "overdue" : "Overdue",
+        "completed" : "Completed",
+      };
+
+      return statusLabels[status] || "Choose Progress";
+    }
+
+    const statusColours = {
+      "on-track": "#00b085",
+      "at-risk": "#f4b400",
+      overdue: "#e53935",
+      completed: "#72cdf4",
+    };
+
+    const statusBackgroundColours = {
+      "on-track": "#a5dfc9",
+      "at-risk": "#ffe29a",
+      overdue: "#f4a6a6",
+      completed: "#b6e3f8",
+    };
+
+    return (
+        <Box
+            sx={{
+                width: "100%",
+                boxSizing: "border-box",
+                //maxWidth: "90vw",
+            }}>
+            <Box sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}>
+                
+                <Typography variant="h5">
+                    {objectiveTitle} - Key Results
+                </Typography>
+
+                <IconButton onClick={handleClose}>
+                    <CloseIcon/>
+                </IconButton>
+            </Box>
+
+            <Divider sx={{ my:2 }}/>
+
+            {/*Key Results */}
+            {keyResults.map((keyResult, index) =>{
+                const isExpanded =
+                    expandedKeyResult === (keyResult._id || keyResult.id);
+            
+            return (
+                <Box
+                key={keyResult._id || keyResult.id}
+                sx={{
+                    border: "1px solid #d9dfea",
+                    borderRadius: "12px",
+                    padding: 2,
+                    backgroundColor: "#fafafa",
+                    mb: 2,
+                }}>
+                {/*Compacted KR*/} 
+                <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 2,
+                }}>
+                
+                <Box
+                sx={{ flex:1 }}>
+                    
+                 <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    columnGap: 3,
+                    rowGap: 0.5,
+                    minWidth: 0,
+                }}
+                >
+                    <Typography
+                        variant="subtitle1"
+                        sx={{ 
+                          fontWeight: "bold",
+                          overflowWrap: "anywhere",
+                          minWidth: 0,
+                        }}
+                    >
+                        {keyResult.title}
+                    </Typography>
+
+                    <Typography 
+                      variant="body2"
+                      sx={{
+                        flexShrink: 0,
+                      }}
+                    >
+                    <strong>Assigned:</strong> {keyResult.assigned}
+                    </Typography>
+                    </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    columnGap: 2,
+                    rowGap: 1.5,
+                    mt: 1,
+                    width: "100%",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <strong>Weight:</strong>{" "}
+                    {keyResult.weight}%
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <strong>Progress:</strong>{" "}
+                    {isExpanded
+                      ? editedKeyResult?.progress ?? keyResult.progress
+                      : keyResult.progress
+                    }%
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <strong>Due:</strong>{" "}
+                    {formatDate(keyResult.dueDate)}
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <strong>Status:</strong>{" "}
+                    <Box
+                      component="span"
+                      sx={{
+                        color: statusColours[keyResult.status] || "666",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {formatStatus(keyResult.status)}
+                    </Box>
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <strong>Approval:</strong>{" "}
+                    {keyResult.approved ? "Approved" : "Pending"}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Expanded edit section */}
+            {isExpanded && (
+              <>
+                <Divider sx={{ my: 2 }} />
+
+                {/* Progress */}
+                <Box sx={{ mt: 2 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography>
+                      <strong>Progress</strong>
+                    </Typography>
+
+                    <Box sx={{display: "flex", alignItems: "center", gap: 0.5}}>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={editedKeyResult?.progress ?? 0}
+                        onChange={(event) => {
+                          const value = event.target.value;
+
+                          if (value === "") {
+                            setEditedKeyResult((previous) => ({
+                              ...previous,
+                              progress: 0,
+                            }));
+                            return;
+                          }
+
+                          const number = Math.min(100, Math.max(0, Number(value)));
+
+                          setEditedKeyResult((previous) => ({
+                            ...previous,
+                            progress: number,
+                          }));
+                        }}
+
+                        slotProps={{
+                          htmlInput: {
+                            min: 0,
+                            max: 100,
+                            step: 1,
+                          },
+                        }}
+
+                        sx={{
+                          width: "85px",
+                          "& input" : {
+                            textAlign: "right",
+                            fontWeight: 600,
+                          },
+                        }}
+                      />
+                      <Typography sx={{fontWeight: 600}}>
+                        %
+                      </Typography>
+                    </Box>
+                  </Box>
+                    <Slider
+                      value={editedKeyResult?.progress ?? 0}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event, newValue) =>
+                        setEditedKeyResult((previous) =>({
+                          ...previous,
+                          progress: newValue,
+                        }))
+                      }
+                    />
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 4,
+                    mt: 2,
+                    alignItems: "stretch",
+                  }}
+                >
+                  {/* Status */}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ mb: 1 }}>
+                      <strong>Status</strong>
+                    </Typography>
+
+                    <FormControl
+                      size="small"
+                      fullWidth
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                    >
+                      <Select
+                        value={editedKeyResult?.status ?? ""}
+                        displayEmpty
+                        onChange={(event) =>
+                          setEditedKeyResult((previous) =>({
+                            ...previous,
+                            status: event.target.value,
+                          }))
+                        }
+                        sx= {{
+                          backgroundColor:
+                            statusBackgroundColours[editedKeyResult?.status] || "#ffffff",
+                          color: "#1f1e40",
+                          borderRadius: "8px",
+                          fontWeight: 500,
+
+                          "& .MuiSelect-select": {
+                            padding: "10px 14px",
+                          },
+
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "1f1e40",
+                          },
+
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "#1f1e40",
+                          },
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          Choose Progress
+                        </MenuItem>
+
+                        <MenuItem value="on-track">
+                          On Track
+                        </MenuItem>
+
+                        <MenuItem value="at-risk">
+                          At Risk
+                        </MenuItem>
+
+                        <MenuItem value="overdue">
+                          Overdue
+                        </MenuItem>
+
+                        <MenuItem value="completed">
+                          Completed
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  {/* Evidence */}
+                  <Box sx={{
+                      flex: 1,
+                      borderLeft: "1px solid #d9dfea",
+                      pl: 4,
+                    }}>
+                    <Typography sx={{ mb: 1 }}>
+                      <strong>Evidence</strong>
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                      }}
+                    >
+                      <Button variant="outlined">
+                       View
+                      </Button>
+
+                      <Button
+                        variant="outlined"
+                        component="label"
+                      >
+                        Upload
+
+                        <input
+                          type="file"
+                          hidden
+                        />
+                      </Button>
+                    </Box>
+                  </Box>
+                </Box>
+
+                
+              </>
+            )}
+
+            {/* Bottom-right buttons */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 1,
+                mt: 2,
+              }}
+            >
+              {isExpanded ? (
+                <>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      setExpandedKeyResult(null);
+                      setEditedKeyResult(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handleSave}
+                  >
+                    Save
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    setExpandedKeyResult(keyResult._id || keyResult.id);
+                    setEditedKeyResult({...keyResult});
+                  }}
+                >
+                  Edit Key Result
+                </Button>
+              )}
+            </Box>
+          </Box>
+        );
+      })}
+
+      {/* Popup Close */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "flex-end",
+          mt: 2,
+        }}
+      >
+        <Button
+          variant="outlined"
+          onClick={handleClose}
+        >
+          Close
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+export default KeyResultsModal;

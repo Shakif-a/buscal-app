@@ -125,6 +125,19 @@
     margin-bottom: 16px;
 }
 
+.role-add-section {
+    margin-bottom: 40px;
+}
+
+.role-add-button {
+    color: #2e6da4;
+    font-weight: bold;
+    font-size: 18px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
 .role-table-header {
     display: grid;
     grid-template-columns: 1fr 3fr;
@@ -147,16 +160,6 @@
 .role-name {
     color: #1a2b4a;
     font-size: 18px;
-}
-
-.role-edit-button {
-    padding: 10px 30px 10px 20px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    background-color: #fff;
-    color: #1a2b4a;
-    cursor: pointer;
-    position: relative;
 }
 
 .role-edit-arrow {
@@ -228,16 +231,37 @@
     gap: 16px;
 }
 
-.role-reset-button {
+.role-edit-button{
+    padding: 10px 30px 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    color: #1f1e40;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.role-edit-button:hover{
+    background-color: #cfe2f0;
+}
+
+.role-reset-button{
     padding: 12px 28px;
     border-radius: 8px;
     border: 1px solid #ddd;
     background-color: #f2f2f2;
-    color: #1a2b4a;
+    color: #1f1e40;
     cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.role-save-button {
+.role-reset-button:hover{
+    background-color: #d9534f;
+    color: white;
+}
+
+.role-save-button{
     padding: 12px 28px;
     border-radius: 8px;
     border: none;
@@ -245,6 +269,50 @@
     color: #fff;
     font-weight: 600;
     cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.role-save-button:hover{
+    background-color: #2e9e6b;
+    color: white;
+}
+
+.role-reference-section {
+    margin-top: 30px;
+}
+.role-reference-box {
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 30px;
+}
+.role-reference-title {
+    color: #888;
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+.role-reference-table-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 0 10px 14px;
+    border-bottom: 1px solid #eee;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-size: 14px;
+}
+.role-reference-table-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 18px 10px;
+    border-bottom: 1px solid #eee;
+    align-items: center;
+}
+.role-reference-area {
+    color: #1a2b4a;
+    font-size: 17px;
+    font-weight: 600;
 }
 
 .role-management button:disabled {
@@ -262,19 +330,6 @@
 .role-permission-checkbox-input:focus-visible+span {
     outline: 2px solid #2e6da4;
     outline-offset: 3px;
-}
-
-.role-add-section {
-    margin-bottom: 40px;
-}
-
-.role-add-button {
-    color: #2e6da4;
-    font-weight: bold;
-    font-size: 18px;
-    background: none;
-    border: none;
-    cursor: pointer;
 }
 
 .role-row-actions {
