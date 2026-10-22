@@ -22,6 +22,7 @@ const {
 } = require("../services/okrCalendarSyncService");
 
 const CalendarEntry = require("../models/calendarEntryModel");
+const writes = require("../services/okrWrites");
 
 function getName(user) {
   let name = "";
@@ -174,6 +175,16 @@ const createObjective = asyncHandler(async (req, res) => {
     throw new Error("Please add a due date");
   }
 
+  let group = "none";
+  if (req.body.group !== undefined) {
+    if (typeof req.body.group !== "string" || !req.body.group.trim()) {
+      res.status(400);
+      throw new Error("Please select a valid group");
+    }
+    group = req.body.group.trim();
+  }
+  await writes.requireGroup(group);
+
   let commitmentType = req.body.commitmentType;
   if (!commitmentType) {
     commitmentType = "committed";
@@ -195,7 +206,7 @@ const createObjective = asyncHandler(async (req, res) => {
     objective = await OkrObjective.create({
       title: req.body.title,
       description: req.body.description,
-      group: req.body.group,
+      group,
       owner: req.body.owner,
       dueDate: req.body.dueDate,
       commitmentType: commitmentType,
@@ -258,6 +269,7 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please select a group");
     }
+    if (group !== objective.group) await writes.requireGroup(group);
     objective.group = group;
   }
 

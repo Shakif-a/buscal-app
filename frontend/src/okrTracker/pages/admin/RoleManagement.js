@@ -23,6 +23,11 @@ function getErrorMessage(error) {
   return error.message || "Something went wrong";
 }
 
+function getUserName(user) {
+  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  return fullName || user.email;
+}
+
 function makeRoleState(rows, permissionList) {
   const result = {};
 
@@ -48,8 +53,7 @@ function RoleManagement() {
   const [canEdit, setCanEdit] = useState(false);
   const [canAssign, setCanAssign] = useState(false);
   const [people, setPeople] = useState([]);
-  const [selectedUser, setSelectedUser] = useState("");
-  const [selectedRole, setSelectedRole] = useState("");
+  const [draftMembers, setDraftMembers] = useState([]);
   const [statusMessage, setStatusMessage] = useState("");
   const [expandedRole, setExpandedRole] = useState("Manager");
   const [searchText, setSearchText] = useState("");
@@ -93,10 +97,19 @@ function RoleManagement() {
     if (data.canManageUsers) {
       const users = await adminService.getUsers(user.token);
       setPeople(users);
-      setSelectedRole(
-        users.find((person) => person._id === selectedUser)?.okrRole || "",
-      );
+      return users;
     }
+    return [];
+  }
+
+  // Custom roles are stored on each user as okrRole. Admins and executives
+  // always use the Admin role, so they cannot be assigned here.
+  const assignablePeople = people.filter((person) => !canManageAdmin(person));
+
+  function getMemberIds(roleName, list = people) {
+    return list
+      .filter((person) => person.okrRole === roleName)
+      .map((person) => person._id);
   }
 
   function openRoleModal(action, role = "") {
@@ -157,21 +170,42 @@ function RoleManagement() {
     }
   }
 
-  async function assignRole() {
-    if (!selectedUser || isSaving || !canAssign) return;
+  function toggleMember(userId) {
+    if (draftMembers.includes(userId)) {
+      setDraftMembers(draftMembers.filter((id) => id !== userId));
+    } else {
+      setDraftMembers([...draftMembers, userId]);
+    }
+  }
+
+  async function saveMembers(roleName) {
+    if (isSaving || !canAssign) return;
+
+    const currentMembers = getMemberIds(roleName);
+    const added = draftMembers.filter((id) => !currentMembers.includes(id));
+    const removed = currentMembers.filter((id) => !draftMembers.includes(id));
+
     setIsSaving(true);
     try {
-      await adminService.assignRole(
-        selectedUser,
-        selectedRole || null,
-        user.token,
-      );
-      await loadRoles();
-      setStatusMessage("User role saved.");
+      for (const userId of added) {
+        await adminService.assignRole(userId, roleName, user.token);
+      }
+      for (const userId of removed) {
+        await adminService.assignRole(userId, null, user.token);
+      }
+      setStatusMessage(`Members of ${roleName} saved.`);
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
+      setStatusMessage("");
     } finally {
+      // Reload either way so a partial failure shows what was actually saved.
+      try {
+        const users = await loadRoles();
+        setDraftMembers(getMemberIds(roleName, users));
+      } catch (error) {
+        setErrorMessage(getErrorMessage(error));
+      }
       setIsSaving(false);
     }
   }
@@ -181,7 +215,13 @@ function RoleManagement() {
       setExpandedRole(null);
     } else {
       setExpandedRole(roleName);
+      setDraftMembers(getMemberIds(roleName));
     }
+  }
+
+  function isSystemRole(roleName) {
+    const row = roleRows.find((item) => item.role === roleName);
+    return !row || row.system;
   }
 
   function togglePermission(roleName, permission) {
@@ -321,6 +361,7 @@ function RoleManagement() {
           <>
             <div className="role-table-header">
               <div>ROLE</div>
+              <div>MEMBERS</div>
               <div>ACTIONS</div>
             </div>
 
@@ -332,6 +373,11 @@ function RoleManagement() {
               <div key={roleName}>
                 <div className="role-table-row">
                   <div className="role-name">{roleName}</div>
+                  <div className="role-member-count">
+                    {isSystemRole(roleName) || !canAssign
+                      ? "—"
+                      : getMemberIds(roleName).length}
+                  </div>
                   <div className="role-row-actions">
                     <button
                       onClick={() => toggleExpand(roleName)}
@@ -346,6 +392,7 @@ function RoleManagement() {
                     </button>
 
 
+                    {!isSystemRole(roleName) && (
                     <div className="role-more-menu-wrapper">
                       <button
                         type="button"
@@ -382,6 +429,7 @@ function RoleManagement() {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
 
@@ -445,6 +493,88 @@ function RoleManagement() {
                         {isSaving ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
+
+                    {canAssign && isSystemRole(roleName) && (
+                      <p className="role-member-help">
+                        Users get the {roleName} role from their account and
+                        company settings. Create a custom role to assign
+                        members directly.
+                      </p>
+                    )}
+
+                    {canAssign && !isSystemRole(roleName) && (
+                      <>
+                        <div className="role-permissions-title role-members-title">
+                          Members of {roleName}
+                        </div>
+
+                        <div className="role-permissions-grid">
+                          {assignablePeople.map((person) => {
+                            const isChecked = draftMembers.includes(person._id);
+                            const otherRole =
+                              person.okrRole && person.okrRole !== roleName
+                                ? person.okrRole
+                                : "";
+
+                            return (
+                              <label
+                                key={person._id}
+                                className="role-permission-label"
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={isSaving}
+                                  checked={isChecked}
+                                  onChange={() => toggleMember(person._id)}
+                                  className="role-permission-checkbox-input"
+                                />
+                                <span
+                                  className={`role-permission-checkbox ${isChecked ? "checked" : ""
+                                    }`}
+                                >
+                                  {isChecked ? "✓" : ""}
+                                </span>
+                                <span className="role-permission-name">
+                                  {getUserName(person)}
+                                  {otherRole && (
+                                    <span className="role-member-other">
+                                      {" "}
+                                      (currently {otherRole})
+                                    </span>
+                                  )}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        <div className="role-action-row">
+                          <span className="role-member-help">
+                            Each user has one OKR role. Selecting someone in
+                            another role moves them here; unselecting returns
+                            them to their account and company role.
+                          </span>
+                          <div className="role-action-buttons">
+                            <button
+                              onClick={() =>
+                                setDraftMembers(getMemberIds(roleName))
+                              }
+                              disabled={isSaving}
+                              className="role-reset-button"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => saveMembers(roleName)}
+                              disabled={isSaving}
+                              className="role-save-button"
+                            >
+                              {isSaving ? "Saving..." : "Save Members"}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -453,8 +583,33 @@ function RoleManagement() {
         )}
       </div>
 
-     
-    
+      <div className="role-reference-section">
+        <div className="role-reference-box">
+          <div className="role-reference-title">PERMISSION REFERENCE</div>
+          <p>
+            Admin pages are available only to administrators and executives.
+          </p>
+          <p>
+            Objective creation follows the saved Create Objectives permission.
+            Editing and deleting follow Edit Objectives, while objective owners
+            can manage their own objectives. Group managers can manage
+            objectives in their assigned groups using the Manager permissions.
+          </p>
+          <p>
+            Key-result creation, approval, reports, and admin actions follow
+            their named permissions. Admin-only settings cannot be delegated
+            here. System roles (Admin, Manager, Employee) follow account and
+            company settings and cannot be renamed, deleted, or assigned.
+            Custom roles control OKR work and are assigned from the Members
+            list under Edit. A role with members cannot be deleted. Removing
+            Manage Roles also removes access to this editor; a database
+            operator can restore it with the admin access recovery script.
+            Reset to defaults changes the draft; select Save Changes to apply
+            it.
+          </p>
+        </div>
+      </div>
+
       {roleModalAction && (
         <div className="role-popup-overlay">
           <div
