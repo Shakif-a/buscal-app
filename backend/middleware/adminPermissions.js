@@ -16,6 +16,29 @@ function isAdminOrExec(user) {
   return user.exec === "yes";
 }
 
+// A QM (quality manager) is a level 1 manager.
+const roleManagementLevels = { qm: 1 };
+
+function getManagementLevels(user) {
+  const levels = [];
+
+  if (user.companyRoles) {
+    for (let i = 0; i < user.companyRoles.length; i++) {
+      levels.push(user.companyRoles[i].managementLevel);
+    }
+  }
+
+  if (user.roles) {
+    for (let i = 0; i < user.roles.length; i++) {
+      if (Object.hasOwn(roleManagementLevels, user.roles[i])) {
+        levels.push(roleManagementLevels[user.roles[i]]);
+      }
+    }
+  }
+
+  return levels;
+}
+
 function getRoleName(user) {
   if (isAdminOrExec(user)) {
     return "Admin";
@@ -23,13 +46,11 @@ function getRoleName(user) {
 
   if (user.okrRole) return user.okrRole;
 
-  if (user.companyRoles) {
-    for (let i = 0; i < user.companyRoles.length; i++) {
-      const level = user.companyRoles[i].managementLevel;
+  const levels = getManagementLevels(user);
 
-      if (level >= 1 && level <= 3) {
-        return "Manager";
-      }
+  for (let i = 0; i < levels.length; i++) {
+    if (levels[i] >= 1 && levels[i] <= 3) {
+      return "Manager";
     }
   }
 
