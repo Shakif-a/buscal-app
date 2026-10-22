@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import EditIcon from "@mui/icons-material/Edit";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import { useDispatch, useSelector } from "react-redux";
+import { deleteObjective, getObjectives, updateObjective } from "../../features/objectives/objectiveSlice";
+import { createKeyResult, updateKeyResult, deleteKeyResult } from "../../features/keyResults/keyResultSlice";
+import keyResultService from "../../features/keyResults/keyResultService";
+import { getAllUsers } from "../../features/users/userSlice";
+import objectiveService from "../../features/objectives/objectiveService";
+import evidenceService from "../../features/objectives/keyResultService";
 import {
   saveEvidenceFile,
   shareEvidenceFile,
 } from "../../features/objectives/evidenceFiles";
-import keyResultService from "../../features/objectives/keyResultService";
-import { getObjectives } from "../../features/objectives/objectiveSlice";
-import ObjectiveActions from "./ObjectiveActions";
 
 const maximumEvidenceSize = 5 * 1024 * 1024;
 const maximumEvidenceFiles = 10;
@@ -43,10 +47,6 @@ const evidenceFileExtensions = [
   ".json",
   ".zip",
 ];
-
-function displayDate(value) {
-  return value ? new Date(value).toLocaleDateString() : "";
-}
 
 function displayFileSize(size) {
   if (!Number.isFinite(size) || size < 0) {
@@ -146,16 +146,104 @@ async function fileFailureMessage(failure, fallback) {
   return failureMessage(failure, fallback);
 }
 
+// Backend labels matched to UI labels
+const API_TO_UI_STATUS = {
+  "on-track": "On Track",
+  "at-risk": "At Risk",
+  "overdue": "Overdue",
+  "completed": "Completed",
+};
+
+const UI_TO_API_STATUS = {
+  "On Track": "on-track",
+  "At Risk": "at-risk",
+  "Overdue": "overdue",
+  "Completed": "completed",
+};
+
+const STATUS_COLOURS = {
+  "not started": "#72cdf4",
+  "in progress": "#00b085",
+  "on-track": "#00b085",
+  "at-risk": "#f4b400",
+  overdue: "#e57373",
+  completed: "#72cdf4",
+};
+
+const getStatusColour = (status) => 
+  STATUS_COLOURS[status?.toLowerCase().replace(/\s+/g, "-")] || "#72cdf4";
+
+// Map a backend KR to the this component shape
+function mapKeyResult(kr) {
+  return {
+    id: kr._id || kr.id,
+    name: kr.title || "",
+    weight: kr.weight ?? 0,
+    assigned: kr.assigned || "Unassigned",
+    // Populated objects returned as: _id, firstName, lastName
+    assignedTo: kr.assignedTo?._id || kr.assignedTo || null,
+    progress: kr.progress ?? 0,
+    dueDate: kr.dueDate ? new Date(kr.dueDate).toISOString().split("T")[0] : "",
+    status: API_TO_UI_STATUS[kr.status] || "Choose Progress",
+    approved: kr.approved || false,
+    canManageEvidence: !!kr.canManageEvidence,
+    canEdit: !!kr.canEdit,
+    canEditProgress: !!kr.canEditProgress,
+    canApprove: !!kr.canApprove,
+  };
+}
+
+// Validate before send to backend. Undefined is dropped.
+function buildKeyResultPayload(kr) {
+  return {
+    title: kr.name.trim(),
+    weight: Number(kr.weight),
+    dueDate: kr.dueDate,
+    assignedTo: kr.assignedTo || null,
+    progress: Number(kr.progress) || 0,
+    status: UI_TO_API_STATUS[kr.status], // undefined for "Choose Progress", backend default applies
+    approved: kr.approved,
+  };
+}
+
+function isKeyResultComplete(kr) {
+  return (
+    kr.name.trim() !== "" &&
+    Number(kr.weight) > 0 &&
+    !!kr.assignedTo &&
+    kr.dueDate !== ""
+  );
+}
+
 function ObjectiveCard({ objective }) {
-  const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-  const [expanded, setExpanded] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [title, setTitle] = useState("");
-  const [weight, setWeight] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const objectiveId = objective.id || objective._id;
+
+  //Temporary until Objective Status integration is completed
+  const objectiveStatus = null;
+
+  const objectiveStatusLabel = objectiveStatus
+    ? API_TO_UI_STATUS[objectiveStatus] || objectiveStatus
+    : "Not Started";
+  
+  const objectiveStatusColour = getStatusColour(objectiveStatus);
+
+  // Objective
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editOwner, setEditOwner] = useState("");
+  const [editGroup, setEditGroup] = useState("");
+  const [editCommitmentType, setEditCommitmentType] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [groupOptions, setGroupOptions] = useState([]);
+
+  // Key results
+  const [showKeyResults, setShowKeyResults] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [keyResults, setKeyResults] = useState([]);
+  const [originalKeyResults, setOriginalKeyResults] = useState([]);
+
+  // Evidence
   const [evidenceResult, setEvidenceResult] = useState(null);
   const [evidenceMode, setEvidenceMode] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState([]);
@@ -177,8 +265,6 @@ function ObjectiveCard({ objective }) {
   const evidenceTriggerRef = useRef(null);
   const evidenceUploadController = useRef(null);
   const evidenceNextQueueId = useRef(1);
-  const keyResults = objective.keyResults || [];
-  const objectiveId = objective._id || objective.id;
   const evidenceFileInputId = `evidence-file-${objectiveId}`;
   const evidenceFileHelpId = `evidence-file-help-${objectiveId}`;
   const evidenceFileTypesId = `evidence-file-types-${objectiveId}`;
@@ -186,6 +272,56 @@ function ObjectiveCard({ objective }) {
   const evidenceQueuedCount = evidenceQueue.filter(
     (item) => item.status === "queued",
   ).length;
+
+  // Weight popup
+  const [showWeightPopup, setShowWeightPopup] = useState(false);
+  const [weightDrafts, setWeightDrafts] = useState([]);
+
+  // Menu and delete
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const menuRef = useRef(null);
+
+  // Redux
+  const dispatch = useDispatch();
+  const token = useSelector((state) => state.auth.user?.token);
+  const { users: employees } = useSelector((state) => state.users);
+
+  // Fetch real user objects when in edit mode
+  useEffect(() => {
+    if ((editMode || showEditModal) && token) {
+      dispatch(getAllUsers(token));
+    }
+  }, [editMode, showEditModal, token, dispatch]);
+
+  // Fetch objective's key results
+  async function fetchKeyResults() {
+    try {
+      const data = await keyResultService.getKeyResultsByObjective(objectiveId, token);
+      setKeyResults(data.map(mapKeyResult));
+    } catch (err) {
+      console.error("Error fetching KRs:", err);
+    }
+  }
+
+  useEffect(() => {
+    if (showKeyResults && objectiveId) {
+      fetchKeyResults();
+    }
+  }, [showKeyResults, objectiveId, token]);
+
+  // Click outside menu = close
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (!evidenceResult) {
@@ -221,46 +357,6 @@ function ObjectiveCard({ objective }) {
       evidenceCloseRef.current?.focus();
     }
   }, [evidenceResult, evidenceBusy, evidencePreview]);
-
-  async function addKeyResult(event) {
-    event.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      await keyResultService.create(
-        objectiveId,
-        { title, weight: Number(weight), dueDate },
-        user.token,
-      );
-      setAdding(false);
-      setTitle("");
-      setWeight("");
-      setDueDate("");
-      await dispatch(getObjectives()).unwrap();
-    } catch (failure) {
-      setError(failureMessage(failure, "Could not save key result"));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function changeApproval(result) {
-    setSaving(true);
-    setError("");
-    try {
-      await keyResultService.approve(
-        objectiveId,
-        result._id || result.id,
-        !result.approved,
-        user.token,
-      );
-      await dispatch(getObjectives()).unwrap();
-    } catch (failure) {
-      setError(failureMessage(failure, "Could not update approval"));
-    } finally {
-      setSaving(false);
-    }
-  }
 
   function closeEvidence() {
     if (evidenceAction) {
@@ -338,10 +434,10 @@ function ObjectiveCard({ objective }) {
     setEvidenceLoading(true);
 
     try {
-      const files = await keyResultService.getEvidence(
+      const files = await evidenceService.getEvidence(
         objectiveId,
         result._id || result.id,
-        user.token,
+        token,
       );
       setEvidenceFiles(files);
     } catch (failure) {
@@ -368,10 +464,10 @@ function ObjectiveCard({ objective }) {
     setEvidenceLoading(true);
 
     try {
-      const files = await keyResultService.getEvidence(
+      const files = await evidenceService.getEvidence(
         objectiveId,
         result._id || result.id,
-        user.token,
+        token,
       );
       setEvidenceFiles(files);
     } catch (failure) {
@@ -552,12 +648,12 @@ function ObjectiveCard({ objective }) {
       updateQueueItem(item.id, { status: "uploading", percent: 0 });
 
       try {
-        await keyResultService.uploadEvidence(
+        await evidenceService.uploadEvidence(
           objectiveId,
           evidenceResult._id || evidenceResult.id,
           item.file,
           evidenceNote,
-          user.token,
+          token,
           controller.signal,
           (percent) => updateQueueItem(item.id, { percent }),
         );
@@ -615,10 +711,10 @@ function ObjectiveCard({ objective }) {
     }
 
     try {
-      const files = await keyResultService.getEvidence(
+      const files = await evidenceService.getEvidence(
         objectiveId,
         evidenceResult._id || evidenceResult.id,
-        user.token,
+        token,
       );
       setEvidenceFiles(files);
     } catch (failure) {
@@ -643,11 +739,11 @@ function ObjectiveCard({ objective }) {
   }
 
   async function getEvidenceFile(file) {
-    return keyResultService.downloadEvidence(
+    return evidenceService.downloadEvidence(
       objectiveId,
       evidenceResult._id || evidenceResult.id,
       file._id || file.id,
-      user.token,
+      token,
     );
   }
 
@@ -720,7 +816,7 @@ function ObjectiveCard({ objective }) {
 
     try {
       const data = await getEvidenceFile(file);
-      const shared = await shareEvidenceFile(data, file, evidenceResult.title);
+      const shared = await shareEvidenceFile(data, file, evidenceResult.name);
 
       if (shared) {
         setEvidenceMessageType("success");
@@ -752,11 +848,11 @@ function ObjectiveCard({ objective }) {
     setEvidenceMessage("");
     setEvidenceUndoFile(null);
     try {
-      await keyResultService.deleteEvidence(
+      await evidenceService.deleteEvidence(
         objectiveId,
         evidenceResult._id || evidenceResult.id,
         file._id || file.id,
-        user.token,
+        token,
       );
       setEvidenceFiles((files) =>
         files.filter((item) => (item._id || item.id) !== (file._id || file.id)),
@@ -790,11 +886,11 @@ function ObjectiveCard({ objective }) {
     setEvidenceAction("restore-" + fileId);
     setEvidenceError("");
     try {
-      await keyResultService.restoreEvidence(
+      await evidenceService.restoreEvidence(
         objectiveId,
         evidenceResult._id || evidenceResult.id,
         fileId,
-        user.token,
+        token,
       );
       setEvidenceFiles((files) => [file, ...files]);
       setEvidenceUndoFile(null);
@@ -829,157 +925,681 @@ function ObjectiveCard({ objective }) {
     return isWorking ? "Sharing..." : "Share File";
   }
 
+  // Groups from the database
+  async function loadGroupOptions() {
+    try {
+      const groups = await objectiveService.getObjectiveGroups(token);
+      setGroupOptions(Array.isArray(groups) ? groups : groups.groups || []);
+    } catch (err) {
+      console.error("Error fetching groups:", err);
+    }
+  }
+
+  // Open objective edit
+  function openEditModal() {
+    setEditTitle(objective.title || "");
+    setEditOwner(objective.owner?._id || objective.owner || "");
+    setEditGroup(objective.group || "");
+    setEditCommitmentType(objective.commitmentType || "committed");
+    setEditDescription(objective.description || "");
+
+    if (objective.dueDate) {
+      const date = new Date(objective.dueDate);
+      setEditDueDate(date.toISOString().split("T")[0]);
+    } else {
+      setEditDueDate("");
+    }
+
+    setShowMenu(false);
+    setShowEditModal(true);
+    loadGroupOptions();
+  }
+
+  // Add new key result
+  function addKeyResult() {
+    const newKeyResult = {
+      id: `new-${Date.now()}`,
+      name: "",
+      weight: 0,
+      assigned: "Unassigned",
+      assignedTo: null,
+      progress: 0,
+      dueDate: "",
+      status: "Choose Progress",
+      approved: false,
+      isNew: true,
+      canEdit: true,
+      canEditProgress: true,
+      canApprove: false,
+      canManageEvidence: false,
+    };
+
+    setKeyResults([...keyResults, newKeyResult]);
+    setEditMode(true);
+  }
+
+  // Update key result field(s) (local)
+  function updateLocalKeyResult(id, changes) {
+    setKeyResults((previous) =>
+      previous.map((kr) => (kr.id === id ? { ...kr, ...changes } : kr))
+    );
+  }
+
+  // Remove a key result. Existing ones are also deleted on backend.
+  async function removeKeyResult(kr) {
+    if (!kr.isNew) {
+      try {
+        await dispatch(
+          deleteKeyResult({ objectiveId, keyResultId: kr.id })
+        ).unwrap();
+      } catch (err) {
+        console.error("Failed to delete key result", err);
+        return;
+      }
+    }
+    setKeyResults((previous) => previous.filter((item) => item.id !== kr.id));
+  }
+
+  // Enter edit mode/save changes
+  async function handleEditButton() {
+    if (!editMode) {
+      setOriginalKeyResults(keyResults.map((kr) => ({ ...kr })));
+      setEditMode(true);
+      return;
+    }
+
+    try {
+      for (const kr of keyResults) {
+        if (kr.isNew) {
+          await dispatch(
+            createKeyResult({
+              objectiveId,
+              keyResultData: buildKeyResultPayload(kr),
+            })
+          ).unwrap();
+        } else {
+          const original = originalKeyResults.find((o) => o.id === kr.id);
+          if (original && JSON.stringify(kr) !== JSON.stringify(original)) {
+            await dispatch(
+              updateKeyResult({
+                objectiveId,
+                keyResultId: kr.id,
+                keyResultData: buildKeyResultPayload(kr),
+              })
+            ).unwrap();
+          }
+        }
+      }
+
+      // Pull fresh data. New KRs get real _ids + not flagged as isNew
+      await fetchKeyResults();
+      setEditMode(false);
+      setOriginalKeyResults([]);
+    } catch (err) {
+      console.error("Failed to save key results", err);
+    }
+  }
+
+  // Calc total weight
+  const totalKeyResultWeight = keyResults.reduce(
+    (total, kr) => total + Number(kr.weight),
+    0
+  );
+
+  const allKeyResultsComplete = keyResults.every(isKeyResultComplete);
+
+  // Can the user change other KRs?
+  // Used to stop assignies from getting error messages when trying to save when they can't change the other broken KRs
+  const canChangeStructure =
+    objective.canCreateKeyResult || objective.canEditKeyResults;
+
+  // Are the key results valid for saving? Either no KRs, or user cant change structure, or all KRs complete and total weight = 100
+  const keyResultsValid =
+    keyResults.length === 0 ||
+    !canChangeStructure ||
+    (allKeyResultsComplete && totalKeyResultWeight === 100);
+
+  // Check if user can edit any key result so we know if to show the edit button
+  const canEditAnyKeyResult =
+    objective.canCreateKeyResult ||
+    objective.canEditKeyResults ||
+    objective.canApproveKeyResult ||
+    keyResults.some((kr) => kr.canEditProgress);
+
+  // Delete objective
+  const handleDeleteObjective = async () => {
+    try {
+      await dispatch(deleteObjective(objectiveId)).unwrap();
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Failed to delete objective", error);
+    }
+  };
+
+  // Update objective
+  const handleUpdateObjective = async () => {
+    try {
+      const objectiveData = {
+        title: editTitle,
+        dueDate: editDueDate,
+        owner: editOwner,
+        group: editGroup,
+        commitmentType: editCommitmentType,
+        description: editDescription,
+      };
+
+      await dispatch(updateObjective({ objectiveId, objectiveData })).unwrap();
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Failed to update objective", error);
+    }
+  };
+
+  // Weight popup
+  const openWeightPopup = () => {
+    setWeightDrafts(
+      keyResults.map((kr) => ({ id: kr.id, weight: kr.weight }))
+    );
+    setShowWeightPopup(true);
+  };
+
+  const handleWeightChange = (id, newWeight) => {
+    const weight = Math.max(0, Math.min(100, Number(newWeight)));
+
+    setWeightDrafts((previous) =>
+      previous.map((item) => (item.id === id ? { ...item, weight } : item))
+    );
+  };
+
+  const totalWeight = weightDrafts.reduce(
+    (total, item) => total + Number(item.weight),
+    0
+  );
+
+  const closeWeightPopup = () => {
+    setShowWeightPopup(false);
+    setWeightDrafts([]);
+  };
+
+  const saveWeights = () => {
+    if (totalWeight !== 100) return;
+
+    setKeyResults((previous) =>
+      previous.map((kr) => {
+        const draft = weightDrafts.find((item) => item.id === kr.id);
+        return draft ? { ...kr, weight: draft.weight } : kr;
+      })
+    );
+    setShowWeightPopup(false);
+    setWeightDrafts([]);
+  };
+
   return (
-    <div className="objective-card">
+    <div
+      className="objective-card"
+      style={{
+        borderLeft: `6px solid ${objectiveStatusColour}`,
+      }}
+    >
+      {/* Objective information */}
       <div className="objective-details">
         <div className="objective-info">
           <h3 className="objective-title">{objective.title}</h3>
+
           <p>
             Group: <strong>{objective.group}</strong>
           </p>
+
           <p>
-            Objective Manager:{" "}
-            <strong>{objective.manager || "Unassigned"}</strong>
+            Owner: <strong>{objective.manager}</strong>
           </p>
+
           <p>
             Type: <strong>{objective.type}</strong>
           </p>
+
+          <p>
+            Status: <strong style={{ color: objectiveStatusColour}}>{objectiveStatusLabel}</strong>
+          </p>
         </div>
+
         <p className="objective-due-date">
-          Due: <strong>{displayDate(objective.dueDate)}</strong>
+          Due: <strong>
+            {objective.dueDate
+              ? new Date(objective.dueDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+              : "No due date"}
+          </strong>
         </p>
-        {objective.canManage && <ObjectiveActions objective={objective} />}
+        {objective.canManage && (
+        <div className="objective-menu-container" ref={menuRef}>
+          <button
+            type="button"
+            className="objective-menu-button"
+            onClick={() => setShowMenu(!showMenu)}
+          >
+            ...
+          </button>
+          {showMenu && (
+            <div className="objective-menu-dropdown">
+              <button
+                type="button"
+                className="objective-menu-item"
+                onClick={openEditModal}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="objective-menu-item delete-menu-item"
+                onClick={() => {
+                  setShowMenu(false);
+                  setShowDeleteModal(true);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+        )}
       </div>
+
+      <hr />
+      {/* Progress section */}
       <div className="progress-section">
         <button
           type="button"
           className="progress-button"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setShowKeyResults(!showKeyResults)}
         >
-          {expanded ? "Hide Key Results" : "View Key Results"}
+          {showKeyResults ? "Hide Key Results" : "View Key Results"}
         </button>
-        <progress
-          aria-label="Objective progress"
-          max="100"
-          value={objective.progress || 0}
-        />
-        <span>{objective.progress || 0}%</span>
+
+        <div className="progress-area">
+          <div className="progress-labels">
+            <span>25%</span>
+            <span>50%</span>
+            <span>75%</span>
+            <span>100%</span>
+          </div>
+
+          <div className="progress-track">
+            <div
+              className="progress-fill"
+              style={{ width: `${objective.progress}%` }}
+            />
+
+            <div
+              className="progress-circle"
+              style={{ left: `${objective.progress}%` }}
+            />
+          </div>
+        </div>
       </div>
-      {error && <p role="alert">{error}</p>}
-      {expanded && (
+
+      {/* Key Results Table */}
+      {showKeyResults && (
         <div className="key-results-section">
-          {keyResults.length === 0 ? (
-            <p>No key results yet.</p>
-          ) : (
-            <table className="key-results-table">
-              <thead>
+          <table className="key-results-table">
+            <thead>
+              <tr>
+                <th>KEY RESULTS <span className="required">*</span></th>
+                <th>WEIGHT <span className="required">*</span></th>
+                <th>ASSIGNED <span className="required">*</span></th>
+                <th>DUE DATE <span className="required">*</span></th>
+                <th>PROGRESS</th>
+                <th>STATUS</th>
+                <th>EVIDENCE</th>
+                <th>APPROVAL</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {keyResults.length === 0 ? (
                 <tr>
-                  <th>Key result</th>
-                  <th>Weight</th>
-                  <th>Assigned to</th>
-                  <th>Progress</th>
-                  <th>Due date</th>
-                  <th>Approval</th>
-                  <th>Evidence</th>
+                  <td colSpan="8" className="no-key-results">
+                    No Key Results have been found. Select "Edit Key Results" to add a Key Result.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {keyResults.map((result) => (
-                  <tr key={result._id || result.id}>
-                    <td>{result.title}</td>
-                    <td>{result.weight}%</td>
-                    <td>{result.assigned || "Unassigned"}</td>
-                    <td>{result.progress}%</td>
-                    <td>{displayDate(result.dueDate)}</td>
+              ) : (
+                keyResults.map((keyResult) => (
+                  <tr
+                    key={keyResult.id}
+                    className="key-result-row"
+                    style={{
+                      "--status-colour": getStatusColour(keyResult.status),
+                    }}
+                  >
+
+                    {/* Key Result name */}
                     <td>
-                      {objective.canApproveKeyResult ? (
+                      {editMode && keyResult.canEdit && (
                         <button
-                          disabled={saving}
-                          onClick={() => changeApproval(result)}
+                          type="button"
+                          className="remove-key-result"
+                          onClick={() => removeKeyResult(keyResult)}
                         >
-                          {result.approved ? "Revoke approval" : "Approve"}
+                          −
                         </button>
-                      ) : result.approved ? (
-                        "Approved"
+                      )}
+
+                      {editMode && keyResult.canEdit ? (
+                        <input
+                          className="key-result-name-input"
+                          type="text"
+                          placeholder="Enter Key Result"
+                          value={keyResult.name}
+                          onChange={(event) =>
+                            updateLocalKeyResult(keyResult.id, { name: event.target.value })
+                          }
+                        />
                       ) : (
-                        "Pending"
+                        <span>{keyResult.name}</span>
                       )}
                     </td>
+
+                    {/* Weight */}
                     <td>
-                      {result.canManageEvidence ? (
-                        <div className="evidence-buttons">
+                      {editMode && keyResult.canEdit ? (
+                        <button
+                          type="button"
+                          className="weight-edit-link"
+                          onClick={openWeightPopup}
+                        >
+                          <span>{keyResult.weight}%</span>
+                          <EditIcon className="weight-edit-icon" />
+                        </button>
+                      ) : (
+                        <span>{keyResult.weight}%</span>
+                      )}
+                    </td>
+
+                    {/* Assigned: real users, stores the user _id */}
+                    <td>
+                      {editMode && keyResult.canEdit ? (
+                        <select
+                          value={keyResult.assignedTo || ""}
+                          onChange={(event) => {
+                            const selectedId = event.target.value;
+                            const selectedUser = employees.find(
+                              (employee) => employee._id === selectedId
+                            );
+                            updateLocalKeyResult(keyResult.id, {
+                              assignedTo: selectedId || null,
+                              assigned: selectedUser
+                                ? `${selectedUser.firstName} ${selectedUser.lastName}`.trim()
+                                : "Unassigned",
+                            });
+                          }}
+                        >
+                          <option value="">Assign Employee</option>
+                          {employees.map((employee) => (
+                            <option key={employee._id} value={employee._id}>
+                              {employee.firstName} {employee.lastName}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        keyResult.assigned
+                      )}
+                    </td>
+
+                    {/* Due Date */}
+                    <td>
+                      {editMode && keyResult.canEdit ? (
+                        <input
+                          className="date-input"
+                          type="date"
+                          value={keyResult.dueDate}
+                          onChange={(event) =>
+                            updateLocalKeyResult(keyResult.id, { dueDate: event.target.value })
+                          }
+                        />
+                      ) : (
+                        keyResult.dueDate
+                      )}
+                    </td>
+
+                    {/* Progress */}
+                    <td>
+                      {editMode && keyResult.canEditProgress ? (
+                        <input
+                          className="key-result-small-input"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={keyResult.progress}
+                          onChange={(event) =>
+                            updateLocalKeyResult(keyResult.id, {
+                              progress: Number(event.target.value),
+                            })
+                          }
+                        />
+                      ) : (
+                        `${keyResult.progress}%`
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td>
+                      <select
+                        className={`status-select ${keyResult.status.toLowerCase().replace(/ /g, "-")}`}
+                        value={keyResult.status}
+                        disabled={!editMode || !keyResult.canEdit}
+                        onChange={(event) =>
+                          updateLocalKeyResult(keyResult.id, { status: event.target.value })
+                        }
+                      >
+                        <option value="Choose Progress">Choose Progress</option>
+                        <option value="On Track">On Track</option>
+                        <option value="At Risk">At Risk</option>
+                        <option value="Overdue">Overdue</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    </td>
+
+                    {/* Evidence */}
+                    <td>
+                      {keyResult.canManageEvidence ? (
+                        <>
                           <button
                             type="button"
                             className="action-link"
-                            onClick={() => showEvidence(result)}
+                            onClick={() => showEvidence(keyResult)}
                           >
                             View
                           </button>
+
+                          <span> | </span>
+
                           <button
                             type="button"
                             className="action-link"
-                            onClick={() => showEvidenceUpload(result)}
+                            onClick={() => showEvidenceUpload(keyResult)}
                           >
                             Upload
                           </button>
-                        </div>
+                        </>
                       ) : (
                         <span title="Only the person assigned to this key result, or a manager of the objective, can view or upload evidence">
                           Not available
                         </span>
                       )}
                     </td>
+
+                    {/* Approval */}
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={keyResult.approved}
+                        disabled={!editMode || !objective.canApproveKeyResult}
+                        onChange={(event) => {
+                          if (!editMode || !objective.canApproveKeyResult) return;
+                          updateLocalKeyResult(keyResult.id, {
+                            approved: event.target.checked,
+                          });
+                        }}
+                      />
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {objective.canCreateKeyResult && (
-            <button disabled={saving} onClick={() => setAdding(!adding)}>
-              {adding ? "Cancel" : "Add Key Result"}
-            </button>
-          )}
-          {adding && (
-            <form onSubmit={addKeyResult}>
-              <label>
-                Title{" "}
-                <input
-                  required
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  disabled={saving}
-                />
-              </label>
-              <label>
-                Weight{" "}
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  max="100"
-                  step="any"
-                  value={weight}
-                  onChange={(event) => setWeight(event.target.value)}
-                  disabled={saving}
-                />
-              </label>
-              <label>
-                Due date{" "}
-                <input
-                  required
-                  type="date"
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  disabled={saving}
-                />
-              </label>
-              <button disabled={saving}>
-                {saving ? "Saving..." : "Save Key Result"}
-              </button>
-            </form>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
+
+          {/* Footer */}
+          <div className="key-results-footer">
+            <div className="key-results-footer-left">
+              {editMode && objective.canCreateKeyResult && (
+                <button
+                  type="button"
+                  className="add-key-result"
+                  onClick={addKeyResult}
+                >
+                  + Add Key Result
+                </button>
+              )}
+
+              {editMode && canChangeStructure && keyResults.length > 0 && (
+                <>
+                  {!allKeyResultsComplete && (
+                    <p className="key-result-validation">
+                      Key Results Title, Weight, Assigned Employee and Due Date are required fields.
+                    </p>
+                  )}
+
+                  {totalKeyResultWeight !== 100 && (
+                    <p className="key-result-validation">
+                      Combined Key Result Weight must equal 100%
+                      <br />
+                      Current total: {totalKeyResultWeight}%
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="footer-buttons">
+              {editMode && (
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={() => {
+                    setKeyResults(originalKeyResults);
+                    setEditMode(false);
+                    setShowWeightPopup(false);
+                    setWeightDrafts([]);
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+
+              {canEditAnyKeyResult && (
+                <button
+                  type="button"
+                  className="save-button"
+                  onClick={handleEditButton}
+                  disabled={editMode && !keyResultsValid}
+                >
+                  {editMode ? "Save Key Results" : "Edit Key Results"}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Weight Popup */}
+      {showWeightPopup && (
+        <div className="weight-popup-overlay">
+          <div className="weight-popup">
+            <div className="weight-popup-header">
+              <h3>Edit Key Result Weights</h3>
+
+              <button
+                type="button"
+                className="weight-popup-close"
+                onClick={closeWeightPopup}
+              >
+                x
+              </button>
+
+              <p className="weight-popup-objective">
+                Objective:
+                <strong> {objective.title}</strong>
+              </p>
+
+              <p className="weight-popup-description">
+                Combined Weighting Must Equal 100%
+              </p>
+            </div>
+
+            <div className="weight-popup-content">
+              {keyResults.map((keyResult) => {
+                const draft = weightDrafts.find((item) => item.id === keyResult.id);
+                const currentWeight = draft?.weight ?? keyResult.weight;
+
+                return (
+                  <div className="weight-slider-item" key={keyResult.id}>
+                    <div className="weight-slider-info">
+                      <span className="weight-slider-title">{keyResult.name}</span>
+                      <span className="weight-slider-employee">- {keyResult.assigned}</span>
+                    </div>
+
+                    <div className="weight-slider-controls">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={currentWeight}
+                        onChange={(e) => handleWeightChange(keyResult.id, e.target.value)}
+                        className="weight-slider"
+                      />
+
+                      <div className="weight-slider-percentage">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={currentWeight}
+                          onChange={(e) => handleWeightChange(keyResult.id, e.target.value)}
+                        />
+                        <span>%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="weight-total">
+              <span>Total Weight</span>
+              <strong className={totalWeight === 100 ? "weight-total-valid" : "weight-total-invalid"}>
+                {totalWeight}%
+              </strong>
+            </div>
+
+            <div className="weight-popup-buttons">
+              <button type="button" className="cancel-button" onClick={closeWeightPopup}>
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="save-button"
+                disabled={totalWeight !== 100}
+                onClick={saveWeights}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Evidence Popup */}
       {evidenceResult && (
         <div className="popup-overlay">
           <section
@@ -994,7 +1614,7 @@ function ObjectiveCard({ objective }) {
             <div className="evidence-popup-header">
               <div>
                 <h2 id="evidence-dialog-title">Key Result Evidence</h2>
-                <p>{evidenceResult.title}</p>
+                <p>{evidenceResult.name}</p>
               </div>
               <button
                 ref={evidenceCloseRef}
@@ -1419,6 +2039,139 @@ function ObjectiveCard({ objective }) {
               </div>
             )}
           </section>
+        </div>
+      )}
+
+      {/* Delete Objective Popup */}
+      {showDeleteModal && (
+        <div className="popup-overlay">
+          <div className="delete-objective-popup">
+            <h2>Delete Objective</h2>
+            <p>
+              Are you sure you want to delete <strong>{objective.title}</strong>?
+            </p>
+            <p>This action cannot be undone.</p>
+
+            <div className="popup-buttons">
+              <button
+                type="button"
+                className="popup-cancel-button"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="popup-delete-button"
+                onClick={handleDeleteObjective}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Objective Popup */}
+      {showEditModal && (
+        <div className="edit-popup-overlay">
+          <div className="edit-objective-popup">
+            <div className="edit-popup-header">
+              <h2>Edit Objective</h2>
+
+              <button
+                type="button"
+                className="edit-popup-close"
+                onClick={() => setShowEditModal(false)}
+              >
+                x
+              </button>
+            </div>
+
+            <div className="edit-objective-form">
+              <div className="edit-form-left">
+                <label>Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Enter Objective Title"
+                />
+
+                <label>Due Date</label>
+                <input
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                />
+
+                <label>Owner</label>
+                <select
+                  value={editOwner}
+                  onChange={(e) => setEditOwner(e.target.value)}
+                >
+                  <option value="">Select owner</option>
+                  {employees.map((employee) => (
+                    <option key={employee._id} value={employee._id}>
+                      {employee.firstName} {employee.lastName}
+                    </option>
+                  ))}
+                </select>
+
+                <label>Group</label>
+                <select
+                  value={editGroup}
+                  onChange={(e) => setEditGroup(e.target.value)}
+                >
+                  <option value="">Select group</option>
+                  {editGroup && !groupOptions.includes(editGroup) && (
+                    <option value={editGroup}>{editGroup}</option>
+                  )}
+                  {groupOptions.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+
+                <label>Type</label>
+                <select
+                  value={editCommitmentType}
+                  onChange={(e) => setEditCommitmentType(e.target.value)}
+                >
+                  <option value="committed">Committed</option>
+                  <option value="aspirational">Aspirational</option>
+                </select>
+              </div>
+
+              <div className="edit-form-right">
+                <label>Description</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Describe the Objective"
+                />
+              </div>
+            </div>
+
+            <div className="edit-popup-buttons">
+              <button
+                type="button"
+                className="edit-cancel-button"
+                onClick={() => setShowEditModal(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="edit-save-button"
+                onClick={handleUpdateObjective}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

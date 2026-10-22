@@ -42,6 +42,10 @@ function GroupManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [openGroupMenu, setOpenGroupMenu] = useState(null);
+  const [groupModalAction, setGroupModalAction] = useState("");
+  const [groupModalGroup, setGroupModalGroup] = useState(null);
+  const [groupModalName, setGroupModalName] = useState("");
 
   const allowed = canManageAdmin(user);
 
@@ -137,24 +141,102 @@ function GroupManagement() {
     setExpandedGroup(null);
   }
 
-  async function deleteGroup(group) {
+  function openGroupModal(action, group) {
+    if (isSaving) return;
+
+    setGroupModalAction(action);
+    setGroupModalGroup(group);
+    setGroupModalName(action === "rename" ? group.name : "");
+    setOpenGroupMenu(null);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  function closeGroupModal() {
+    if (isSaving) return;
+
+    setGroupModalAction("");
+    setGroupModalGroup(null);
+    setGroupModalName("");
+  }
+
+  async function changeGroup() {
+    if (isSaving) return;
+
     if (
-      !hasLoaded ||
-      isSaving ||
-      !window.confirm(
-        `Delete ${group.name}? Groups with objectives cannot be deleted.`,
-      )
-    )
+      (groupModalAction === "rename" ||
+        groupModalAction === "delete") &&
+      !groupModalGroup
+    ) {
       return;
+    }
+
+    const group = groupModalGroup;
+    const action = groupModalAction;
+    const name = groupModalName.trim();
+
+    if (
+      (action === "create" || action === "rename") &&
+      !name
+    ) {
+      return;
+    }
+
     setIsSaving(true);
+
     try {
-      await adminService.deleteGroup(group._id, user.token);
-      setGroups((previous) =>
-        previous.filter((item) => item._id !== group._id),
-      );
-      setExpandedGroup(null);
-      setSuccessMessage("Group deleted.");
+      if (action === "create") {
+        const newGroup = await adminService.createGroup(name, user.token);
+
+        setGroups((previous) => [...previous, newGroup]);
+      }
+      if (action === "rename") {
+        const memberIds = group.members.map(
+          (member) => member._id || member
+        );
+
+        const managerId = group.manager
+          ? group.manager._id || group.manager
+          : null;
+
+        const updatedGroup = await adminService.updateGroup(
+          group._id,
+          {
+            name,
+            manager: managerId,
+            members: memberIds,
+          },
+          user.token
+        );
+
+        setGroups((previous) =>
+          previous.map((item) =>
+            item._id === group._id ? updatedGroup : item
+          )
+        );
+
+        setSuccessMessage("Group renamed.");
+      }
+
+      if (action === "delete") {
+        await adminService.deleteGroup(group._id, user.token);
+
+        setGroups((previous) =>
+          previous.filter((item) => item._id !== group._id)
+        );
+
+        if (expandedGroup === group._id) {
+          setExpandedGroup(null);
+        }
+
+        setSuccessMessage("Group deleted.");
+      }
+
       setErrorMessage("");
+
+      setGroupModalAction("");
+      setGroupModalGroup(null);
+      setGroupModalName("");
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
       setSuccessMessage("");
@@ -163,29 +245,17 @@ function GroupManagement() {
     }
   }
 
-  async function addGroup() {
+  function addGroup() {
     if (!hasLoaded || isSaving) {
       return;
     }
 
-    const name = window.prompt("Enter a name for the new group:");
-
-    if (!name || !name.trim()) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const newGroup = await adminService.createGroup(name.trim(), user.token);
-      setGroups((previous) => [...previous, newGroup]);
-      setSuccessMessage("Group created.");
-      setErrorMessage("");
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-      setSuccessMessage("");
-    } finally {
-      setIsSaving(false);
-    }
+    setGroupModalAction("create");
+    setGroupModalGroup(null);
+    setGroupModalName("");
+    setOpenGroupMenu(null);
+    setErrorMessage("");
+    setSuccessMessage("");
   }
 
   const visibleGroups = groups.filter((group) =>
@@ -226,8 +296,20 @@ function GroupManagement() {
         </div>
       )}
       {successMessage && (
-        <div role="status" className="group-status group-success">
-          {successMessage}
+        <div className="group-popup-overlay">
+          <div className="group-popup">
+            <h2>Changes Saved</h2>
+
+            <p>{successMessage}</p>
+
+            <button
+              type="button"
+              className="group-modal-primary-button"
+              onClick={() => setSuccessMessage("")}
+            >
+              OK
+            </button>
+          </div>
         </div>
       )}
 
@@ -271,10 +353,7 @@ function GroupManagement() {
             <div className="group-table-row">
               <div className="group-name">{group.name}</div>
               <div className="group-member-count">{group.members.length}</div>
-              <div>
-                <button disabled={isSaving} onClick={() => deleteGroup(group)}>
-                  Delete
-                </button>
+              <div className="group-row-actions">
                 <button
                   onClick={() => openEditor(group)}
                   disabled={isSaving}
@@ -286,15 +365,55 @@ function GroupManagement() {
                     {expandedGroup === group._id ? "▴" : "▾"}
                   </span>
                 </button>
+
+                <div className="group-more-menu-wrapper">
+                  <button
+                    type="button"
+                    className="group-more-button"
+                    aria-label={`More actions for ${group.name}`}
+                    aria-expanded={openGroupMenu === group._id}
+                    onClick={() =>
+                      setOpenGroupMenu(
+                        openGroupMenu === group._id ? null : group._id
+                      )
+                    }
+                  >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </button>
+
+                  {openGroupMenu === group._id && (
+                    <div className="group-more-menu">
+                      <button
+                        type="button"
+                        onClick={() => openGroupModal("rename", group)}
+                      >
+                        Rename
+                      </button>
+
+                      <button
+                        type="button"
+                        className="group-more-menu-delete"
+                        onClick={() => openGroupModal("delete", group)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {expandedGroup === group._id && (
               <div className="group-member-panel">
-                <label>
-                  Group name{" "}
+                <label className="group-name-field">
+                  <span className="group-manager-label">Group Name</span>
+
                   <input
+                    type="text"
                     aria-label="Group name"
+                    className="group-name-input"
                     value={draftName}
                     disabled={isSaving}
                     onChange={(event) => setDraftName(event.target.value)}
@@ -336,9 +455,8 @@ function GroupManagement() {
                           className="group-member-checkbox-input"
                         />
                         <span
-                          className={`group-member-checkbox ${
-                            isChecked ? "checked" : ""
-                          }`}
+                          className={`group-member-checkbox ${isChecked ? "checked" : ""
+                            }`}
                         >
                           {isChecked ? "✓" : ""}
                         </span>
@@ -376,8 +494,87 @@ function GroupManagement() {
           </div>
         ))}
       </div>
+
+
+      {groupModalAction && (
+        <div className="group-popup-overlay">
+          <div
+            className="group-popup"
+            role="dialog"
+            aria-modal="true"
+          >
+            <h2>
+              {groupModalAction === "create" && "Add Group"}
+              {groupModalAction === "rename" && "Rename Group"}
+              {groupModalAction === "delete" && "Delete Group"}
+            </h2>
+
+            {groupModalAction === "delete" ? (
+              <p>
+                Are you sure you want to delete{" "}
+                <strong>{groupModalGroup?.name}</strong>?
+              </p>
+            ) : (
+              <>
+                <p>
+                  {groupModalAction === "create"
+                    ? "Enter a name for the new group."
+                    : "Enter the new group name."}
+                </p>
+
+                <input
+                  type="text"
+                  className="group-modal-input"
+                  value={groupModalName}
+                  onChange={(event) =>
+                    setGroupModalName(event.target.value)
+                  }
+                  autoFocus
+                />
+              </>
+            )}
+
+            <div className="group-modal-actions">
+              <button
+                type="button"
+                className="group-modal-cancel-button"
+                onClick={closeGroupModal}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={
+                  groupModalAction === "delete"
+                    ? "group-modal-delete-button"
+                    : "group-modal-primary-button"
+                }
+                onClick={changeGroup}
+                disabled={
+                  isSaving ||
+                  ((groupModalAction === "create" ||
+                    groupModalAction === "rename") &&
+                    !groupModalName.trim())
+                }
+              >
+                {isSaving
+                  ? "Saving..."
+                  : groupModalAction === "create"
+                    ? "Add Group"
+                    : groupModalAction === "rename"
+                      ? "Rename"
+                      : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 export default GroupManagement;
+

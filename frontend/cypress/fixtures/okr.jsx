@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import objectiveReducer from "../../src/okrTracker/features/objectives/objectiveSlice";
+import userReducer from "../../src/okrTracker/features/users/userSlice";
 import ObjectiveCard from "../../src/okrTracker/pages/objectives/ObjectiveCard";
 import Reports from "../../src/okrTracker/pages/reports/Reports";
 
@@ -17,6 +18,7 @@ const store = configureStore({
   reducer: {
     auth: () => ({ user }),
     okr: objectiveReducer,
+    users: userReducer,
   },
 });
 const objective = {
@@ -30,19 +32,8 @@ const objective = {
   progress: 30,
   canManage: params.get("manage") !== "false",
   canCreateKeyResult: params.get("create") !== "false",
+  canEditKeyResults: params.get("edit") !== "false",
   canApproveKeyResult: params.get("approve") !== "false",
-  keyResults: [
-    {
-      _id: params.get("keyResultId") || "result-1",
-      title: "Resolve requests faster",
-      weight: 40,
-      assigned: "Test Member",
-      progress: 30,
-      dueDate: "2026-11-01",
-      approved: false,
-      canManageEvidence: params.get("evidence") !== "false",
-    },
-  ],
 };
 
 createRoot(document.getElementById("root")).render(

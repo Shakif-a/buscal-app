@@ -668,22 +668,20 @@ for (const [permission, method, path] of [
     assert.equal(await KeyResult.countDocuments(), 0);
   });
 }
-test("Manage Roles revocation blocks administration until database recovery", async () => {
+test("an old saved Admin row without Manage Roles cannot lock admins out", async () => {
   await Permission.create({ role: "Admin", permissions: [] });
-  const response = await request("GET", "/api/okr/admin/permissions");
-  assert.equal(response.status, 403);
-  assert.equal(
-    (await request("POST", "/api/okr/admin/roles", { role: "Reviewer" }))
-      .status,
-    403,
-  );
-  await Permission.updateOne(
-    { role: "Admin" },
-    { $addToSet: { permissions: "Manage Roles" } },
-  );
   assert.equal(
     (await request("GET", "/api/okr/admin/permissions")).status,
     200,
+  );
+  assert.equal(
+    (await request("GET", "/api/okr/reports", undefined, "exec")).status,
+    200,
+  );
+  assert.equal(
+    (await request("POST", "/api/okr/admin/groups", { name: "Denied" }))
+      .status,
+    403,
   );
 });
 test("permission reads hide old role settings which cannot take effect", async () => {
@@ -2748,23 +2746,27 @@ test("reports use actual progress and enforce saved View Reports permission", as
     403,
   );
 });
-test("Admin can revoke Manage Roles and cannot edit permissions afterward", async () => {
+test("Admin cannot save away Manage Roles or View Reports", async () => {
   assert.equal(
     (
       await request("PUT", "/api/okr/admin/permissions/Admin", {
         permissions: ["Edit Objectives"],
       })
     ).status,
-    200,
+    400,
   );
-  assert.equal(await Permission.countDocuments(), 1);
+  assert.equal(await Permission.countDocuments(), 0);
   assert.equal(
     (
       await request("PUT", "/api/okr/admin/permissions/Admin", {
-        permissions: ["Manage Roles"],
+        permissions: ["Manage Roles", "View Reports"],
       })
     ).status,
-    403,
+    200,
+  );
+  assert.equal(
+    (await request("GET", "/api/okr/admin/permissions")).status,
+    200,
   );
 });
 test("Manage Users revocation blocks privileged writes but keeps self profile edits", async () => {

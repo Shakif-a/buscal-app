@@ -1,53 +1,88 @@
 const fixture = "/cypress/fixtures/okr.html";
+const keyResultsUrl = "**/api/okrTracker/objectives/objective-1/key-results";
+
+function mockKeyResults(access) {
+  cy.intercept("GET", keyResultsUrl, [
+    {
+      _id: "result-1",
+      title: "Resolve requests faster",
+      weight: 60,
+      assigned: "Test Member",
+      assignedTo: { _id: "user-1", firstName: "Test", lastName: "Member" },
+      progress: 30,
+      dueDate: "2026-11-01",
+      approved: false,
+      ...access,
+    },
+  ]).as("loadResults");
+  cy.intercept("GET", "**/api/users/user", [
+    { _id: "user-1", firstName: "Test", lastName: "Member" },
+  ]);
+}
 
 describe("API-connected objective and report pages", () => {
-  it("uses real key results and sends protected create and approval requests", () => {
-    cy.intercept("GET", "**/api/okrTracker/objectives", []);
-    cy.intercept(
-      "POST",
-      "**/api/okr/objectives/objective-1/key-results",
-      (req) => {
-        expect(req.headers.authorization).to.equal("Bearer test-token");
-        expect(req.body).to.deep.equal({
-          title: "New result",
-          weight: 25,
-          dueDate: "2026-11-30",
-        });
-        req.reply({ statusCode: 201, body: { _id: "result-2" } });
-      },
-    ).as("createResult");
-    cy.intercept(
-      "PUT",
-      "**/api/okr/objectives/objective-1/key-results/result-1/approval",
-      (req) => {
-        expect(req.headers.authorization).to.equal("Bearer test-token");
-        expect(req.body).to.deep.equal({ approved: true });
-        req.reply({ body: { _id: "result-1", approved: true } });
-      },
-    ).as("approveResult");
+  it("approves and adds key results through the edit-mode save", () => {
+    mockKeyResults({ canEdit: true, canEditProgress: true });
+    cy.intercept("PUT", `${keyResultsUrl}/result-1`, (req) => {
+      expect(req.headers.authorization).to.equal("Bearer test-token");
+      expect(req.body).to.include({ approved: true, weight: 60 });
+      req.reply({ body: { _id: "result-1", approved: true } });
+    }).as("updateResult");
+    cy.intercept("POST", keyResultsUrl, (req) => {
+      expect(req.headers.authorization).to.equal("Bearer test-token");
+      expect(req.body).to.deep.equal({
+        title: "New result",
+        weight: 40,
+        dueDate: "2026-11-30",
+        assignedTo: "user-1",
+        progress: 0,
+        approved: false,
+      });
+      req.reply({ statusCode: 201, body: { _id: "result-2" } });
+    }).as("createResult");
 
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
+    cy.wait("@loadResults");
     cy.contains("Resolve requests faster").should("be.visible");
-    cy.contains("button", "Approve").click();
-    cy.wait("@approveResult");
-    cy.contains("button", "Add Key Result").click();
-    cy.contains("label", "Title").find("input").type("New result");
-    cy.contains("label", "Weight").find("input").type("25");
-    cy.contains("label", "Due date").find("input").type("2026-11-30");
-    cy.contains("button", "Save Key Result").click();
+    cy.contains("button", "Edit Key Results").click();
+    cy.get(".key-result-row")
+      .eq(0)
+      .find('input[type="checkbox"]')
+      .check();
+    cy.contains("button", "+ Add Key Result").click();
+    cy.get(".key-result-row").eq(1).as("newRow");
+    cy.get("@newRow").find(".key-result-name-input").type("New result");
+    cy.get("@newRow").find("select").first().select("user-1");
+    cy.get("@newRow").find('input[type="date"]').type("2026-11-30");
+    cy.get("@newRow").find(".weight-edit-link").click();
+    cy.get('.weight-popup-content input[type="number"]')
+      .eq(1)
+      .type("{selectall}40");
+    cy.contains(".weight-popup", "100%").should("be.visible");
+    cy.get(".weight-popup .save-button").click();
+    cy.contains("button", "Save Key Results").should("be.enabled").click();
+    cy.wait("@updateResult");
     cy.wait("@createResult");
+    cy.contains("button", "Edit Key Results").should("be.visible");
   });
 
   it("hides objective writes when the backend access flags deny them", () => {
-    cy.visit(
-      `${fixture}?manage=false&create=false&approve=false&evidence=false`,
-    );
-    cy.get('[aria-label="Actions for Improve support"]').should("not.exist");
+    mockKeyResults({
+      canEdit: false,
+      canEditProgress: false,
+      canManageEvidence: false,
+    });
+    cy.visit(`${fixture}?manage=false&create=false&edit=false&approve=false`);
+    cy.get(".objective-menu-button").should("not.exist");
     cy.contains("button", "View Key Results").click();
-    cy.contains("Pending").should("be.visible");
-    cy.contains("button", "Approve").should("not.exist");
-    cy.contains("button", "Add Key Result").should("not.exist");
+    cy.wait("@loadResults");
+    cy.contains("Resolve requests faster").should("be.visible");
+    cy.get(".key-result-row")
+      .find('input[type="checkbox"]')
+      .should("be.disabled");
+    cy.contains("button", "Edit Key Results").should("not.exist");
+    cy.contains("button", "+ Add Key Result").should("not.exist");
     cy.contains("Not available").should("be.visible");
   });
 
@@ -110,6 +145,7 @@ describe("API-connected objective and report pages", () => {
       },
     ).as("downloadEvidence");
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -198,6 +234,7 @@ describe("API-connected objective and report pages", () => {
       ],
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -228,6 +265,7 @@ describe("API-connected objective and report pages", () => {
       },
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -256,6 +294,7 @@ describe("API-connected objective and report pages", () => {
       },
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -285,6 +324,7 @@ describe("API-connected objective and report pages", () => {
       },
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -330,6 +370,7 @@ describe("API-connected objective and report pages", () => {
   });
 
   it("supports the evidence drag and drop area", () => {
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -400,6 +441,7 @@ describe("API-connected objective and report pages", () => {
       ],
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
@@ -427,6 +469,7 @@ describe("API-connected objective and report pages", () => {
       { delay: 300, body: [] },
     ).as("loadEvidence");
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", /^View$/).focus().click();
@@ -466,6 +509,7 @@ describe("API-connected objective and report pages", () => {
       { statusCode: 500, body: { message: "Delete unavailable" } },
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", /^View$/).click();
@@ -494,6 +538,7 @@ describe("API-connected objective and report pages", () => {
       ],
     );
 
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", /^View$/).click();
@@ -507,6 +552,7 @@ describe("API-connected objective and report pages", () => {
 
   it("fits the evidence upload area on a small phone screen", () => {
     cy.viewport(375, 667);
+    mockKeyResults({ canManageEvidence: true });
     cy.visit(fixture);
     cy.contains("button", "View Key Results").click();
     cy.contains("button", "Upload").click();
