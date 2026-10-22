@@ -1,12 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const { requireObjectBody } = require("../middleware/errorMiddleware");
+router.use(requireObjectBody);
 
 const {
-  createObjective: createObjectiveCalendar,
-  getObjectives: getObjectivesCalendar,
-} = require("../controllers/calendarController");
-
-const {
+  getReport,
+  approveKeyResult,
   getObjectives,
   getObjectiveGroups,
   getObjective,
@@ -24,11 +23,22 @@ const { protect } = require("../middleware/authMiddleware");
 const {
   canCreateObjective,
   canManageObjective,
+  canApproveKeyResult,
+  canCreateKeyResult,
 } = require("../middleware/okrPermissions");
+const { requirePermission } = require("../middleware/adminPermissions");
 
 router.get("/", (req, res) => {
   res.json({ message: "OKR Tracker API endpoint" });
 });
+
+router.get("/reports", protect, requirePermission("View Reports"), getReport);
+router.put(
+  "/objectives/:id/key-results/:keyResultId/approval",
+  protect,
+  canApproveKeyResult,
+  approveKeyResult,
+);
 
 //Objectives
 console.log("OKR ROUTES FILE LOADED");
@@ -37,10 +47,27 @@ console.log("OKR ROUTES FILE LOADED");
 console.log("protect =", typeof protect);
 console.log("getKeyResults =", typeof getKeyResults);
 router.get("/objectives/:objectiveId/key-results", protect, getKeyResults);
-router.post("/objectives/:objectiveId/key-results", protect, canManageObjective, createKeyResult);
-router.get("/objectives/:objectiveId/key-results/:keyResultId", protect, getKeyResult);
-router.put("/objectives/:objectiveId/key-results/:keyResultId", protect, canManageObjective, updateKeyResult);
-router.delete("/objectives/:objectiveId/key-results/:keyResultId", protect, canManageObjective, deleteKeyResult);
+router.post(
+  "/objectives/:objectiveId/key-results",
+  protect,
+  canCreateKeyResult,
+  createKeyResult,
+);
+router.get(
+  "/objectives/:objectiveId/key-results/:keyResultId",
+  protect,
+  getKeyResult,
+);
+router.put(
+  "/objectives/:objectiveId/key-results/:keyResultId",
+  protect,
+  updateKeyResult,
+);
+router.delete(
+  "/objectives/:objectiveId/key-results/:keyResultId",
+  protect,
+  deleteKeyResult,
+);
 
 //Objectives
 router.get("/objectives", protect, getObjectives);

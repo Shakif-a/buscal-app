@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "start": "vite --host 0.0.0.0",
     "build": "vite build",
+    "test": "node --test test/*.test.js",
     "preview": "vite preview",
+    "test:ui": "cypress run",
     "lint": "eslint ."
   },
   "dependencies": {

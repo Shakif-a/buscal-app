@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -58,6 +59,9 @@ const registerUser = asyncHandler(async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       roles: user.roles,
+      exec: user.exec,
+      companyRoles: user.companyRoles,
+      okrRole: user.okrRole,
       token: generateToken(user._id),
     });
   } else {
@@ -82,6 +86,9 @@ const loginUser = asyncHandler(async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       roles: user.roles,
+      exec: user.exec,
+      companyRoles: user.companyRoles,
+      okrRole: user.okrRole,
       token: generateToken(user._id),
       supervisor: user.supervisor,
     });
@@ -217,6 +224,9 @@ const resetPassword = asyncHandler(async (req, res) => {
     lastName: user.lastName,
     email: user.email,
     roles: user.roles,
+    exec: user.exec,
+    companyRoles: user.companyRoles,
+    okrRole: user.okrRole,
     token: generateToken(user._id),
   });
 });
@@ -248,7 +258,7 @@ const changePassword = asyncHandler(async (req, res) => {
   // Check if current password is correct FIRST
   const isCurrentPasswordValid = await bcrypt.compare(
     currentPassword,
-    user.password
+    user.password,
   );
 
   if (!isCurrentPasswordValid) {
@@ -317,7 +327,9 @@ const generateToken = (id) => {
 //-----------------------------------------------------------------------------------
 
 const getUser = asyncHandler(async (req, res) => {
-  const user = await User.find({}); //user: req.user.id
+  const user = await User.find({}).select(
+    "-password -resetPasswordToken -resetPasswordExpires",
+  );
   res.status(200).json(user);
 });
 
@@ -347,9 +359,14 @@ const updateUser = asyncHandler(async (req, res) => {
 
   const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
+    runValidators: true,
   });
 
-  res.status(200).json(updatedUser);
+  const result = updatedUser.toObject();
+  delete result.password;
+  delete result.resetPasswordToken;
+  delete result.resetPasswordExpires;
+  res.status(200).json(result);
 });
 
 //-----------------------------------------------------------------------------------
@@ -357,6 +374,10 @@ const updateUser = asyncHandler(async (req, res) => {
 //-----------------------------------------------------------------------------------
 
 const deleteUser = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+    res.status(404);
+    throw new Error("User not found");
+  }
   const user = await User.findById(req.params.id);
 
   if (!user) {
@@ -405,72 +426,103 @@ const getUserOne = asyncHandler(async (req, res) => {
 //-----------------------------------------------------------------------------------
 
 const updateUserOne = asyncHandler(async (req, res) => {
-  var {
-    _id,
-    firstName,
-    lastName,
-    email,
-    password: pw,
-    roles,
-    startDate,
-    terminationDate,
-  } = req.body;
-
-  var password = "";
-
-  const userOne = await User.find({ _id: _id });
-
-  if (!userOne) {
-    res.status(400);
-    throw new Error("UserOne not found");
-  }
-
-  // Check for user
-  if (!req.user) {
-    res.status(401);
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
     throw new Error("User not found");
   }
 
-  console.log("Password: " + pw);
-
-  if (pw == "") {
-    password = userOne.password;
-  } else {
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    password = await bcrypt.hash(pw, salt);
+  const fields = [
+    "firstName",
+    "lastName",
+    "email",
+    "phoneNumber",
+    "roles",
+    "startDate",
+    "terminationDate",
+  ];
+  for (const field of fields) {
+    if (req.body[field] !== undefined) user[field] = req.body[field];
   }
 
-  var combined = { _id, firstName, lastName, email, password, roles };
-
-  // Add date fields if provided
-  if (startDate !== undefined) {
-    combined.startDate = startDate;
+  const password = req.body.password;
+  if (password !== undefined && password !== "") {
+    if (typeof password !== "string" || password.length < 6) {
+      res.status(400);
+      throw new Error("New password must be at least 6 characters long");
+    }
+    user.password = await bcrypt.hash(password, 10);
   }
-  if (terminationDate !== undefined) {
-    combined.terminationDate = terminationDate;
-  }
 
-  const updatedUserOne = await User.findByIdAndUpdate(_id, combined, {
-    new: true,
+  await user.save();
+  res.json({
+    _id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    roles: user.roles,
+    exec: user.exec,
+    companyRoles: user.companyRoles,
+    okrRole: user.okrRole,
+    supervisor: user.supervisor,
+    token: generateToken(req.user._id),
   });
-
-  if (updatedUserOne) {
-    res.json({
-      _id: updatedUserOne.id,
-      firstName: updatedUserOne.firstName,
-      lastName: updatedUserOne.lastName,
-      email: updatedUserOne.email,
-      roles: updatedUserOne.roles,
-      token: generateToken(req.params.id),
-    });
-  } else {
-    res.status(400);
-    throw new Error("Invalid credentials");
-  }
 });
 
 const manageUserOne = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  if (req.body._id !== req.params.id) {
+    res.status(400);
+    throw new Error("User ID must match the request");
+  }
+  for (const field of ["roles", "removedRole"]) {
+    if (
+      !Array.isArray(req.body[field]) ||
+      req.body[field].some((role) => typeof role !== "string")
+    ) {
+      res.status(400);
+      throw new Error("Roles and removedRole must be lists of role names");
+    }
+  }
+  if (req.body.exec !== undefined && !["yes", "no"].includes(req.body.exec)) {
+    res.status(400);
+    throw new Error("Executive status must be yes or no");
+  }
+  if (
+    req.body.phoneNumber !== undefined &&
+    typeof req.body.phoneNumber !== "string"
+  ) {
+    res.status(400);
+    throw new Error("Phone number must be text");
+  }
+  if (
+    req.body.companyRole &&
+    (typeof req.body.companyRole !== "string" ||
+      !Number.isInteger(Number(req.body.managementLevel)) ||
+      Number(req.body.managementLevel) < 1)
+  ) {
+    res.status(400);
+    throw new Error("Please supply a valid company role and management level");
+  }
+  const supervisorId = req.body.supervisor;
+  if (
+    supervisorId !== undefined &&
+    supervisorId !== null &&
+    supervisorId !== "" &&
+    supervisorId !== "none"
+  ) {
+    if (
+      !mongoose.isObjectIdOrHexString(supervisorId) ||
+      !(await User.exists({ _id: supervisorId }))
+    ) {
+      res.status(400);
+      throw new Error("Supervisor not found");
+    }
+  }
+
   const {
     _id,
     roles: rolesBeforeFilter,
@@ -524,7 +576,7 @@ const manageUserOne = asyncHandler(async (req, res) => {
   // If no roles are left after filtering, keep the existing roles
   if (finalRoles.length === 0) {
     const existingRolesWithoutPending = userOne.roles.filter(
-      (role) => role !== "pending"
+      (role) => role !== "pending",
     );
     finalRoles.push(...existingRolesWithoutPending);
   }
@@ -535,11 +587,11 @@ const manageUserOne = asyncHandler(async (req, res) => {
   if (companyRole) {
     // Remove existing role if it exists
     const existingRoleIndex = updatedCompanyRoles.findIndex(
-      (cr) => cr.role === companyRole
+      (cr) => cr.role === companyRole,
     );
     if (existingRoleIndex !== -1) {
       updatedCompanyRoles = updatedCompanyRoles.filter(
-        (cr) => cr.role !== companyRole
+        (cr) => cr.role !== companyRole,
       );
     }
 
@@ -572,6 +624,7 @@ const manageUserOne = asyncHandler(async (req, res) => {
   // Update the user
   const updatedUser = await User.findByIdAndUpdate(_id, updateData, {
     new: true,
+    runValidators: true,
   });
 
   if (!updatedUser) {
@@ -592,7 +645,11 @@ const manageUserOne = asyncHandler(async (req, res) => {
     }
   }
 
-  res.status(200).json(updatedUser);
+  const result = updatedUser.toObject();
+  delete result.password;
+  delete result.resetPasswordToken;
+  delete result.resetPasswordExpires;
+  res.status(200).json(result);
 });
 
 module.exports = {
@@ -605,7 +662,6 @@ module.exports = {
   deleteUser,
   getUser,
   updateUser,
-  deleteUser,
   getUserOne,
   updateUserOne,
   manageUserOne,

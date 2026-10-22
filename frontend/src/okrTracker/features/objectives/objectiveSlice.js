@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import objectiveService from "./objectiveService";
+import objectiveService from "./objectiveService.js";
 
 const initialState = {
   objectives: [],
@@ -226,7 +226,6 @@ export const objectiveSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
-
       // Delete Objective
       .addCase(deleteObjective.pending, (state) => {
         state.isLoading = true;

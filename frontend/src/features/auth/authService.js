@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/users/`;
+const API_URL = `${import.meta.env?.VITE_API_URL || "http://localhost:5000"}/api/users/`;
 
 // Register user
 const register = async (userData) => {
@@ -65,7 +65,7 @@ const changePassword = async (passwordData, token) => {
     const response = await axios.put(
       API_URL + "change-password",
       passwordData,
-      config
+      config,
     );
     return response.data;
   } catch (error) {
@@ -206,7 +206,7 @@ const updateUserOne = async (userOne, token) => {
   const response = await axios.put(
     API_URL + "userOne/" + userOne._id,
     userOne,
-    config
+    config,
   );
 
   if (response.data) {
@@ -226,7 +226,7 @@ const manageUserOne = async (userOne, token) => {
   const response = await axios.put(
     API_URL + "manageUserOne/" + userOne._id,
     userOne,
-    config
+    config,
   );
 
   console.log(response.data);

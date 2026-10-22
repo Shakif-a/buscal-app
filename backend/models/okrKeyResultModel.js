@@ -51,7 +51,7 @@ const keyResultSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("OkrKeyResult", keyResultSchema);

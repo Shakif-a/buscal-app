@@ -5,6 +5,7 @@ import { deleteObjective, updateObjective } from "../../features/objectives/obje
 import { createKeyResult, updateKeyResult, deleteKeyResult } from "../../features/keyResults/keyResultSlice";
 import keyResultService from "../../features/keyResults/keyResultService";
 import { getAllUsers } from "../../features/users/userSlice";
+import objectiveService from "../../features/objectives/objectiveService";
 
 // Backend labels matched to UI labels
 const API_TO_UI_STATUS = {
@@ -47,6 +48,9 @@ function mapKeyResult(kr) {
     status: API_TO_UI_STATUS[kr.status] || "Choose Progress",
     approved: kr.approved || false,
     evidence: kr.evidence || [],
+    canEdit: !!kr.canEdit,
+    canEditProgress: !!kr.canEditProgress,
+    canApprove: !!kr.canApprove,
   };
 }
 
@@ -92,6 +96,7 @@ function ObjectiveCard({ objective }) {
   const [editGroup, setEditGroup] = useState("");
   const [editCommitmentType, setEditCommitmentType] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [groupOptions, setGroupOptions] = useState([]);
 
   // Key results
   const [showKeyResults, setShowKeyResults] = useState(false);
@@ -156,6 +161,16 @@ function ObjectiveCard({ objective }) {
     };
   }, []);
 
+  // Groups from the database
+  async function loadGroupOptions() {
+    try {
+      const groups = await objectiveService.getObjectiveGroups(token);
+      setGroupOptions(Array.isArray(groups) ? groups : groups.groups || []);
+    } catch (err) {
+      console.error("Error fetching groups:", err);
+    }
+  }
+
   // Open objective edit
   function openEditModal() {
     setEditTitle(objective.title || "");
@@ -173,6 +188,7 @@ function ObjectiveCard({ objective }) {
 
     setShowMenu(false);
     setShowEditModal(true);
+    loadGroupOptions();
   }
 
   // Add new key result
@@ -188,6 +204,9 @@ function ObjectiveCard({ objective }) {
       status: "Choose Progress",
       approved: false,
       isNew: true,
+      canEdit: true,
+      canEditProgress: true,
+      canApprove: false,
     };
 
     setKeyResults([...keyResults, newKeyResult]);
@@ -264,9 +283,23 @@ function ObjectiveCard({ objective }) {
 
   const allKeyResultsComplete = keyResults.every(isKeyResultComplete);
 
+  // Can the user change other KRs?
+  // Used to stop assignies from getting error messages when trying to save when they can't change the other broken KRs
+  const canChangeStructure =
+    objective.canCreateKeyResult || objective.canEditKeyResults;
+
+  // Are the key results valid for saving? Either no KRs, or user cant change structure, or all KRs complete and total weight = 100
   const keyResultsValid =
     keyResults.length === 0 ||
+    !canChangeStructure ||
     (allKeyResultsComplete && totalKeyResultWeight === 100);
+
+  // Check if user can edit any key result so we know if to show the edit button
+  const canEditAnyKeyResult =
+    objective.canCreateKeyResult ||
+    objective.canEditKeyResults ||
+    objective.canApproveKeyResult ||
+    keyResults.some((kr) => kr.canEditProgress);
 
   // Delete objective
   const handleDeleteObjective = async () => {
@@ -372,7 +405,7 @@ function ObjectiveCard({ objective }) {
               : "No due date"}
           </strong>
         </p>
-
+        {objective.canManage && (
         <div className="objective-menu-container" ref={menuRef}>
           <button
             type="button"
@@ -403,10 +436,10 @@ function ObjectiveCard({ objective }) {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <hr />
-
       {/* Progress section */}
       <div className="progress-section">
         <button
@@ -475,7 +508,7 @@ function ObjectiveCard({ objective }) {
 
                     {/* Key Result name */}
                     <td>
-                      {editMode && (
+                      {editMode && keyResult.canEdit && (
                         <button
                           type="button"
                           className="remove-key-result"
@@ -485,7 +518,7 @@ function ObjectiveCard({ objective }) {
                         </button>
                       )}
 
-                      {editMode ? (
+                      {editMode && keyResult.canEdit ? (
                         <input
                           className="key-result-name-input"
                           type="text"
@@ -502,7 +535,7 @@ function ObjectiveCard({ objective }) {
 
                     {/* Weight */}
                     <td>
-                      {editMode ? (
+                      {editMode && keyResult.canEdit ? (
                         <button
                           type="button"
                           className="weight-edit-link"
@@ -518,7 +551,7 @@ function ObjectiveCard({ objective }) {
 
                     {/* Assigned: real users, stores the user _id */}
                     <td>
-                      {editMode ? (
+                      {editMode && keyResult.canEdit ? (
                         <select
                           value={keyResult.assignedTo || ""}
                           onChange={(event) => {
@@ -548,7 +581,7 @@ function ObjectiveCard({ objective }) {
 
                     {/* Due Date */}
                     <td>
-                      {editMode ? (
+                      {editMode && keyResult.canEdit ? (
                         <input
                           className="date-input"
                           type="date"
@@ -564,7 +597,7 @@ function ObjectiveCard({ objective }) {
 
                     {/* Progress */}
                     <td>
-                      {editMode ? (
+                      {editMode && keyResult.canEditProgress ? (
                         <input
                           className="key-result-small-input"
                           type="number"
@@ -587,7 +620,7 @@ function ObjectiveCard({ objective }) {
                       <select
                         className={`status-select ${keyResult.status.toLowerCase().replace(/ /g, "-")}`}
                         value={keyResult.status}
-                        disabled={!editMode}
+                        disabled={!editMode || !keyResult.canEdit}
                         onChange={(event) =>
                           updateLocalKeyResult(keyResult.id, { status: event.target.value })
                         }
@@ -632,8 +665,9 @@ function ObjectiveCard({ objective }) {
                       <input
                         type="checkbox"
                         checked={keyResult.approved}
+                        disabled={!editMode || !objective.canApproveKeyResult}
                         onChange={(event) => {
-                          if (!editMode) return;
+                          if (!editMode || !objective.canApproveKeyResult) return;
                           updateLocalKeyResult(keyResult.id, {
                             approved: event.target.checked,
                           });
@@ -649,7 +683,7 @@ function ObjectiveCard({ objective }) {
           {/* Footer */}
           <div className="key-results-footer">
             <div className="key-results-footer-left">
-              {editMode && (
+              {editMode && objective.canCreateKeyResult && (
                 <button
                   type="button"
                   className="add-key-result"
@@ -659,7 +693,7 @@ function ObjectiveCard({ objective }) {
                 </button>
               )}
 
-              {editMode && keyResults.length > 0 && (
+              {editMode && canChangeStructure && keyResults.length > 0 && (
                 <>
                   {!allKeyResultsComplete && (
                     <p className="key-result-validation">
@@ -694,14 +728,16 @@ function ObjectiveCard({ objective }) {
                 </button>
               )}
 
-              <button
-                type="button"
-                className="save-button"
-                onClick={handleEditButton}
-                disabled={editMode && !keyResultsValid}
-              >
-                {editMode ? "Save Key Results" : "Edit Key Results"}
-              </button>
+              {canEditAnyKeyResult && (
+                <button
+                  type="button"
+                  className="save-button"
+                  onClick={handleEditButton}
+                  disabled={editMode && !keyResultsValid}
+                >
+                  {editMode ? "Save Key Results" : "Edit Key Results"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -968,11 +1004,20 @@ function ObjectiveCard({ objective }) {
                 </select>
 
                 <label>Group</label>
-                <input
-                  type="text"
+                <select
                   value={editGroup}
                   onChange={(e) => setEditGroup(e.target.value)}
-                />
+                >
+                  <option value="">Select group</option>
+                  {editGroup && !groupOptions.includes(editGroup) && (
+                    <option value={editGroup}>{editGroup}</option>
+                  )}
+                  {groupOptions.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
 
                 <label>Type</label>
                 <select

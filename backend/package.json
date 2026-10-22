@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "repair:admin-access": "node scripts/repairAdminAccess.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:integration": "node --test --test-concurrency=1 test/integration/*.test.js"
   },
   "dependencies": {
     "axios": "^1.16.1",
