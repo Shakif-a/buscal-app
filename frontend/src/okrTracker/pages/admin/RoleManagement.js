@@ -55,7 +55,7 @@ function RoleManagement() {
   const [people, setPeople] = useState([]);
   const [draftMembers, setDraftMembers] = useState([]);
   const [statusMessage, setStatusMessage] = useState("");
-  const [expandedRole, setExpandedRole] = useState("Manager");
+  const [expandedRole, setExpandedRole] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [showSavePopup, setShowSavePopup] = useState(false);
   const [savedRole, setSavedRole] = useState("");
@@ -450,6 +450,11 @@ function RoleManagement() {
                         const isLocked = (row.lockedPermissions || []).includes(
                           permission,
                         );
+                        // A tick the user cannot remove is shown in grey.
+                        const isFixed =
+                          isLocked ||
+                          !canEdit ||
+                          !row.allowedPermissions.includes(permission);
 
                         return (
                           <label
@@ -477,7 +482,7 @@ function RoleManagement() {
                             />
                             <span
                               className={`role-permission-checkbox ${isChecked ? "checked" : ""
-                                }`}
+                                } ${isChecked && isFixed ? "fixed" : ""}`}
                             >
                               {isChecked ? "✓" : ""}
                             </span>

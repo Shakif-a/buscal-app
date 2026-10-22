@@ -220,6 +220,10 @@
     background-color: #4caf7d;
 }
 
+.role-permission-checkbox.checked.fixed {
+    background-color: #b0b0b0;
+}
+
 .role-permission-name {
     color: #1a2b4a;
     font-size: 17px;

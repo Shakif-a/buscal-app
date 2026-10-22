@@ -101,6 +101,10 @@ function mockRoles() {
   }).as("saveRole");
 }
 
+function openRole(name) {
+  cy.contains(".role-table-row", name).contains("button", "Edit").click();
+}
+
 describe("API-connected admin pages", () => {
   it("creates, assigns members to, renames and deletes a custom role", () => {
     mockRoles();
@@ -250,6 +254,8 @@ describe("API-connected admin pages", () => {
   it("saves role permissions and reloads server values", () => {
     mockRoles();
     cy.visit(`${fixture}?page=roles`);
+    cy.get(".role-permissions-panel").should("not.exist");
+    openRole("Manager");
     cy.contains("label", "Edit Objectives").click();
     cy.contains("button", "Save Changes").click();
     cy.contains("button", "Saving...").should("be.disabled");
@@ -261,10 +267,12 @@ describe("API-connected admin pages", () => {
     cy.screenshot("role-saved", { capture: "viewport" });
     cy.contains("button", "OK").click();
     cy.reload();
+    openRole("Manager");
     cy.contains("label", "Edit Objectives").find("input").should("be.checked");
     cy.contains("button", "Reset to defaults").click();
     cy.contains("label", "View Reports").find("input").should("be.checked");
     cy.reload();
+    openRole("Manager");
     cy.contains("label", "View Reports").find("input").should("not.be.checked");
     cy.contains("Add Role").should("be.enabled");
     cy.get('[aria-label="Search roles"]').type("missing");
@@ -274,14 +282,21 @@ describe("API-connected admin pages", () => {
   it("disables permission settings which cannot take effect", () => {
     mockRoles();
     cy.visit(`${fixture}?page=roles`);
+    openRole("Manager");
     cy.contains("label", "Manage Users").find("input").should("be.disabled");
-    cy.contains(".role-table-row", "Admin").contains("button", "Edit").click();
+    openRole("Admin");
     for (const permission of ["Manage Roles", "View Reports"]) {
       cy.contains("label", permission)
         .find("input")
         .should("be.checked")
         .and("be.disabled");
+      cy.contains("label", permission)
+        .find(".role-permission-checkbox")
+        .should("have.class", "fixed");
     }
+    cy.contains("label", "Create Objectives")
+      .find(".role-permission-checkbox")
+      .should("not.have.class", "fixed");
     cy.contains("label", "Manage Groups").find("input").should("be.enabled");
     cy.contains(".role-table-row", "Employee")
       .contains("button", "Edit")
@@ -310,6 +325,7 @@ describe("API-connected admin pages", () => {
       body: { message: "Save denied" },
     });
     cy.visit(`${fixture}?page=roles`);
+    openRole("Manager");
     cy.contains("label", "Edit Objectives").click();
     cy.contains("button", "Save Changes").click();
     cy.contains("Save denied").should("be.visible");
