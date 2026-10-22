@@ -376,8 +376,10 @@ module.exports = function roleScenarios({
       for (const role of ["manager", "employee", "groupManager"])
         assert.equal((await request(method, path, body, role)).status, 403);
     }
+    // Manage Roles is locked on for Admin, so only the user and group calls
+    // can be revoked by an empty saved Admin row.
     await Permission.create({ role: "Admin", permissions: [] });
-    for (const [method, path, body] of calls)
+    for (const [method, path, body] of calls.slice(3))
       assert.equal((await request(method, path, body)).status, 403);
   });
 

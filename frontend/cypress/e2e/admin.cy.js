@@ -42,7 +42,12 @@ function mockRoles() {
   let roles = [
     {
       role: "Admin",
-      permissions: ["Create Objectives", "Edit Objectives", "Manage Roles"],
+      permissions: [
+        "Create Objectives",
+        "Edit Objectives",
+        "View Reports",
+        "Manage Roles",
+      ],
     },
     { role: "Manager", permissions: ["Create Objectives"] },
     { role: "Employee", permissions: [] },
@@ -52,6 +57,8 @@ function mockRoles() {
       roles: roles.map((row) => ({
         ...row,
         system: ["Admin", "Manager", "Employee"].includes(row.role),
+        lockedPermissions:
+          row.role === "Admin" ? ["Manage Roles", "View Reports"] : [],
         defaultPermissions:
           row.role === "Manager" ? permissionNames.slice(0, 5) : [],
         allowedPermissions:
@@ -269,10 +276,13 @@ describe("API-connected admin pages", () => {
     cy.visit(`${fixture}?page=roles`);
     cy.contains("label", "Manage Users").find("input").should("be.disabled");
     cy.contains(".role-table-row", "Admin").contains("button", "Edit").click();
-    cy.contains("label", "Manage Roles")
-      .find("input")
-      .should("be.checked")
-      .and("be.enabled");
+    for (const permission of ["Manage Roles", "View Reports"]) {
+      cy.contains("label", permission)
+        .find("input")
+        .should("be.checked")
+        .and("be.disabled");
+    }
+    cy.contains("label", "Manage Groups").find("input").should("be.enabled");
     cy.contains(".role-table-row", "Employee")
       .contains("button", "Edit")
       .click();

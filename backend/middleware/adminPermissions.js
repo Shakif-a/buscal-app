@@ -5,6 +5,7 @@ const {
   defaultPermissions,
   isSystemRole,
   allowedPermissions,
+  lockedPermissionsFor,
 } = require("../config/okrPermissions");
 
 function isAdminOrExec(user) {
@@ -36,6 +37,10 @@ function getRoleName(user) {
 }
 
 async function hasRolePermission(role, permission, session) {
+  if (lockedPermissionsFor(role).includes(permission)) {
+    return true;
+  }
+
   const savedRole = await OkrRolePermission.findOne({ role }, null, {
     session,
   });

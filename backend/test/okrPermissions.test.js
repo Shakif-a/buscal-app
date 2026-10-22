@@ -103,9 +103,12 @@ test("custom roles use saved permissions and cannot acquire account administrati
   assert.equal(await hasRolePermission("Missing", "View Reports"), false);
 });
 
-test("saved Admin permissions can revoke Manage Roles", async () => {
+test("Admin always keeps Manage Roles and View Reports", async () => {
   OkrRolePermission.findOne = async () => ({ permissions: [] });
-  assert.equal(await hasRolePermission("Admin", "Manage Roles"), false);
+  assert.equal(await hasRolePermission("Admin", "Manage Roles"), true);
+  assert.equal(await hasRolePermission("Admin", "View Reports"), true);
+  assert.equal(await hasRolePermission("Admin", "Manage Groups"), false);
+  assert.equal(await hasRolePermission("Manager", "View Reports"), false);
 });
 
 test("only admins and executives can use admin routes", async () => {

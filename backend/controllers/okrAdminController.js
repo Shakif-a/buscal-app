@@ -10,6 +10,7 @@ const {
   permissionNames,
   isSystemRole,
   allowedPermissions,
+  lockedPermissionsFor,
 } = require("../config/okrPermissions");
 const {
   getRoleName,
@@ -231,6 +232,12 @@ function validatePermissions(role, permissions) {
     if (!allowedPermissions(role).includes(permission))
       throw new ApiError(400, "Permission cannot take effect for this role");
   }
+  const locked = lockedPermissionsFor(role);
+  if (locked.some((permission) => !permissions.includes(permission)))
+    throw new ApiError(
+      400,
+      "The " + role + " role must keep " + locked.join(" and "),
+    );
 }
 
 async function roleRows() {
@@ -250,10 +257,14 @@ async function roleRows() {
   const rows = await OkrRolePermission.find().sort({ createdAt: 1, role: 1 });
   return rows.map((row) => ({
     role: row.role,
-    permissions: row.permissions.filter((permission) =>
-      allowedPermissions(row.role).includes(permission),
-    ),
+    permissions: removeDuplicates([
+      ...lockedPermissionsFor(row.role),
+      ...row.permissions.filter((permission) =>
+        allowedPermissions(row.role).includes(permission),
+      ),
+    ]),
     allowedPermissions: allowedPermissions(row.role),
+    lockedPermissions: lockedPermissionsFor(row.role),
     defaultPermissions: isSystemRole(row.role)
       ? defaultPermissions[row.role]
       : [],
@@ -349,8 +360,20 @@ const deleteRole = asyncHandler(async (req, res) => {
     throw new ApiError(400, "System roles cannot be deleted");
   await writes.transaction(async (session) => {
     const role = await lockRole(req.params.role, session);
-    if (await User.exists({ okrRole: role.role }).session(session))
+    // Admins and executives always use the Admin role, so a custom role left
+    // on them from before a promotion is not a real assignment.
+    const assigned = await User.exists({
+      okrRole: role.role,
+      roles: { $ne: "admin" },
+      exec: { $ne: "yes" },
+    }).session(session);
+    if (assigned)
       throw new ApiError(409, "Reassign users before deleting this role");
+    await User.updateMany(
+      { okrRole: role.role },
+      { $set: { okrRole: null } },
+      { session },
+    );
     await OkrRolePermission.deleteOne({ _id: role._id }, { session });
   });
   res.json({ role: req.params.role });

@@ -108,7 +108,9 @@ function RoleManagement() {
 
   function getMemberIds(roleName, list = people) {
     return list
-      .filter((person) => person.okrRole === roleName)
+      .filter(
+        (person) => person.okrRole === roleName && !canManageAdmin(person),
+      )
       .map((person) => person._id);
   }
 
@@ -442,20 +444,30 @@ function RoleManagement() {
                     <div className="role-permissions-grid">
                       {permissionList.map((permission) => {
                         const isChecked = roles[roleName][permission];
+                        const row = roleRows.find(
+                          (item) => item.role === roleName,
+                        );
+                        const isLocked = (row.lockedPermissions || []).includes(
+                          permission,
+                        );
 
                         return (
                           <label
                             key={permission}
                             className="role-permission-label"
+                            title={
+                              isLocked
+                                ? `The ${roleName} role always keeps this permission`
+                                : undefined
+                            }
                           >
                             <input
                               type="checkbox"
                               disabled={
                                 isSaving ||
                                 !canEdit ||
-                                !roleRows
-                                  .find((row) => row.role === roleName)
-                                  .allowedPermissions.includes(permission)
+                                isLocked ||
+                                !row.allowedPermissions.includes(permission)
                               }
                               checked={isChecked}
                               onChange={() =>
@@ -601,10 +613,9 @@ function RoleManagement() {
             here. System roles (Admin, Manager, Employee) follow account and
             company settings and cannot be renamed, deleted, or assigned.
             Custom roles control OKR work and are assigned from the Members
-            list under Edit. A role with members cannot be deleted. Removing
-            Manage Roles also removes access to this editor; a database
-            operator can restore it with the admin access recovery script.
-            Reset to defaults changes the draft; select Save Changes to apply
+            list under Edit. A role with members cannot be deleted. The Admin
+            role always keeps Manage Roles and View Reports, so administrators
+            can always reach this editor and the reports page. Reset to defaults changes the draft; select Save Changes to apply
             it.
           </p>
         </div>

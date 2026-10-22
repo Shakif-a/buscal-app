@@ -16,6 +16,8 @@ const {
   createGroup,
   updateGroup,
   updateRolePermissions,
+  assignRole,
+  deleteRole,
 } = require("../controllers/okrAdminController");
 
 const originalCreateGroup = OkrGroup.create;
@@ -23,6 +25,9 @@ const originalFindGroup = OkrGroup.findOne;
 const originalFindGroupById = OkrGroup.findById;
 const originalFindUserById = User.findById;
 const originalFindPermission = OkrRolePermission.findOneAndUpdate;
+const originalDeletePermission = OkrRolePermission.deleteOne;
+const originalUserExists = User.exists;
+const originalUpdateUsers = User.updateMany;
 
 test.afterEach(() => {
   OkrGroup.create = originalCreateGroup;
@@ -30,6 +35,9 @@ test.afterEach(() => {
   OkrGroup.findById = originalFindGroupById;
   User.findById = originalFindUserById;
   OkrRolePermission.findOneAndUpdate = originalFindPermission;
+  OkrRolePermission.deleteOne = originalDeletePermission;
+  User.exists = originalUserExists;
+  User.updateMany = originalUpdateUsers;
 });
 
 function runHandler(handler, req) {
@@ -191,4 +199,87 @@ test("valid role permissions are saved without duplicates", async () => {
     "Edit Objectives",
     "View Reports",
   ]);
+});
+
+test("the Admin role cannot lose Manage Roles or View Reports", async () => {
+  let saved = false;
+  OkrRolePermission.findOneAndUpdate = async (query, data) => {
+    saved = true;
+    return { role: query.role, permissions: data.permissions };
+  };
+
+  for (const permissions of [
+    [],
+    ["Manage Roles"],
+    ["View Reports", "Manage Users"],
+  ]) {
+    const result = await runHandler(updateRolePermissions, {
+      params: { role: "Admin" },
+      body: { permissions },
+    });
+    assert.equal(result.statusCode, 400);
+  }
+  assert.equal(saved, false);
+
+  const result = await runHandler(updateRolePermissions, {
+    params: { role: "Admin" },
+    body: { permissions: ["Manage Roles", "View Reports"] },
+  });
+  assert.equal(result.statusCode, 200);
+});
+
+for (const account of [{ roles: ["admin"] }, { roles: [], exec: "yes" }]) {
+  test("admins and executives cannot be given a custom role", async () => {
+    const user = {
+      _id: new mongoose.Types.ObjectId(),
+      ...account,
+      okrRole: null,
+      save: async () => {
+        throw new Error("should not save");
+      },
+    };
+    OkrRolePermission.findOneAndUpdate = async () => ({ role: "Reviewer" });
+    User.findById = async () => user;
+
+    const result = await runHandler(assignRole, {
+      params: { id: user._id.toString() },
+      body: { role: "Reviewer" },
+    });
+
+    assert.equal(result.statusCode, 400);
+    assert.equal(user.okrRole, null);
+  });
+}
+
+test("a stale custom role on an admin does not block deleting it", async () => {
+  let existsQuery;
+  let clearedQuery;
+  let deleted = false;
+  OkrRolePermission.findOneAndUpdate = async () => ({
+    _id: "role-1",
+    role: "Reviewer",
+  });
+  User.exists = (query) => {
+    existsQuery = query;
+    return { session: async () => null };
+  };
+  User.updateMany = async (query) => {
+    clearedQuery = query;
+  };
+  OkrRolePermission.deleteOne = async () => {
+    deleted = true;
+  };
+
+  const result = await runHandler(deleteRole, {
+    params: { role: "Reviewer" },
+  });
+
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(existsQuery, {
+    okrRole: "Reviewer",
+    roles: { $ne: "admin" },
+    exec: { $ne: "yes" },
+  });
+  assert.deepEqual(clearedQuery, { okrRole: "Reviewer" });
+  assert.equal(deleted, true);
 });

@@ -16,6 +16,16 @@ const defaultPermissions = {
   Employee: ["View Reports"],
 };
 
+// Permissions a role can never lose. Admins keep access to the role editor
+// and reports so a saved change cannot lock every administrator out.
+const lockedPermissions = {
+  Admin: ["Manage Roles", "View Reports"],
+};
+
+function lockedPermissionsFor(role) {
+  return Object.hasOwn(lockedPermissions, role) ? lockedPermissions[role] : [];
+}
+
 function isSystemRole(role) {
   return Object.hasOwn(defaultPermissions, role);
 }
@@ -40,4 +50,5 @@ module.exports = {
   defaultPermissions,
   isSystemRole,
   allowedPermissions,
+  lockedPermissionsFor,
 };
