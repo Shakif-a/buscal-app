@@ -1,20 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import EditIcon from "@mui/icons-material/Edit";
 import { useDispatch, useSelector } from "react-redux";
-import { deleteObjective, updateObjective } from "../../features/objectives/objectiveSlice";
+import { deleteObjective, updateObjective, getObjectives } from "../../features/objectives/objectiveSlice";
 import { createKeyResult, updateKeyResult, deleteKeyResult } from "../../features/keyResults/keyResultSlice";
 import keyResultService from "../../features/keyResults/keyResultService";
 import { getAllUsers } from "../../features/users/userSlice";
 
-// Backend labels matched to UI labels
+// Backend status values matched to UI labels
 const API_TO_UI_STATUS = {
+  "not started": "Not Started",
+  "in-progress": "In Progress",
   "on-track": "On Track",
   "at-risk": "At Risk",
   "overdue": "Overdue",
   "completed": "Completed",
 };
-
+// Frontend labels to backend values
 const UI_TO_API_STATUS = {
+  "Not Started": "not started",
+  "In Progress": "in-progress",
   "On Track": "on-track",
   "At Risk": "at-risk",
   "Overdue": "overdue",
@@ -22,17 +26,24 @@ const UI_TO_API_STATUS = {
 };
 
 const STATUS_COLOURS = {
-  "not started": "#72cdf4",
-  "in progress": "#00b085",
-  "on-track": "#00b085",
+  "not started": "#e5a673",
+  "in-progress": "#72cdf4",
+  "on-track": "#72cdf4",
   "at-risk": "#f4b400",
   overdue: "#e57373",
-  completed: "#72cdf4",
+  completed: "#00b085",
 };
 
-const getStatusColour = (status) => 
-  STATUS_COLOURS[status?.toLowerCase().replace(/\s+/g, "-")] || "#72cdf4";
+const getStatusColour = (status) => {
+  const normalisedStatus = status
+    ?.toLowerCase()
+    .replace(/\s+/g, "-");
+  //STATUS_COLOURS[status?.toLowerCase().replace(/\s+/g, "-")] || "#72cdf4";
 
+  //const colourKey = normalisedStatus === "on track" ? "on-track" : normalisedStatus;
+
+  return STATUS_COLOURS[normalisedStatus] || "#72cdf4"
+};
 // Map a backend KR to the this component shape
 function mapKeyResult(kr) {
   return {
@@ -75,8 +86,9 @@ function isKeyResultComplete(kr) {
 function ObjectiveCard({ objective }) {
   const objectiveId = objective.id || objective._id;
 
-  //Temporary until Objective Status integration is completed
-  const objectiveStatus = null;
+  //Objective Status integration is completed
+  const objectiveStatus = objective.status || "not started";
+  const objectiveProgress = objective.progress ?? 0;
 
   const objectiveStatusLabel = objectiveStatus
     ? API_TO_UI_STATUS[objectiveStatus] || objectiveStatus
@@ -208,6 +220,7 @@ function ObjectiveCard({ objective }) {
         await dispatch(
           deleteKeyResult({ objectiveId, keyResultId: kr.id })
         ).unwrap();
+        await dispatch(getObjectives()).unwrap();
       } catch (err) {
         console.error("Failed to delete key result", err);
         return;
@@ -249,6 +262,8 @@ function ObjectiveCard({ objective }) {
 
       // Pull fresh data. New KRs get real _ids + not flagged as isNew
       await fetchKeyResults();
+      //pull updated objective
+      await dispatch(getObjectives()).unwrap();
       setEditMode(false);
       setOriginalKeyResults([]);
     } catch (err) {
@@ -428,12 +443,12 @@ function ObjectiveCard({ objective }) {
           <div className="progress-track">
             <div
               className="progress-fill"
-              style={{ width: `${objective.progress}%` }}
+              style={{ width: `${objectiveProgress}%` }}
             />
 
             <div
               className="progress-circle"
-              style={{ left: `${objective.progress}%` }}
+              style={{ left: `${objectiveProgress}%` }}
             />
           </div>
         </div>
@@ -593,7 +608,7 @@ function ObjectiveCard({ objective }) {
                         }
                       >
                         <option value="Choose Progress">Choose Progress</option>
-                        <option value="On Track">On Track</option>
+                        <option value="In Progress">In Progress</option>
                         <option value="At Risk">At Risk</option>
                         <option value="Overdue">Overdue</option>
                         <option value="Completed">Completed</option>
@@ -632,10 +647,15 @@ function ObjectiveCard({ objective }) {
                       <input
                         type="checkbox"
                         checked={keyResult.approved}
+                        disabled={!editMode}
                         onChange={(event) => {
                           if (!editMode) return;
+
+                          const isApproved = event.target.checked;
+
                           updateLocalKeyResult(keyResult.id, {
-                            approved: event.target.checked,
+                            approved: isApproved,
+                            ...(isApproved && {status: "Completed"}),
                           });
                         }}
                       />

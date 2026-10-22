@@ -146,12 +146,18 @@ export const updateKeyResult = createAsyncThunk(
     try {
       const token = thunkAPI.getState().auth.user.token;
 
-      return await objectiveService.updateKeyResult(
+      const updatedKeyResult = await objectiveService.updateKeyResult(
         objectiveId,
         keyResultId,
         keyResultData,
         token
       );
+
+      //Refresh all Objectives to retrieve recalculated progress and status
+      await thunkAPI.dispatch(getObjectives()).unwrap();
+
+      return updatedKeyResult;
+
     } catch (error) {
       const message = 
       (error.response &&

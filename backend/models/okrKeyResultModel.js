@@ -34,8 +34,8 @@ const keyResultSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["on-track", "at-risk", "overdue", "completed"],
-      default: "on-track",
+      enum: ["in-progress", "at-risk", "overdue", "completed"],
+      default: "in-progress",
     },
     evidence: {
       type: String,
