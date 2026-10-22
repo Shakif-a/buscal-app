@@ -389,8 +389,11 @@ function CreateObjectives() {
                   style={selectStyle}
                 >
                   <option value="">Select group</option>
-                  <option value="Group 1">Group 1</option>
-                  <option value="Group 2">Group 2</option>
+                  {groupOptions.map((groupName) => (
+                    <option key={groupName} value={groupName}>
+                      {groupName}
+                    </option>
+                  ))}
                 </select>
               </div>
 

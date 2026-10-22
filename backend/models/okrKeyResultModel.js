@@ -41,12 +41,6 @@ const keyResultSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    approvedAt: { type: Date, default: null },
     approved: {
       type: Boolean,
       default: false,

@@ -2,6 +2,7 @@ const permissionNames = [
   "Create Objectives",
   "Edit Objectives",
   "Create Key Results",
+  "Edit Key Results",
   "Approve Key Results",
   "View Reports",
   "Manage Users",
@@ -19,6 +20,9 @@ function isSystemRole(role) {
   return Object.hasOwn(defaultPermissions, role);
 }
 
+// Only Admins can have manage permissions
+// Managers can't manage users, roles, or groups
+// Employees cannot Create or Edit Objectives
 function allowedPermissions(role) {
   return permissionNames.filter((permission) => {
     if (role !== "Admin" && permission.startsWith("Manage ")) return false;

@@ -4,7 +4,6 @@ const { requireObjectBody } = require("../middleware/errorMiddleware");
 router.use(requireObjectBody);
 
 const {
-  linkCalendar,
   getReport,
   approveKeyResult,
   getObjectives,
@@ -27,30 +26,13 @@ const {
   canApproveKeyResult,
   canCreateKeyResult,
 } = require("../middleware/okrPermissions");
-const {
-  requirePermission,
-  adminOrExec,
-} = require("../middleware/adminPermissions");
+const { requirePermission } = require("../middleware/adminPermissions");
 
 router.get("/", (req, res) => {
   res.json({ message: "OKR Tracker API endpoint" });
 });
 
-//Ccalendar link
-router.put(
-  "/objectives/:id/calendar-link",
-  protect,
-  adminOrExec,
-  requirePermission("Edit Objectives"),
-  linkCalendar,
-);
-//Reports
-router.get("/reports",
-  protect,
-  requirePermission("View Reports"),
-  getReport
-);
-//Key Result Approval
+router.get("/reports", protect, requirePermission("View Reports"), getReport);
 router.put(
   "/objectives/:id/key-results/:keyResultId/approval",
   protect,
@@ -79,13 +61,11 @@ router.get(
 router.put(
   "/objectives/:objectiveId/key-results/:keyResultId",
   protect,
-  canManageObjective,
   updateKeyResult,
 );
 router.delete(
   "/objectives/:objectiveId/key-results/:keyResultId",
   protect,
-  canManageObjective,
   deleteKeyResult,
 );
 

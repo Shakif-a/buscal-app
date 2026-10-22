@@ -119,6 +119,65 @@ async function assertObjectiveAccess(req, res, objective, session, permission) {
   }
 }
 
+function isObjectiveOwner(user, objective) {
+  const ownerId = objective.owner && (objective.owner._id || objective.owner);
+  return Boolean(ownerId && ownerId.toString() === user._id.toString());
+}
+
+function isKeyResultAssignee(user, keyResult) {
+  const assignedId =
+    keyResult.assignedTo && (keyResult.assignedTo._id || keyResult.assignedTo);
+  return Boolean(assignedId && assignedId.toString() === user._id.toString());
+}
+
+// The objective's owner can do everything
+// Non owners need the matching permission.
+// KR Assignees can always update the progress of their own key result (handled in the controller).
+
+// Create KRs
+async function canUserCreateKeyResults(user, objective, session) {
+  if (isObjectiveOwner(user, objective)) {
+    return true;
+  }
+  return hasObjectivePermission(user, objective, "Create Key Results", session);
+}
+
+// Edit KRs (except for progress updates)
+async function canUserEditKeyResults(user, objective, session) {
+  if (isObjectiveOwner(user, objective)) {
+    return true;
+  }
+  return hasObjectivePermission(user, objective, "Edit Key Results", session);
+}
+
+// Approve KRs
+async function canUserApproveKeyResults(user, objective, session) {
+  if (isObjectiveOwner(user, objective)) {
+    return true;
+  }
+  return hasObjectivePermission(user, objective, "Approve Key Results", session);
+}
+
+function keyResultAccess(check, message) {
+  return asyncHandler(async (req, res, next) => {
+    const objectiveId = req.params.id || req.params.objectiveId;
+    if (!mongoose.isObjectIdOrHexString(objectiveId)) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    const objective = await OkrObjective.findById(objectiveId);
+    if (!objective) {
+      res.status(404);
+      throw new Error("Objective not found");
+    }
+    if (!(await check(req.user, objective))) {
+      res.status(403);
+      throw new Error(message);
+    }
+    next();
+  });
+}
+
 function objectiveAccess(permission) {
   return asyncHandler(async (req, res, next) => {
     const objectiveId = req.params.id || req.params.objectiveId;
@@ -137,13 +196,24 @@ function objectiveAccess(permission) {
 }
 
 const canManageObjective = objectiveAccess();
-const canCreateKeyResult = objectiveAccess("Create Key Results");
-const canApproveKeyResult = objectiveAccess("Approve Key Results");
+const canCreateKeyResult = keyResultAccess(
+  canUserCreateKeyResults,
+  "You do not have permission to add key results to this objective",
+);
+const canApproveKeyResult = keyResultAccess(
+  canUserApproveKeyResults,
+  "You do not have permission to approve key results",
+);
 
 module.exports = {
   assertObjectiveAccess,
   hasObjectivePermission,
   canUserManageObjective,
+  canUserCreateKeyResults,
+  canUserEditKeyResults,
+  canUserApproveKeyResults,
+  isObjectiveOwner,
+  isKeyResultAssignee,
   canUserCreateObjective,
   canCreateObjective,
   canManageObjective,
