@@ -77,7 +77,7 @@ function OkrDashboard(){
             <span>
               {stats.overdue > 0
                 ? `${stats.overdue} overdue, need attention`
-                : "Need attention this week"}
+                : "Need attention now"}
             </span>
 
           </div>

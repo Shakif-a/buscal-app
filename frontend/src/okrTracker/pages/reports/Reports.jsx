@@ -57,7 +57,19 @@ function Reports() {
   return (
     <div className="reports">
       <div className="report-header">
-        <h1>Reports</h1>
+        <div className="report-title">
+          <img
+            src="/images/okr/ArrowLogoLeft.png"
+            alt="Arrow Logo L"
+            className="logo"
+          />
+          <h1>Reports</h1>
+        </div>
+        <img
+          src="/images/okr/ArrowLogoRight.png"
+          alt="Arrow Logo R"
+          className="logo"
+        />
       </div>
       {error && <p role="alert">{error}</p>}
       {!report && !error && <p role="status">Loading reports...</p>}
@@ -65,14 +77,17 @@ function Reports() {
         <>
           <div className="statistics">
             <div className="cards cards-blue">
+              <div className="cards-line"></div>
               <p>Objectives On Track</p>
               <h2>{report.onTrack}</h2>
             </div>
             <div className="cards cards-green">
+              <div className="cards-line"></div>
               <p>Average Progress</p>
               <h2>{report.averageProgress}%</h2>
             </div>
             <div className="cards cards-navy">
+              <div className="cards-line"></div>
               <p>Total Objectives</p>
               <h2>{report.totalObjectives}</h2>
             </div>
@@ -80,8 +95,8 @@ function Reports() {
           <div className="week-statistics">
             <h3>Completion By Group</h3>
             {report.groups.length === 0 && <p>No objectives yet.</p>}
-            {report.groups.map((group) => (
-              <div className="progress-row" key={group.name}>
+            {report.groups.map((group, index) => (
+              <div className={`progress-row bar-${index % 4}`} key={group.name}>
                 <span>{group.name}</span>
                 <progress value={group.progress} max="100" />
                 <span>{group.progress}%</span>

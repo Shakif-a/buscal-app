@@ -863,9 +863,13 @@ const getReport = asyncHandler(async (req, res) => {
     const progress = data.objective.progress || 0;
     totalProgress += progress;
     if (objective.status === "on-track") onTrack++;
-    let group = groups.find((item) => item.name === objective.group);
+    const name =
+      !objective.group || objective.group === "none"
+        ? "Ungrouped"
+        : objective.group;
+    let group = groups.find((item) => item.name === name);
     if (!group) {
-      group = { name: objective.group, objectives: 0, progress: 0 };
+      group = { name, objectives: 0, progress: 0 };
       groups.push(group);
     }
     group.objectives++;
