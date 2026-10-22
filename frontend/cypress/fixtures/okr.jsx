@@ -9,7 +9,11 @@ import ObjectiveCard from "../../src/okrTracker/pages/objectives/ObjectiveCard";
 import Reports from "../../src/okrTracker/pages/reports/Reports";
 
 const params = new URLSearchParams(window.location.search);
-const user = { token: "test-token", roles: ["admin"], exec: "no" };
+const user = {
+  token: params.get("token") || "test-token",
+  roles: ["admin"],
+  exec: "no",
+};
 const store = configureStore({
   reducer: {
     auth: () => ({ user }),
@@ -18,7 +22,7 @@ const store = configureStore({
   },
 });
 const objective = {
-  _id: "objective-1",
+  _id: params.get("objectiveId") || "objective-1",
   title: "Improve support",
   group: "Support",
   manager: "Test Owner",

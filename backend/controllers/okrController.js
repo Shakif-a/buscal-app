@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const OkrEvidence = require("../models/okrEvidenceModel");
 const User = require("../models/userModel");
 // Permission groups
 const OkrGroup = require("../models/okrGroupModel");
@@ -38,9 +39,10 @@ function getName(user) {
 // Obtain the access flags for the current user on a given objective, for key result actions
 async function getKeyResultAccess(user, objective) {
   if (!user) {
-    return { create: false, edit: false, approve: false };
+    return { manage: false, create: false, edit: false, approve: false };
   }
   return {
+    manage: await canUserManageObjective(user, objective),
     create: await canUserCreateKeyResults(user, objective),
     edit: await canUserEditKeyResults(user, objective),
     approve: await canUserApproveKeyResults(user, objective),
@@ -48,9 +50,7 @@ async function getKeyResultAccess(user, objective) {
 }
 
 async function addPermissionFlags(objectiveData, objective, user, access) {
-  objectiveData.canManage = user
-    ? await canUserManageObjective(user, objective)
-    : false;
+  objectiveData.canManage = access.manage;
   objectiveData.canCreateKeyResult = access.create;
   objectiveData.canEditKeyResults = access.edit;
   objectiveData.canApproveKeyResult = access.approve;
@@ -61,6 +61,7 @@ function addKeyResultFlags(keyResultData, access, user) {
   keyResultData.canEdit = access.edit;
   keyResultData.canEditProgress = access.edit || isAssignee;
   keyResultData.canApprove = access.approve;
+  keyResultData.canManageEvidence = access.manage || isAssignee;
 }
 
 async function loadObjective(objective, user) {
@@ -378,6 +379,7 @@ const deleteObjective = asyncHandler(async (req, res) => {
 
   console.log("Starting OKR database deletion");
 
+  await OkrEvidence.deleteMany({ objective: objective._id });
   await OkrKeyResult.deleteMany({
     objective: objective._id,
   });
@@ -814,6 +816,7 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
     });
   }
 
+  await OkrEvidence.deleteMany({ keyResult: keyResult._id });
   await keyResult.deleteOne();
   res.status(200).json({ id: keyResultId });
 });

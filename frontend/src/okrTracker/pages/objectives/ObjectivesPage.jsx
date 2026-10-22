@@ -153,7 +153,7 @@ function ObjectivesPage() {
   );
 
   // Early Return 1: Still fetching from Node server
-  if (isLoading) {
+  if (isLoading && (!objectives || objectives.length === 0)) {
     return (
       <div className="objectives-page">
         <div className="objectives-status">

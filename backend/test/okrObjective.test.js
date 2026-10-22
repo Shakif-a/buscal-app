@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const OkrEvidence = require("../models/okrEvidenceModel");
 const User = require("../models/userModel");
 const originalUserExists = User.exists;
 const OkrGroup = require("../models/okrGroupModel");
@@ -25,6 +26,7 @@ const originalFindObjectives = OkrObjective.find;
 const originalFindObjective = OkrObjective.findById;
 const originalFindKeyResults = OkrKeyResult.find;
 const originalDeleteKeyResults = OkrKeyResult.deleteMany;
+const originalDeleteEvidence = OkrEvidence.deleteMany;
 const originalCreateKeyResult = OkrKeyResult.create;
 const originalFindGroup = OkrGroup.findOne;
 const originalCreateObjective = OkrObjective.create;
@@ -44,6 +46,7 @@ test.beforeEach(() => {
   OkrKeyResult.prototype.save = async function () {
     return OkrKeyResult.create(this);
   };
+  OkrEvidence.deleteMany = async () => {};
 });
 
 test.afterEach(() => {
@@ -55,6 +58,7 @@ test.afterEach(() => {
   OkrObjective.findById = originalFindObjective;
   OkrKeyResult.find = originalFindKeyResults;
   OkrKeyResult.deleteMany = originalDeleteKeyResults;
+  OkrEvidence.deleteMany = originalDeleteEvidence;
   OkrKeyResult.create = originalCreateKeyResult;
   OkrGroup.findOne = originalFindGroup;
   OkrObjective.create = originalCreateObjective;
@@ -374,6 +378,9 @@ test("deleting an objective also deletes its key results", async () => {
   };
 
   OkrObjective.findById = async () => objective;
+  OkrEvidence.deleteMany = async () => {
+    steps.push("evidence");
+  };
   OkrKeyResult.deleteMany = async () => {
     steps.push("key results");
   };
@@ -384,7 +391,7 @@ test("deleting an objective also deletes its key results", async () => {
 
   assert.equal(result.statusCode, 200);
   assert.equal(result.data.id, objective._id.toString());
-  assert.deepEqual(steps, ["key results", "objective"]);
+  assert.deepEqual(steps, ["evidence", "key results", "objective"]);
 });
 
 test("objectives are sorted by owner and then due date", async () => {

@@ -3,6 +3,11 @@ const router = express.Router();
 const { requireObjectBody } = require("../middleware/errorMiddleware");
 router.use(requireObjectBody);
 
+const evidenceUpload = express.raw({
+  type: "application/octet-stream",
+  limit: "5mb",
+});
+
 const {
   getReport,
   approveKeyResult,
@@ -18,8 +23,22 @@ const {
   updateKeyResult,
   deleteKeyResult,
 } = require("../controllers/okrController");
+const {
+  uploadEvidence,
+  getEvidence,
+  downloadEvidence,
+  deleteEvidence,
+  restoreEvidence,
+} = require("../controllers/okrEvidenceController");
+
+const {
+  viewBlockedUpload,
+  viewAuditLog,
+  decideBlockedUpload,
+} = require("../controllers/okrBlockedUploadController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { evidenceUploadLimiter } = require("../middleware/evidenceUploadLimiter");
 const {
   canCreateObjective,
   canManageObjective,
@@ -76,5 +95,38 @@ router.get("/objectives/groups", protect, getObjectiveGroups);
 router.get("/objectives/:id", protect, getObjective);
 router.put("/objectives/:id", protect, canManageObjective, updateObjective);
 router.delete("/objectives/:id", protect, canManageObjective, deleteObjective);
+
+//Evidence
+router.post(
+  "/objectives/:id/key-results/:keyResultId/evidence",
+  protect,
+  evidenceUploadLimiter,
+  evidenceUpload,
+  uploadEvidence,
+);
+router.get(
+  "/objectives/:id/key-results/:keyResultId/evidence",
+  protect,
+  getEvidence,
+);
+router.get(
+  "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId/download",
+  protect,
+  downloadEvidence,
+);
+router.delete(
+  "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId",
+  protect,
+  deleteEvidence,
+);
+router.post(
+  "/objectives/:id/key-results/:keyResultId/evidence/:evidenceId/restore",
+  protect,
+  restoreEvidence,
+);
+
+router.get("/blocked-uploads", viewAuditLog);
+router.get("/blocked-uploads/:reportId", viewBlockedUpload);
+router.post("/blocked-uploads/:reportId/decision", decideBlockedUpload);
 
 module.exports = router;
