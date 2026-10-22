@@ -28,18 +28,8 @@ const objective = {
   progress: 30,
   canManage: params.get("manage") !== "false",
   canCreateKeyResult: params.get("create") !== "false",
+  canEditKeyResults: params.get("edit") !== "false",
   canApproveKeyResult: params.get("approve") !== "false",
-  keyResults: [
-    {
-      _id: "result-1",
-      title: "Resolve requests faster",
-      weight: 40,
-      assigned: "Test Member",
-      progress: 30,
-      dueDate: "2026-11-01",
-      approved: false,
-    },
-  ],
 };
 
 createRoot(document.getElementById("root")).render(
