@@ -37,12 +37,14 @@
 
 .statistics{
     display: flex;
+    flex-wrap: wrap;
     gap: 30px;
     margin-bottom: 30px;
 }
 
 .card{
     flex:1;
+    min-width: 200px;
     background: white;
     border: 1px solid #d9dfea;
     border-radius: 15px;
@@ -82,6 +84,7 @@
 
 .bottom-section{
     display:flex;
+    flex-wrap: wrap;
     gap:30px;
     margin-bottom: 30px;
 }
@@ -121,49 +124,19 @@
     border-radius: 10px;
 }
 
-.progress-row:nth-child(2) progress::-webkit-progress-value{
-    background: #72cdf4;
-}
-
-.progress-row:nth-child(3) progress::-webkit-progress-value{
-    background: #72cdf4;
-}
-
-.progress-row:nth-child(4) progress::-webkit-progress-value{
-    background: #1f1e40;
-}
-
-.progress-row:nth-child(5) progress::-webkit-progress-value{
-    background: #00b085;
-}
-
-.progress-row:nth-child(6) progress::-webkit-progress-value{
-    background: #1f1e40;
-}
-/*firefox support*/
 .progress-row progress::-moz-progress-bar{
     border-radius: 10px;
 }
 
-.progress-row:nth-child(2) progress::-moz-progress-bar{
-    background: #72cdf4;
-}
-
-.progress-row:nth-child(3) progress::-moz-progress-bar{
-    background: #72cdf4;
-}
-
-.progress-row:nth-child(4) progress::-moz-progress-bar{
-    background: #1f1e40;
-}
-
-.progress-row:nth-child(5) progress::-moz-progress-bar{
-    background: #00b085;
-}
-
-.progress-row:nth-child(6) progress::-moz-progress-bar{
-    background: #1f1e40;
-}
+/* cycle bar colours so any number of groups works */
+.bar-0 progress::-webkit-progress-value{ background: #72cdf4; }
+.bar-1 progress::-webkit-progress-value{ background: #1f1e40; }
+.bar-2 progress::-webkit-progress-value{ background: #00b085; }
+.bar-3 progress::-webkit-progress-value{ background: #e05a5a; }
+.bar-0 progress::-moz-progress-bar{ background: #72cdf4; }
+.bar-1 progress::-moz-progress-bar{ background: #1f1e40; }
+.bar-2 progress::-moz-progress-bar{ background: #00b085; }
+.bar-3 progress::-moz-progress-bar{ background: #e05a5a; }
 
 .week-statistics{
     flex:1;
@@ -174,57 +147,11 @@
 }
 
 .graph-container{
-    display:flex;
-    justify-content:space-around;
-    margin-top: 40px;
+    margin-top: 20px;
 }
 
-.circle{
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    background: #ddd;
-    display:flex;
-    justify-content:center;
-    align-items: center;
-    flex-direction: column;
-}
-
-.circle1{
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    background: #72cdf4;
-    display:flex;
-    justify-content:center;
-    align-items: center;
-    flex-direction: column;
-}
-
-.circle2{
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    background: #00b085;
-    display:flex;
-    justify-content:center;
-    align-items: center;
-    flex-direction: column;
-}
-
-.circle3{
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    background: #1f1e40;
-    display:flex;
-    justify-content:center;
-    align-items: center;
-    flex-direction: column;
-}
-
-.texter {
-    font-size:14px;
-    text-align: center;
-    
+.donut-label{
+    fill: #1f1e40;
+    font-size: 16px;
+    font-weight: 600;
 }

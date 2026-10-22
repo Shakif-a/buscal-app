@@ -1,15 +1,34 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Cell,
+  Label,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
+import { getObjectives } from "../../features/objectives/objectiveSlice";
+import { getDashboardStats } from "../../features/objectives/dashboardStats";
 import "./OkrDashboard.css";
 
-//import { mockOkrDashboardData } from "../data/mockOkrDashboardData";
-//import OkrDashboardSummary from "../components/okrdashboard/OkrDashboardSummary";
-
 function OkrDashboard(){
-  //const {summary, objectives, upcomingDeadlines} = mockOkrDashboardData;
+  const dispatch = useDispatch();
+  const { objectives, isLoading, isError, message } = useSelector(
+    (state) => state.okr
+  );
+
+  useEffect(() => {
+    dispatch(getObjectives());
+  }, [dispatch]);
+
+  const stats = useMemo(() => getDashboardStats(objectives), [objectives]);
+  const chartData = stats.statusCounts.filter((item) => item.count > 0);
 
   return (
     <div className="okrdashboard">
-      
+
       <div className="dashboard-header">
           <div className="dashboard-title">
               {/*Arrow Logo */}
@@ -27,94 +46,93 @@ function OkrDashboard(){
               className = "logo"/>
       </div>
 
+      {isError && <p role="alert">{message || "Could not load objectives"}</p>}
+      {isLoading && objectives.length === 0 && (
+        <p role="status">Loading objectives...</p>
+      )}
+
       <div className="statistics">
           <div className="card cards-blue">
             <div className="cards-line"></div>
             <p>Total Objectives</p>
-            <h2>24</h2>
-            <span>Across 3 groups</span>
+            <h2>{stats.total}</h2>
+            <span>
+              Across {stats.groupCount} group{stats.groupCount === 1 ? "" : "s"}
+            </span>
 
           </div>
 
           <div className="card cards-green">
             <div className="cards-line"></div>
             <p>Completed</p>
-            <h2>65%</h2>
-            <span>16 of 24 objectives</span>
+            <h2>{stats.completedPct}%</h2>
+            <span>{stats.completed} of {stats.total} objectives</span>
 
           </div>
 
           <div className="card cards-navy">
             <div className="cards-line"></div>
             <p>At Risk Objectives</p>
-            <h2>5</h2>
-            <span>Need attention this week</span>
+            <h2>{stats.atRisk}</h2>
+            <span>
+              {stats.overdue > 0
+                ? `${stats.overdue} overdue, need attention`
+                : "Need attention this week"}
+            </span>
 
           </div>
       </div>
 
       <div className="bottom-section">
           <div className="week-statistics">
-            <h3>Current Week Statistics</h3>
+            <h3>Progress By Group</h3>
 
-            <div className="progress-row">
-              <span>R &amp; D</span>
-              <progress value="78" max="100"></progress>
-              <span>78%</span>
-            </div>
-
-            <div className="progress-row">
-              <span>Sales</span>
-              <progress value="62" max="100"></progress>
-              <span>62%</span>
-            </div>
-
-            <div className="progress-row">
-              <span>Marketing</span>
-              <progress value="54" max="100"></progress>
-              <span>54%</span>
-            </div>
-
-            <div className="progress-row">
-              <span>Tech</span>
-              <progress value="100" max="100"></progress>
-              <span>100%</span>
-            </div>
-
-            <div className="progress-row">
-              <span>Operations</span>
-              <progress value="41" max="100"></progress>
-              <span>41%</span>
-            </div>
+            {stats.groups.length === 0 && <p>No objectives yet.</p>}
+            {stats.groups.map((group, index) => (
+              <div className={`progress-row bar-${index % 4}`} key={group.name}>
+                <span>{group.name}</span>
+                <progress value={group.progress} max="100"></progress>
+                <span>{group.progress}%</span>
+              </div>
+            ))}
           </div>
-          
+
       </div>
 
       <div className="completion-overview">
         <h3>Completion Overview</h3>
-        <div className="graph-container">
-          <div className="circle1">
-            <div className = "circle">
-              <h4>72%</h4>
-              <p>On Track</p>
-            </div>
+        {chartData.length === 0 ? (
+          <p>No objectives yet.</p>
+        ) : (
+          <div className="graph-container">
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  dataKey="count"
+                  nameKey="label"
+                  innerRadius={70}
+                  outerRadius={100}
+                  paddingAngle={2}
+                >
+                  {chartData.map((item) => (
+                    <Cell key={item.status} fill={item.color} />
+                  ))}
+                  <Label
+                    value={`${stats.completedPct}% Completed`}
+                    position="center"
+                    className="donut-label"
+                  />
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          <div className="circle2">
-            <div className = "circle">
-              <h2>65%</h2>
-              <p className="texter">Completed</p>
-            </div>
-          </div>
-          <div className="circle3">
-            <div className = "circle">
-              <h4>21%</h4>
-              <p>At Risk</p>
-            </div>
-          </div>
-        </div>
+        )}
 
       </div>
-      
+
     </div>
 
   );
