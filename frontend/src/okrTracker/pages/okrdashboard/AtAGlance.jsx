@@ -47,6 +47,8 @@ function DashboardDonut({ title, data, centerLabel, selectedKey, onSelect, large
               innerRadius={large ? "55%" : 70}
               outerRadius={large ? "80%" : 100}
               paddingAngle={2}
+              startAngle={90}
+              endAngle={-270}
               onClick={(_, index) => onSelect(slices[index])}
             >
               {slices.map((item) => (
@@ -61,7 +63,7 @@ function DashboardDonut({ title, data, centerLabel, selectedKey, onSelect, large
               <Label value={centerLabel} position="center" className="donut-label" />
             </Pie>
             <Tooltip />
-            <Legend />
+            <Legend itemSorter={null} />
           </PieChart>
         </ResponsiveContainer>
       </div>
