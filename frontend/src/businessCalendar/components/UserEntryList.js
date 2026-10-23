@@ -1,10 +1,20 @@
-import React from "react";
+import React, {useEffect} from "react";
+import { useDispatch } from "react-redux";
+//OKR integration - fetch linked Objective data for Calendar status display
+import { getObjectives } from "../../okrTracker/features/objectives/objectiveSlice";
 import { Box, Typography } from "@mui/material";
 import EntryViewer from "./EntryViewer";
 import { removeDomain } from "./UtilityFunctions";
 import { display, flexDirection } from "@mui/system";
 
 function UserEntryList({ userName, entries, type }) {
+  const dispatch = useDispatch();
+  //Fetch Objectives once per task list to display their current status in EntryViewer
+  //without making separate requests for every calendar entry
+  useEffect(() => {
+    dispatch(getObjectives());
+  }, [dispatch]);
+  
   const newEntries = removeDomain(entries);
   return (
     <Box

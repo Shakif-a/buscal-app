@@ -6,12 +6,17 @@ const AT_RISK_TOLERANCE = 10;
 // Get the current date in Sydney timezone
 // I asume the base system has or will have expanded timezone support, so this is a temporary solution
 function getSydneyDate() {
-    return new Intl.DateTimeFormat("en-CA", {
+    const parts = new Intl.DateTimeFormat("en-GB", {
         timeZone: "Australia/Sydney",
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-    }).format(new Date());
+    }).formatToParts(new Date());
+
+    const getPart = (type) =>
+        parts.find((part) => part.type === type).value;
+
+    return `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
 }
 
 //compare calendar dates rather than exact timestamps
@@ -31,12 +36,41 @@ async function recalculateKeyResultStatuses(objectiveId) {
     const today = getSydneyDate();
 
     for (const kr of keyResults) {
+        //skip automatic calc for invalid due dates
+        const parsedDueDate = new Date(kr.dueDate);
+
+        if (!kr.dueDate || isNaN(parsedDueDate.getTime())) {
+            continue;
+        }
+
         const progress = kr.progress ?? 0;
         const start = new Date(kr.createdAt).getTime();
-        const end = new Date(kr.dueDate).getTime();
+        //const end = new Date(kr.dueDate).getTime();
+        //compare calendar dates rather than exact timestamps
+        const dueDate = parsedDueDate.toISOString().split("T")[0];
+        
+        const [year, month, day] = dueDate.split("-").map(Number);
 
+        //find the start of the following day in Sydney
+        const nextDay = new Date(Date.UTC(year, month -1, day + 1));
+        const nextDayString = nextDay.toISOString().split("T")[0];
+        const nextDayUTC = Date.parse(`${nextDayString}T00:00:00Z`);
+
+        const offset = new Intl.DateTimeFormat("en-US", {
+            timeZone: "Australia/Sydney",
+            timeZoneName: "shortOffset",
+        }).formatToParts(new Date(nextDayUTC))
+            .find((part) => part.type === "timeZoneName")
+            .value;
+        const offsetMatch = offset.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+        const offsetMinutes = offsetMatch
+            ? (offsetMatch[1] === "+" ? 1 : -1) *
+                (Number(offsetMatch[2]) * 60 + Number(offsetMatch[3] || 0))
+            : 0;
+        const end = nextDayUTC - offsetMinutes * 60 * 1000;
+
+        //const isOverdue = today > dueDate;
         const isOverdue = isPastDue(kr.dueDate, today);
-
         const duration = end - start;
 
         //expected progress based on kr timeline
@@ -51,12 +85,25 @@ async function recalculateKeyResultStatuses(objectiveId) {
         let status = kr.status === "on-track" ? "in-progress" : kr.status;
 
         //preserve completed kr
-        if (kr.status === "completed" || kr.approved) {
+        if (kr.approved) {
             status = "completed";
-        } else if (isOverdue) {
-            status = "overdue";
-        } else if (status === "in-progress" && progress < expectedProgress - AT_RISK_TOLERANCE) {
-            status = "at-risk";
+        } 
+        //preserve awaiting approval only when progress is 100%
+        else if (kr.status === "awaiting-approval" && progress === 100){
+            status = "awaiting-approval";
+        } 
+        //reset invalid approval/completion status
+        else if (kr.status === "awaiting-approval" || kr.status === "completed") {
+            status = "in-progress";
+        }
+        //applying auto status to active key results
+        if (status !== "completed" && status !== "awaiting-approval"){
+            if (isOverdue) {
+                status = "overdue";
+            } else if (
+                status === "in-progress" && progress < expectedProgress - AT_RISK_TOLERANCE) {
+                    status = "at-risk";
+            }
         }
 
         if (kr.status !== status) {
@@ -108,9 +155,13 @@ async function recalculateObjective(objectiveId) {
     //Determine Objective Status
     let status;
 
-    if (progress >= 100) {
+    const allKeyResultsApproved = 
+        keyResults.length > 0 &&
+        keyResults.every((kr) => kr.approved === true);
+
+    if (progress >= 100 && allKeyResultsApproved) {
         status = "completed";
-    } else if (isPastDue(objective.dueDate, getSydneyDate())) {
+    } else if (now > end) {
         status = "overdue";
     } else if (progress === 0) {
         status = "not started";

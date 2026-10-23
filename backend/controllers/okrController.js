@@ -604,6 +604,30 @@ const createKeyResult = asyncHandler(async (req, res) => {
     );
   }
 
+  //validate key result status and approval
+  if (
+    req.body.status === "awaiting-approval" &&
+    Number(req.body.progress ?? 0) !== 100
+  ) {
+    res.status(400);
+    throw new Error("Awaiting Approval requires 100% progress");
+  }
+
+  if (
+    req.body.status === "completed" && !req.body.approved
+  ) {
+    res.status(400);
+    throw new Error("Completed requires approval");
+  }
+
+  if (
+    req.body.approved === true && req.body.status !== "completed"
+  ) {
+    res.status(400);
+    throw new Error("Approved Key Results must be Completed");
+  }
+
+  //Create Key Result
   const keyResult = await OkrKeyResult.create({
     objective: objectiveId,
     title: req.body.title,
@@ -653,7 +677,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result does not belong to this objective");
   }
 
-  // Check what feilds the user is allowed to change, and reject any changes to fields they don't have permission for.
+  // Check what fields the user is allowed to change, and reject any changes to fields they don't have permission for.
   const access = await getKeyResultAccess(req.user, objective);
   const allowed = new Set();
   if (access.edit) {
@@ -663,6 +687,11 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
   if (isKeyResultAssignee(req.user, keyResult)) {
     allowed.add("progress");
+
+    //assigned employees can submit their key result for approval through status
+    if (req.body.status === "awaiting-approval"){
+      allowed.add("status");
+    }
   }
   if (access.approve) {
     allowed.add("approved");
@@ -776,13 +805,34 @@ const updateKeyResult = asyncHandler(async (req, res) => {
 
   //Update status
   if (mayChange("status")) {
-    const allowedStatuses = ["in-progress", "at-risk", "overdue", "completed"];
+    const allowedStatuses = ["in-progress", "at-risk", "overdue", "awaiting-approval", "completed"];
 
     if (!allowedStatuses.includes(req.body.status)) {
       res.status(400);
       throw new Error("Invalid key result status");
     }
 
+    //awaiting approval requires 100% progress
+    if (
+      req.body.status === "awaiting-approval" &&
+      keyResult.progress !== 100
+    ) {
+      res.status(400);
+      throw new Error(
+        "Key Result must reach 100% progress before requesting approval"
+      );
+    }
+
+    if (
+      req.body.status === "completed" &&
+      !keyResult.approved &&
+      !(access.approve && req.body.approved === true)
+    ) {
+      res.status(403);
+      throw new Error(
+        "Key Result must be approved before being marked as Completed"
+      );
+    }
     keyResult.status = req.body.status;
   }
 
@@ -891,6 +941,7 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   if (req.body.approved === true) {
     keyResult.status = "completed";
   }
+  //need to check if progress is 100% and status is awaiting approval, and if requesting user has approval permission
 
   await keyResult.save();
 

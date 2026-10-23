@@ -147,7 +147,7 @@ const EntryViewer = ({ entryData, type }) => {
   const backgroundColor = getCategoryColour(category);
   // Objective status colours
   const objectiveStatusColours = {
-      "not started": "#e5a673",
+      "not started": "#9ca3af",
       "on-track": "#72cdf4",
       "at-risk": "#f4b400",
       overdue: "#e57373",

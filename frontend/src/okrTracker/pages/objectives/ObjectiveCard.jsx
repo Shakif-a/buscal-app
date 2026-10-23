@@ -153,6 +153,7 @@ const API_TO_UI_STATUS = {
   "on-track": "On Track",
   "at-risk": "At Risk",
   "overdue": "Overdue",
+  "awaiting-approval": "Awaiting Approval",
   "completed": "Completed",
 };
 // Frontend labels to backend values
@@ -162,15 +163,17 @@ const UI_TO_API_STATUS = {
   "On Track": "on-track",
   "At Risk": "at-risk",
   "Overdue": "overdue",
+  "Awaiting Approval": "awaiting-approval",
   "Completed": "completed",
 };
 
 const STATUS_COLOURS = {
-  "not started": "#e5a673",
+  "not-started": "#9ca3af",
   "in-progress": "#72cdf4",
   "on-track": "#72cdf4",
   "at-risk": "#f4b400",
   overdue: "#e57373",
+  "awaiting-approval": "#1f1e40",
   completed: "#00b085",
 };
 
@@ -1037,7 +1040,14 @@ function ObjectiveCard({ objective }) {
               updateKeyResult({
                 objectiveId,
                 keyResultId: kr.id,
-                keyResultData: buildKeyResultPayload(kr),
+                keyResultData: Object.fromEntries( //send only saved fields
+                  Object.entries(buildKeyResultPayload(kr)).filter(
+                    ([field, value]) => {
+                      const originalPayload = buildKeyResultPayload(original);
+                      return value !== originalPayload[field];
+                    }
+                  )
+                ),
               })
             ).unwrap();
           }
@@ -1232,10 +1242,15 @@ function ObjectiveCard({ objective }) {
 
         <div className="progress-area">
           <div className="progress-labels">
-            <span>25%</span>
-            <span>50%</span>
-            <span>75%</span>
-            <span>100%</span>
+            {[25, 50, 75, 100].map((percentage) => (
+              <span
+                key={percentage}
+                className="progress-label"
+                style={{ left: `${percentage}%`}}
+              >
+                {percentage}%
+              </span>
+            ))}
           </div>
 
           <div className="progress-track">
@@ -1400,16 +1415,29 @@ function ObjectiveCard({ objective }) {
                       <select
                         className={`status-select ${keyResult.status.toLowerCase().replace(/ /g, "-")}`}
                         value={keyResult.status}
-                        disabled={!editMode || !keyResult.canEdit}
+                        disabled={!editMode || !(keyResult.canEdit || keyResult.canEditProgress)}
                         onChange={(event) =>
                           updateLocalKeyResult(keyResult.id, { status: event.target.value })
                         }
                       >
-                        <option value="Choose Progress">Choose Progress</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="At Risk">At Risk</option>
-                        <option value="Overdue">Overdue</option>
-                        <option value="Completed">Completed</option>
+                        <option value="Choose Progress" disabled={!keyResult.canEdit}>Choose Progress</option>
+                        <option value="In Progress" disabled={!keyResult.canEdit}>In Progress</option>
+                        <option value="At Risk" disabled={!keyResult.canEdit}>At Risk</option>
+                        <option value="Overdue" disabled={!keyResult.canEdit}>Overdue</option>
+                        <option 
+                          value="Awaiting Approval"
+                          disabled={
+                            Number(keyResult.progress) !== 100 ||
+                            keyResult.approved ||
+                            !(keyResult.canEdit || keyResult.canEditProgress)
+                          }
+                        >
+                            Awaiting Approval
+                        </option>
+                        <option value="Completed" disabled={!keyResult.canEdit || !keyResult.approved}
+                        >
+                          Completed
+                        </option>
                       </select>
                     </td>
 
