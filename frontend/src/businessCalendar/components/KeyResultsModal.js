@@ -46,20 +46,36 @@ const KeyResultsModal = ({
     }, [dispatch, objectiveId]);
 
     const handleSave = async () => {
-        //console.log("Saving Key Result:", keyResult);
         //Backend update here
         if (!editedKeyResult) return;
         const keyResultId = editedKeyResult._id || editedKeyResult.id
+        const original = keyResults.find(
+          (kr) => String(kr._id || kr.id) === String(keyResultId)
+        );
+        if (!original) return;
+
+        const keyResultData = {};
+
+        if (Number(editedKeyResult.progress) !== Number(original.progress)) {
+          keyResultData.progress = Number(editedKeyResult.progress);
+        }
+
+        if (editedKeyResult.status !== original.status) {
+          keyResultData.status = editedKeyResult.status;
+        }
+
+        if (Object.keys(keyResultData).length === 0) {
+          setExpandedKeyResult(null);
+          setEditedKeyResult(null);
+          return;
+        }
 
         try{
           await dispatch(
             updateKeyResult({
               objectiveId,
               keyResultId,
-              keyResultData: {
-                progress: editedKeyResult.progress,
-                status: editedKeyResult.status,
-              },
+              keyResultData,
             })
           ).unwrap();
           //reload Key Results from backend
@@ -84,6 +100,7 @@ const KeyResultsModal = ({
         "in-progress" : "In Progress",
         "at-risk" : "At Risk",
         "overdue" : "Overdue",
+        "awaiting-approval": "Awaiting Approval",
         "completed" : "Completed",
       };
 
@@ -94,6 +111,7 @@ const KeyResultsModal = ({
       "in-progress": "#72cdf4",
       "at-risk": "#f4b400",
       overdue: "#e57373",
+      "awaiting-approval": "#1f1e40",
       completed: "#00b085",
     };
 
@@ -101,6 +119,7 @@ const KeyResultsModal = ({
       "in-progress": "#b6e3f8",
       "at-risk": "#ffe29a",
       overdue: "#f4a6a6",
+      "awaiting-approval": "#82829d",
       completed: "#a5dfc9",
     };
 
@@ -305,6 +324,10 @@ const KeyResultsModal = ({
                           setEditedKeyResult((previous) => ({
                             ...previous,
                             progress: number,
+                            status:
+                              number !== 100 && previous.status === "awaiting-approval"
+                                ? "in-progress"
+                                : previous.status,
                           }));
                         }}
 
@@ -341,6 +364,10 @@ const KeyResultsModal = ({
                         setEditedKeyResult((previous) =>({
                           ...previous,
                           progress: newValue,
+                          status:
+                              newValue !== 100 && previous.status === "awaiting-approval"
+                                ? "in-progress"
+                                : previous.status,
                         }))
                       }
                     />
@@ -368,6 +395,7 @@ const KeyResultsModal = ({
                       <Select
                         value={editedKeyResult?.status ?? ""}
                         displayEmpty
+                        disabled={!(editedKeyResult?.canEdit || editedKeyResult?.canEditProgress)}
                         onChange={(event) =>
                           setEditedKeyResult((previous) =>({
                             ...previous,
@@ -398,19 +426,35 @@ const KeyResultsModal = ({
                           Choose Progress
                         </MenuItem>
 
-                        <MenuItem value="in-progress">
+                        <MenuItem value="in-progress" disabled={!editedKeyResult?.canEdit}>
                           In Progress
                         </MenuItem>
 
-                        <MenuItem value="at-risk">
+                        <MenuItem value="at-risk" disabled={!editedKeyResult?.canEdit}>
                           At Risk
                         </MenuItem>
 
-                        <MenuItem value="overdue">
+                        <MenuItem value="overdue" disabled={!editedKeyResult?.canEdit}>
                           Overdue
                         </MenuItem>
 
-                        <MenuItem value="completed">
+                        <MenuItem 
+                          value="awaiting-approval"
+                          disabled={
+                            Number(editedKeyResult?.progress) !== 100 ||
+                            editedKeyResult?.approved ||
+                            !(editedKeyResult?.canEdit || editedKeyResult?.canEditProgress)
+                          }
+                        >
+                          Awaiting Approval
+                        </MenuItem>
+
+                        <MenuItem 
+                          value="completed"
+                          disabled={
+                            !editedKeyResult?.canEdit || !editedKeyResult?.approved
+                          }
+                        >
                           Completed
                         </MenuItem>
                       </Select>
