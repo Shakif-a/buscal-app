@@ -4,6 +4,12 @@ const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
 const OkrEvidence = require("../models/okrEvidenceModel");
 const User = require("../models/userModel");
+const { 
+  getKeyResultApprovers, 
+  notifyAwaitingApproval, 
+  notifyKeyResultApproved, 
+  notifyKeyResultStatus, 
+} = require("../services/okrNotificationService");
 // Permission groups
 const OkrGroup = require("../models/okrGroupModel");
 const {
@@ -653,6 +659,21 @@ const createKeyResult = asyncHandler(async (req, res) => {
 
   await recalculateObjective(objectiveId);
 
+  //notify approvers if the new kr is awaiting approval
+  if (keyResult.status === "awaiting-approval") {
+    try {
+      const approverIds = await getKeyResultApprovers(objective);
+
+      await notifyAwaitingApproval(
+        approverIds,
+        keyResult.title,
+        objective.title
+      );
+    } catch (error) {
+      console.error("KR approval request notification failed", error);
+    }
+  }
+
   await keyResult.populate("assignedTo", "firstName lastName");
   const kr = keyResult.toObject();
   kr.id = kr._id.toString();
@@ -683,6 +704,10 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Key result not found");
   }
+
+  //remember previous state for notification checks
+  const previousStatus = keyResult.status;
+  const previouslyApproved = keyResult.approved;
 
   if (keyResult.objective.toString() !== objectiveId) {
     res.status(400);
@@ -876,6 +901,55 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   //Recalculate parent Objective
   await recalculateObjective(objectiveId)
 
+  //fetch the final kr state after recalculation
+  const updatedKeyResult = await OkrKeyResult.findById(keyResultId);
+
+  try {
+    //notify approvers when kr is submitted for approval
+    if (
+      previousStatus !== "awaiting-approval" && updatedKeyResult.status === "awaiting-approval"
+    ) {
+      const approverIds = await getKeyResultApprovers(objective);
+
+      await notifyAwaitingApproval(
+        approverIds,
+        updatedKeyResult.title,
+        objective.title
+      );
+    }
+
+    //notify assigned employee when their kr is approved
+    if (
+      !previouslyApproved && updatedKeyResult.approved === true
+    ) {
+      await notifyKeyResultApproved(
+        updatedKeyResult.assignedTo,
+        updatedKeyResult.title,
+        objective.title
+      );
+    }
+
+    //notify kr assigned employee and objective owner when manually changed kr status to at risk or overdue
+    if (
+      previousStatus !== updatedKeyResult.status &&
+      (updatedKeyResult.status === "at-risk" ||
+        updatedKeyResult.status === "overdue"
+      )
+    ) {
+      //notify here for explicitly submitted status change
+      if (req.body.status === updatedKeyResult.status) {
+        await notifyKeyResultStatus(
+          [updatedKeyResult.assignedTo, objective.owner],
+          updatedKeyResult.title,
+          objective.title,
+          updatedKeyResult.status
+        );
+      }
+    }
+  } catch (error) {
+    console.error("KR update notification failed:", error);
+  }
+
   await keyResult.populate("assignedTo", "firstName lastName");
 
   const kr = keyResult.toObject();
@@ -960,6 +1034,8 @@ const approveKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result not found");
   }
 
+  const previouslyApproved = keyResult.approved;
+
   //only approve key results submitted for approval at 100% progress
   if (req.body.approved === true) {
     if (
@@ -974,7 +1050,7 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   }
 
   keyResult.approved = req.body.approved;
-  
+
   //Automatically complete KR when approved
   if (req.body.approved === true) {
     keyResult.status = "completed";
@@ -984,6 +1060,23 @@ const approveKeyResult = asyncHandler(async (req, res) => {
 
   //Recalculate parent Objective
   await recalculateObjective(req.params.id);
+
+  //notify assigned employee when kr is approved
+  if (!previouslyApproved && keyResult.approved === true) {
+    try {
+      const objective = await OkrObjective.findById(req.params.id);
+
+      if (objective) {
+        await notifyKeyResultApproved(
+          keyResult.assignedTo,
+          keyResult.title,
+          objective.title
+        );
+      }
+    } catch (error) {
+      console.error("KR approval notification failed:", error)
+    }
+  }
 
   res.json(keyResult);
 });

@@ -1,3 +1,8 @@
+const User = require("../models/userModel");
+const {
+    canUserApproveKeyResults,
+} = require("../middleware/okrPermissions");
+
 const { generateNotifications, } = require("../controllers/notificationController");
 
 const OBJECTIVES_PAGE = "/dashboard/okrtracker/objectives";
@@ -17,9 +22,13 @@ const escapeHTML = (value) =>
     });
 
 //Send notification using Micromax's existing notification system
-const sendOkrNotification = async (canUserEditKeyResults, message) => {
+const sendOkrNotification = async (userIds, message) => {
     const recipients = [
-        ...new Set((userIds) || [].filter(Boolean).map(String)),
+        ...new Set(
+            (userIds || [])
+                .filter(Boolean)
+                .map((id) => String(id._id || id))
+        ),
     ];
 
     if (recipients.length === 0) return;
@@ -40,9 +49,24 @@ const sendOkrNotification = async (canUserEditKeyResults, message) => {
     }
 };
 
+//find users who can approve kr for this objective
+async function getKeyResultApprovers(objective) {
+    const users = await User.find();
+
+    const approvers = [];
+
+    for (const user of users) {
+        if (await canUserApproveKeyResults(user, objective)) {
+            approvers.push(user._id.toString());
+        }
+    }
+
+    return approvers;
+}
+
 //Notify managers when a Key Result requires approval
 const notifyAwaitingApproval = async (
-    managerIds,
+    approverIds,
     keyResultTitle,
     objectiveTitle
 ) => {
@@ -52,7 +76,7 @@ const notifyAwaitingApproval = async (
         "${escapeHTML(objectiveTitle)}" is ready for review.
     `;
 
-    await sendOkrNotification(managerIds, message);
+    await sendOkrNotification(approverIds, message);
 };
 
 //Notify assigned employee when their Key result is approved
@@ -71,4 +95,46 @@ const notifyKeyResultApproved = async (
     await sendOkrNotification([assignedUserId], message);
 };
 
-module.exports = { notifyAwaitingApproval, notifyKeyResultApproved,};
+//Notify key result assigned employee and objective owner when key result is At Risk or Overdue
+const notifyKeyResultStatus = async (
+    userIds,
+    keyResultTitle,
+    objectiveTitle,
+    status
+) => {
+    const label = status === "at-risk" ? "At Risk" : "Overdue";
+
+    const message = `
+        <strong>Key Result ${label}</strong><br>
+        "${escapeHTML(keyResultTitle)}" under
+        "${escapeHTML(objectiveTitle)}" is now ${label}.
+    `;
+
+    await sendOkrNotification(userIds, message);
+
+};
+
+//Notify objective owner when an Objective is At Risk or Overdue
+const notifyObjectiveStatus = async (
+    ownerId,
+    objectiveTitle,
+    status
+) => {
+    const label = status === "at-risk" ? "At Risk" : "Overdue";
+
+    const message = `
+        <strong>Objective ${label}</strong><br>
+        "${escapeHTML(objectiveTitle)}" is now ${label}.
+    `;
+
+    await sendOkrNotification([ownerId], message);
+
+};
+
+
+module.exports = { 
+    getKeyResultApprovers,
+    notifyAwaitingApproval, 
+    notifyKeyResultApproved, 
+    notifyKeyResultStatus, 
+    notifyObjectiveStatus,};
