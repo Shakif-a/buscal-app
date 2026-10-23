@@ -28,7 +28,7 @@ const { permissionNames } = require("../config/okrPermissions");
 const { hasPermission } = require("../middleware/adminPermissions");
 const writes = require("../services/okrWrites");
 
-const {recalculateObjective, recalculateKeyResultStatuses, } = require("../services/okrObjectiveProgressService");
+const {recalculateObjective, recalculateKeyResultStatuses, syncEntryCompletion, } = require("../services/okrObjectiveProgressService");
 
 function getName(user) {
   let name = "";
@@ -427,14 +427,18 @@ const updateObjective = asyncHandler(async (req, res) => {
   }
 
   if (objective.calendarEntry) {
-    await updateLinkedCalendarEntry({
-      entryId: objective.calendarEntry,
-      title: objective.title,
-      description: objective.description,
-      dueDate: objective.dueDate,
-      assignedId: objective.owner,
-      actorUser: req.user,
-    });
+    try {
+      await updateLinkedCalendarEntry({
+        entryId: objective.calendarEntry,
+        title: objective.title,
+        description: objective.description,
+        dueDate: objective.dueDate,
+        assignedId: objective.owner,
+        actorUser: req.user,
+      });
+    } catch (error) {
+      console.error("Could not sync calendar entry for objective", objective._id.toString(), error.message);
+    }
   }
 
   await objective.save();
@@ -1001,7 +1005,12 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   await keyResult.save();
-  await syncKeyResultCalendar(keyResult, objective, req.user);
+  try {
+    await syncKeyResultCalendar(keyResult, objective, req.user);
+    await syncEntryCompletion(keyResult.calendarEntry, keyResult.status === "completed");
+  } catch (error) {
+    console.error("Could not sync calendar entry for key result", keyResult._id.toString(), error.message);
+  }
 
   //Recalculate parent Objective
   await recalculateObjective(objectiveId)
@@ -1099,6 +1108,7 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   //need to check if progress is 100% and status is awaiting approval, and if requesting user has approval permission
 
   await keyResult.save();
+  await syncEntryCompletion(keyResult.calendarEntry, keyResult.status === "completed");
 
   //Recalculate parent Objective
   await recalculateObjective(req.params.id);
