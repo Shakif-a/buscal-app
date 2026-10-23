@@ -8,13 +8,9 @@ import TextField from "@mui/material/TextField";
 
 export default function DevPlayground() {
 
-  const runTest1 = () => {
-    console.log("Test1 Done!")
-  }
+  const runTest1 = () => {}
 
-  const runTest2 = () => {
-    console.log("Test2 Done!")
-  }
+  const runTest2 = () => {}
 
   return (
     <Container maxWidth="md">

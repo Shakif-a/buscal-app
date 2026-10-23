@@ -35,6 +35,10 @@ const originalCreateObjective = OkrObjective.create;
 const originalCreateCalendarEntry = CalendarEntry.create;
 const originalFindCalendarEntry = CalendarEntry.findById;
 const originalCreateCalendarHistory = CalendarHistory.create;
+const originalDistinctKeyResults = OkrKeyResult.distinct;
+const originalObjectiveExists = OkrObjective.exists;
+const originalFindCalendarEntries = CalendarEntry.find;
+const originalCalendarEntryExists = CalendarEntry.exists;
 
 test.beforeEach(() => {
   OkrGroup.findOne = async () => null;
@@ -52,6 +56,13 @@ test.beforeEach(() => {
     return OkrKeyResult.create(this);
   };
   OkrEvidence.deleteMany = async () => {};
+  // Visibility checks, recalculation and calendar cleanup would otherwise reach the database
+  OkrKeyResult.distinct = async () => [];
+  OkrObjective.exists = async (filter) => ({ _id: filter._id });
+  CalendarEntry.find = async () => [];
+  CalendarEntry.findById = async () => null;
+  CalendarEntry.exists = async () => null;
+  CalendarHistory.create = async () => ({});
 });
 
 test.afterEach(() => {
@@ -71,6 +82,10 @@ test.afterEach(() => {
   CalendarEntry.create = originalCreateCalendarEntry;
   CalendarEntry.findById = originalFindCalendarEntry;
   CalendarHistory.create = originalCreateCalendarHistory;
+  OkrKeyResult.distinct = originalDistinctKeyResults;
+  OkrObjective.exists = originalObjectiveExists;
+  CalendarEntry.find = originalFindCalendarEntries;
+  CalendarEntry.exists = originalCalendarEntryExists;
 });
 
 function runController(controller, req) {
@@ -158,6 +173,8 @@ function makeObjective(options = {}) {
         owner: this.owner,
         dueDate: this.dueDate,
         commitmentType: this.commitmentType,
+        progress: this.progress,
+        status: this.status,
       };
     },
   };
@@ -187,15 +204,7 @@ function mockPartialKeyResults(objective) {
 
   OkrKeyResult.find = (filter) => {
     assert.equal(filter.objective.toString(), objective._id.toString());
-
-    return {
-      populate() {
-        return this;
-      },
-      async sort() {
-        return keyResults;
-      },
-    };
+    return mockQuery(keyResults);
   };
 
   return keyResults;
@@ -205,11 +214,7 @@ test("the objective list counts partial progress before approval", async () => {
   const objective = makeObjective();
   const keyResults = mockPartialKeyResults(objective);
 
-  OkrObjective.find = () => ({
-    async populate() {
-      return [objective];
-    },
-  });
+  mockObjectiveList([objective]);
 
   const result = await runController(getObjectives, {});
 
@@ -220,7 +225,8 @@ test("the objective list counts partial progress before approval", async () => {
   assert.equal(result.data[0].keyResults[1].approved, false);
   assert.equal(keyResults[0].progress, 20);
   assert.equal(keyResults[1].progress, 80);
-  assert.equal(objective.saveCount, 0);
+  // the recalculated progress is stored on the objective
+  assert.equal(objective.progress, 44);
 });
 
 test("objective responses say if the current user can manage them", async () => {
@@ -261,15 +267,7 @@ test("objective details count partial progress before approval", async () => {
     companyRoles: [],
   };
 
-  OkrObjective.findById = (id) => {
-    assert.equal(id, objective._id.toString());
-
-    return {
-      async populate() {
-        return objective;
-      },
-    };
-  };
+  mockObjectiveList([objective]);
 
   const result = await runController(getObjective, {
     params: { id: objective._id.toString() },
@@ -283,7 +281,7 @@ test("objective details count partial progress before approval", async () => {
   assert.equal(result.data.keyResults[0].approved, false);
   assert.equal(result.data.keyResults[1].approved, false);
   assert.equal(result.data.objective.canManage, true);
-  assert.equal(objective.saveCount, 0);
+  assert.equal(objective.progress, 44);
 });
 
 test("a newly created objective includes its access flag", async () => {
@@ -298,7 +296,12 @@ test("a newly created objective includes its access flag", async () => {
 
   User.exists = async () => ({ _id: ownerId });
   OkrObjective.create = async () => objective;
-  CalendarEntry.create = async () => ({});
+  mockObjectiveList([objective]);
+  OkrKeyResult.find = noKeyResults;
+  CalendarEntry.create = async () => ({
+    _id: new mongoose.Types.ObjectId(),
+    save: async () => {},
+  });
 
   const result = await runController(createObjective, {
     user: owner,
@@ -318,7 +321,7 @@ test("editing an objective keeps its unapproved partial progress", async () => {
   const objective = makeObjective();
   mockPartialKeyResults(objective);
 
-  OkrObjective.findById = async () => objective;
+  mockObjectiveList([objective]);
 
   const result = await runController(updateObjective, {
     params: { id: objective._id.toString() },
@@ -330,17 +333,14 @@ test("editing an objective keeps its unapproved partial progress", async () => {
   assert.equal(result.data.progress, 44);
   assert.equal(result.data.keyResults[0].approved, false);
   assert.equal(result.data.keyResults[1].approved, false);
-  assert.equal(objective.saveCount, 1);
+  // once for the edit, once to store the recalculated progress
+  assert.equal(objective.saveCount, 2);
 });
 
 test("an objective without key results has zero progress", async () => {
   const objective = makeObjective();
 
-  OkrObjective.find = () => ({
-    async populate() {
-      return [objective];
-    },
-  });
+  mockObjectiveList([objective]);
   OkrKeyResult.find = noKeyResults;
 
   const result = await runController(getObjectives, {});
@@ -348,7 +348,6 @@ test("an objective without key results has zero progress", async () => {
   assert.equal(result.statusCode, 200);
   assert.equal(result.data[0].progress, 0);
   assert.deepEqual(result.data[0].keyResults, []);
-  assert.equal(objective.saveCount, 0);
 });
 
 test("a valid objective edit saves and returns the updated objective", async () => {
@@ -403,6 +402,7 @@ test("deleting an objective also deletes its key results", async () => {
   };
 
   OkrObjective.findById = async () => objective;
+  OkrKeyResult.find = async () => [];
   OkrEvidence.deleteMany = async () => {
     steps.push("evidence");
   };
@@ -461,7 +461,7 @@ test("key result weights cannot go above 100 percent", async () => {
   };
 
   const result = await runController(createKeyResult, {
-    params: { id: objective._id.toString() },
+    params: { objectiveId: objective._id.toString() },
     body: {
       title: "New key result",
       weight: 20,
@@ -481,11 +481,14 @@ test("a key result can use the remaining weight", async () => {
   OkrKeyResult.find = async () => [{ weight: 40 }, { weight: 35 }];
   OkrKeyResult.create = async (keyResult) => {
     savedKeyResult = keyResult;
-    return keyResult;
+    return {
+      populate: async () => {},
+      toObject: () => ({ ...keyResult, _id: new mongoose.Types.ObjectId() }),
+    };
   };
 
   const result = await runController(createKeyResult, {
-    params: { id: objective._id.toString() },
+    params: { objectiveId: objective._id.toString() },
     body: {
       title: "Final key result",
       weight: 25,

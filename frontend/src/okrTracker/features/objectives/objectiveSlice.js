@@ -249,7 +249,6 @@ export const objectiveSlice = createSlice({
       })
       .addCase(deleteObjective.rejected, (state, action) => {
         state.isLoading = false;
-        state.isError = true;
         state.message = action.payload;
       })
 
@@ -272,7 +271,6 @@ export const objectiveSlice = createSlice({
       })
       .addCase(updateObjective.rejected, (state, action) => {
         state.isLoading = false;
-        state.isError = true;
         state.message = action.payload;
       })
       .addCase(getKeyResults.pending, (state) => {

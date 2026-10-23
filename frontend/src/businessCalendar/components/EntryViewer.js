@@ -119,15 +119,6 @@ const EntryViewer = ({ entryData, type }) => {
     }
   }, [isOkrEntry, linkedObjectiveData, dispatch]);
 
-  console.log("Calendar Entry:", {
-    title,
-    category,
-    objective,
-    linkedObjective,
-    objectiveId,
-    isObjectiveEntry,
-  });
-
   const { users } = useSelector((state) => state.auth);
   const emailList = users.map((user) => user.email);
   let reminder = null;
