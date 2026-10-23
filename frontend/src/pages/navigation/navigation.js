@@ -18,7 +18,9 @@ function Navbar() {
   const permissions = useMyPermissions(user?.token) || [];
   const canViewReports = permissions.includes("View Reports");
   const adminItems = [
-    (canManageAdmin || permissions.includes("Manage Users")) && {
+    (canManageAdmin ||
+      permissions.includes("Manage Users") ||
+      permissions.includes("Manage Roles")) && {
       label: "Role Management",
       path: "/dashboard/okrtracker/admin/roles",
     },

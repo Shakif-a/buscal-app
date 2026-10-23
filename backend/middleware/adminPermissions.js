@@ -3,6 +3,7 @@ const OkrRolePermission = require("../models/okrRolePermissionModel");
 
 const {
   defaultPermissions,
+  newDefaultPermissions,
   isSystemRole,
   allowedPermissions,
   lockedPermissionsFor,
@@ -81,6 +82,24 @@ async function hasPermission(user, permission, session) {
   return hasRolePermission(role, permission, session);
 }
 
+// Give saved system roles any default permission added since they were saved, once
+async function seedNewDefaults() {
+  for (const permission of newDefaultPermissions) {
+    for (const role of Object.keys(defaultPermissions)) {
+      if (!defaultPermissions[role].includes(permission)) continue;
+      await OkrRolePermission.updateOne(
+        { role, seededPermissions: { $ne: permission } },
+        {
+          $addToSet: {
+            permissions: permission,
+            seededPermissions: permission,
+          },
+        },
+      );
+    }
+  }
+}
+
 function adminOrExec(req, res, next) {
   if (!isAdminOrExec(req.user)) {
     res.status(403);
@@ -106,6 +125,8 @@ function requirePermission(...permissions) {
 module.exports = {
   requirePermission,
   adminOrExec,
+  isAdminOrExec,
+  seedNewDefaults,
   defaultPermissions,
   getRoleName,
   hasPermission,

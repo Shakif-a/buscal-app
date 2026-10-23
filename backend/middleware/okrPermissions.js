@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const OkrGroup = require("../models/okrGroupModel");
 const OkrObjective = require("../models/okrObjectiveModel");
+const OkrKeyResult = require("../models/okrKeyResultModel");
 const {
   getRoleName,
   hasPermission,
@@ -158,6 +159,58 @@ async function canUserApproveKeyResults(user, objective, session) {
   return hasObjectivePermission(user, objective, "Approve Key Results", session);
 }
 
+// Names of the groups the user is a member or manager of
+async function getMyGroupNames(user) {
+  const groups = await OkrGroup.find({
+    $or: [{ members: user._id }, { manager: user._id }],
+  }).select("name");
+  return groups.map((group) => group.name);
+}
+
+// Without View All OKRs, users only see objectives in their groups,
+// ones they own, or ones with a key result assigned to them.
+// Returns null when the user can see every objective.
+async function visibleObjectiveFilter(user, groupNames) {
+  if (await hasPermission(user, "View All OKRs")) {
+    return null;
+  }
+  const names = groupNames || (await getMyGroupNames(user));
+  const assignedObjectiveIds = await OkrKeyResult.distinct("objective", {
+    assignedTo: user._id,
+  });
+  return {
+    $or: [
+      { owner: user._id },
+      { group: { $in: names } },
+      { _id: { $in: assignedObjectiveIds } },
+    ],
+  };
+}
+
+async function canUserViewObjective(user, objective) {
+  const filter = await visibleObjectiveFilter(user);
+  if (!filter) {
+    return true;
+  }
+  return Boolean(await OkrObjective.exists({ _id: objective._id, ...filter }));
+}
+
+// Calendar entries linked to an objective the user can't see are left out.
+// Returns null when the user can see every objective.
+async function visibleCalendarEntryFilter(user) {
+  const filter = await visibleObjectiveFilter(user);
+  if (!filter) {
+    return null;
+  }
+  const objectiveIds = await OkrObjective.distinct("_id", filter);
+  return {
+    $or: [
+      { linkedObjective: null },
+      { linkedObjective: { $in: objectiveIds } },
+    ],
+  };
+}
+
 function keyResultAccess(check, message) {
   return asyncHandler(async (req, res, next) => {
     const objectiveId = req.params.id || req.params.objectiveId;
@@ -214,6 +267,10 @@ module.exports = {
   canUserApproveKeyResults,
   isObjectiveOwner,
   isKeyResultAssignee,
+  getMyGroupNames,
+  visibleObjectiveFilter,
+  canUserViewObjective,
+  visibleCalendarEntryFilter,
   canUserCreateObjective,
   canCreateObjective,
   canManageObjective,
