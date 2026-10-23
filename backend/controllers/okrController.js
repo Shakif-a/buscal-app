@@ -909,8 +909,10 @@ const getReport = asyncHandler(async (req, res) => {
   let totalProgress = 0;
   let onTrack = 0;
   for (const objective of objectives) {
-    const data = await loadObjective(objective);
-    const progress = data.objective.progress || 0;
+    //Recalculate so time based statuses (at risk, overdue) are current
+    const updated = await recalculateObjective(objective._id);
+    objective.status = updated.status;
+    const progress = updated.progress || 0;
     totalProgress += progress;
     if (objective.status === "on-track") onTrack++;
     const name =

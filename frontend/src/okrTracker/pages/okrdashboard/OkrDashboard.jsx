@@ -58,6 +58,7 @@ function OkrDashboard(){
             <h2>{stats.total}</h2>
             <span>
               Across {stats.groupCount} group{stats.groupCount === 1 ? "" : "s"}
+              {stats.notStarted > 0 && `, ${stats.notStarted} not started`}
             </span>
 
           </div>
