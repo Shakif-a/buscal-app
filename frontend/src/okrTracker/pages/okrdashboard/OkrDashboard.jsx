@@ -111,8 +111,8 @@ function GroupProgressChart({ groups, selectedKey, onSelect }) {
       <BarChart data={rows} layout="vertical" margin={{ left: 10, right: 20 }}>
         <XAxis type="number" allowDecimals={false} />
         <YAxis type="category" dataKey="label" width={150} />
-        <Tooltip />
-        <Legend />
+        <Tooltip itemSorter={null} />
+        <Legend itemSorter={null} />
         {statuses.map((status) => (
           <Bar
             key={status.key}
