@@ -36,8 +36,8 @@ const objectiveSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["on-track", "at-risk", "overdue", "completed"],
-      default: "on-track",
+      enum: ["not started", "on-track", "at-risk", "overdue", "completed"],
+      default: "not started",
     },
     calendarEntry: {
       type: mongoose.Schema.Types.ObjectId,

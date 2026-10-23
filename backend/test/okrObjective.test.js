@@ -88,15 +88,30 @@ function runController(controller, req) {
   });
 }
 
-function noKeyResults() {
+function mockQuery(result) {
   return {
     populate() {
       return this;
     },
-    async sort() {
-      return [];
+    sort() {
+      return this;
+    },
+    then(resolve, reject) {
+      return Promise.resolve(result).then(resolve, reject);
     },
   };
+}
+
+function noKeyResults() {
+  return mockQuery([]);
+}
+
+function mockObjectiveList(objectives) {
+  OkrObjective.find = () => mockQuery(objectives);
+  OkrObjective.findById = (id) =>
+    mockQuery(
+      objectives.find((objective) => objective._id.toString() === id.toString()),
+    );
 }
 
 function makeObjective(options = {}) {
@@ -212,11 +227,7 @@ test("objective responses say if the current user can manage them", async () => 
     companyRoles: [],
   };
 
-  OkrObjective.find = () => ({
-    async populate() {
-      return [objective];
-    },
-  });
+  mockObjectiveList([objective]);
   OkrKeyResult.find = noKeyResults;
   OkrGroup.findOne = async () => null;
 
@@ -331,6 +342,9 @@ test("an objective without key results has zero progress", async () => {
 
 test("a valid objective edit saves and returns the updated objective", async () => {
   const objective = makeObjective();
+  // already matches what the recalculation works out, so only the edit saves
+  objective.progress = 0;
+  objective.status = "not started";
   const owner = {
     _id: objective.owner._id,
     roles: ["employee"],
@@ -338,7 +352,7 @@ test("a valid objective edit saves and returns the updated objective", async () 
     companyRoles: [],
   };
 
-  OkrObjective.findById = async () => objective;
+  OkrObjective.findById = () => mockQuery(objective);
   OkrKeyResult.find = noKeyResults;
 
   const result = await runController(updateObjective, {
@@ -413,11 +427,7 @@ test("objectives are sorted by owner and then due date", async () => {
     }),
   ];
 
-  OkrObjective.find = () => ({
-    async populate() {
-      return objectives;
-    },
-  });
+  mockObjectiveList(objectives);
   OkrKeyResult.find = noKeyResults;
 
   const result = await runController(getObjectives, {});
