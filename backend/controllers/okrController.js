@@ -850,6 +850,19 @@ const updateKeyResult = asyncHandler(async (req, res) => {
 
   //Update approval
   if (mayChange("approved")) {
+    //Only approve Key Result submitted for approval at 100% progress
+    if (req.body.approved === true) {
+      if (
+        keyResult.progress !== 100 ||
+        keyResult.status !== "awaiting-approval"
+      ) {
+        res.status(400);
+        throw new Error(
+          "Key Result must be awaiting approval at 100% progress"
+        );
+      }
+    }
+
     keyResult.approved = req.body.approved;
 
     //Automatically complete kr when approved
@@ -947,13 +960,25 @@ const approveKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result not found");
   }
 
-  keyResult.approved = req.body.approved;
+  //only approve key results submitted for approval at 100% progress
+  if (req.body.approved === true) {
+    if (
+      keyResult.progress !== 100 ||
+      keyResult.status !== "awaiting-approval"
+    ) {
+      res.status(400);
+      throw new Error(
+        "Key Result must be awaiting approval at 100% progress"
+      );
+    }
+  }
 
-  //Automatically complete kr when approved
+  keyResult.approved = req.body.approved;
+  
+  //Automatically complete KR when approved
   if (req.body.approved === true) {
     keyResult.status = "completed";
   }
-  //need to check if progress is 100% and status is awaiting approval, and if requesting user has approval permission
 
   await keyResult.save();
 
