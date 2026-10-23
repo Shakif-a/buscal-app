@@ -33,6 +33,7 @@ import {
   updateEntry,
   updateRecurringEntries,
 } from "../features/calendar/calendarSlice";
+import { getObjectives } from "../../okrTracker/features/objectives/objectiveSlice";
 import { boxSizing, maxWidth, minHeight, width } from "@mui/system";
 
 const modalStyle = {
@@ -107,6 +108,16 @@ const EntryViewer = ({ entryData, type }) => {
   );
   
   const dispatch = useDispatch();
+  const objectivesLoading = useSelector((state) => state.okr.isLoading);
+
+  // Fetch objectives if this is an OKR entry and objective data not already loaded
+  useEffect(() => {
+    if (isOkrEntry && !linkedObjectiveData) {
+      dispatch((innerDispatch, getState) => {
+        if (!getState().okr.isLoading) innerDispatch(getObjectives());
+      });
+    }
+  }, [isOkrEntry, linkedObjectiveData, dispatch]);
 
   console.log("Calendar Entry:", {
     title,
@@ -854,7 +865,9 @@ const EntryViewer = ({ entryData, type }) => {
                       {isOkrEntry
                         ? objectiveStatus
                           ? objectiveStatus
-                          : "Loading..."
+                          : objectivesLoading
+                            ? "Loading..."
+                            : "Unavailable"
                         : completionStatus}
                     </Box>
                   </Typography>
