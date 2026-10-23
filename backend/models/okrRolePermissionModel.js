@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
-const { permissionNames } = require("../config/okrPermissions");
+const {
+  permissionNames,
+  newDefaultPermissions,
+} = require("../config/okrPermissions");
 
 const rolePermissionSchema = new mongoose.Schema(
   {
@@ -20,6 +23,12 @@ const rolePermissionSchema = new mongoose.Schema(
         },
       ],
       default: [],
+    },
+    // New defaults this row has already been given, so turning one off sticks.
+    // Rows created now start with them all, as they get the full defaults anyway.
+    seededPermissions: {
+      type: [String],
+      default: () => [...newDefaultPermissions],
     },
   },
   { timestamps: true },

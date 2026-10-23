@@ -5,11 +5,12 @@ import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import { getObjectives } from "../../features/objectives/objectiveSlice";
 import {
-  SCOPES,
   TIME_FRAMES,
   filterByScope,
   getDashboardStats,
+  getScopes,
 } from "../../features/objectives/dashboardStats";
+import useMyPermissions from "../../features/users/useMyPermissions";
 import AtAGlance from "./AtAGlance";
 import "./OkrDashboard.css";
 
@@ -21,11 +22,15 @@ const KIOSK_REFRESH_MS = 5 * 60 * 1000;
 function OkrKiosk() {
   const dispatch = useDispatch();
   const { objectives, isError, message } = useSelector((state) => state.okr);
+  const { user } = useSelector((state) => state.auth);
+  const { scopes, defaultScope } = getScopes(useMyPermissions(user?.token));
   const [searchParams] = useSearchParams();
   const [updatedAt, setUpdatedAt] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
 
-  const scope = SCOPES.find((item) => item.key === searchParams.get("scope")) || SCOPES[0];
+  const scope =
+    scopes.find((item) => item.key === searchParams.get("scope")) ||
+    scopes.find((item) => item.key === defaultScope);
   const timeFrame =
     TIME_FRAMES.find((item) => item.key === searchParams.get("time")) || TIME_FRAMES[0];
 

@@ -22,7 +22,7 @@ module.exports = function roleScenarios({
     );
     const response = await request("GET", rolePath);
     assert.equal(response.status, 200);
-    assert.equal(response.body.permissionNames.length, 8);
+    assert.equal(response.body.permissionNames.length, 10);
     assert.equal(response.body.roles.length, 4);
     assert.equal(response.body.canManageRoles, true);
     assert.equal(
@@ -155,7 +155,6 @@ module.exports = function roleScenarios({
 
   test("custom roles reject unsupported admin grants and invalid permissions", async () => {
     for (const permissions of [
-      ["Manage Roles"],
       ["Unknown"],
       [42],
       null,
@@ -171,7 +170,7 @@ module.exports = function roleScenarios({
     assert.equal(
       (
         await request("PUT", "/api/okr/admin/permissions/Reviewer", {
-          permissions: ["Manage Roles"],
+          permissions: ["Unknown"],
         })
       ).status,
       400,

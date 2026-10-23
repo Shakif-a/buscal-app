@@ -14,14 +14,15 @@ import { getObjectives } from "../../features/objectives/objectiveSlice";
 import {
   APPROVAL_ROLES,
   DEADLINE_ROLES,
-  SCOPES,
   STATUSES,
   TIME_FRAMES,
   filterByScope,
   getDashboardStats,
   getGlanceCharts,
+  getScopes,
   getSliceItems,
 } from "../../features/objectives/dashboardStats";
+import useMyPermissions from "../../features/users/useMyPermissions";
 import AtAGlance from "./AtAGlance";
 import "./OkrDashboard.css";
 
@@ -179,7 +180,11 @@ function OkrDashboard(){
   const { objectives, isLoading, isError, message } = useSelector(
     (state) => state.okr
   );
-  const [scope, setScope] = useState("all");
+  const { user } = useSelector((state) => state.auth);
+  const { scopes, defaultScope } = getScopes(useMyPermissions(user?.token));
+  // null until the user picks one, so the default follows their permissions once loaded
+  const [pickedScope, setScope] = useState(null);
+  const scope = scopes.some((item) => item.key === pickedScope) ? pickedScope : defaultScope;
   const [timeFrame, setTimeFrame] = useState("all");
   const [selected, setSelected] = useState(null);
   const [deadlinePage, setDeadlinePage] = useState(0);
@@ -284,7 +289,7 @@ function OkrDashboard(){
           value={scope}
           onChange={(event) => changeScope(event.target.value)}
         >
-          {SCOPES.map((item) => (
+          {scopes.map((item) => (
             <option key={item.key} value={item.key}>
               Ownership ({item.label})
             </option>

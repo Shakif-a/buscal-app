@@ -69,7 +69,12 @@ function RoleManagement() {
   const [roleModalName, setRoleModalName] = useState("");
   const myPermissions = useMyPermissions(user?.token);
   const checkingAccess = !canManageAdmin(user) && myPermissions === null;
-  const allowed = canManageAdmin(user) || Boolean(myPermissions?.includes("Manage Users"));
+  const allowed =
+    canManageAdmin(user) ||
+    Boolean(
+      myPermissions?.includes("Manage Users") ||
+        myPermissions?.includes("Manage Roles"),
+    );
 
   useEffect(() => {
     async function loadPermissions() {
@@ -301,7 +306,7 @@ function RoleManagement() {
     return (
       <div className="role-management">
         <div role="alert" className="role-status role-error">
-          Admin, executive or Manage Users access is required.
+          Admin, executive, Manage Users or Manage Roles access is required.
         </div>
       </div>
     );
@@ -604,7 +609,9 @@ function RoleManagement() {
           <div className="role-reference-title">PERMISSION REFERENCE</div>
           <p>
             Admin pages are available to administrators and executives, and to
-            custom roles with Manage Users or Manage Groups.
+            custom roles with Manage Users, Manage Roles or Manage Groups.
+            Managers can be given Manage Groups. Only administrators can
+            change the Admin role.
           </p>
           <p>
             Objective creation follows the saved Create Objectives permission.
@@ -614,7 +621,9 @@ function RoleManagement() {
           </p>
           <p>
             Key-result creation, approval, reports, and admin actions follow
-            their named permissions. Admin-only settings cannot be delegated
+            their named permissions. Without View All OKRs, users only see
+            objectives in their groups, ones they own, or ones with a key
+            result assigned to them. Admin-only settings cannot be delegated
             here. System roles (Admin, Manager, Employee) follow account and
             company settings and cannot be renamed, deleted, or assigned.
             Custom roles control OKR work and are assigned from the Members

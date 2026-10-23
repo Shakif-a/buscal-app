@@ -1033,6 +1033,8 @@ const EntryViewer = ({ entryData, type }) => {
                     <Modal
                       open={openKeyResults && isOkrEntry}
                       onClose={handleCloseKeyResults}
+                      // The evidence popup renders outside this modal and keeps its own focus
+                      disableEnforceFocus
                     >
                       <Box
                         sx={KeyResultsModalStyle}
