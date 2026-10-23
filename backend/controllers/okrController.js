@@ -21,6 +21,7 @@ const {
   createLinkedCalendarEntry,
   updateLinkedCalendarEntry,
   deleteLinkedCalendarEntry,
+  notifyLinkedCalendarCancel,
 } = require("../services/okrCalendarSyncService");
 
 const CalendarEntry = require("../models/calendarEntryModel");
@@ -473,37 +474,36 @@ const deleteObjective = asyncHandler(async (req, res) => {
     ],
   });
 
-  for (const entry of objectiveEntries) {
-    await deleteLinkedCalendarEntry({
+  //find each KR calendar entry
+  const entries = [...objectiveEntries];
+  for (const kr of keyResults) {
+    const keyResultEntries = await CalendarEntry.find({
+      $or: [{ _id: kr.calendarEntry || null }, { linkedKeyResult: kr._id }],
+    });
+    entries.push(...keyResultEntries);
+  }
+
+  // Cancel notices go out first, they need the entries and can't be rolled back
+  for (const entry of entries) {
+    await notifyLinkedCalendarCancel({
       entryId: entry._id,
       actorUser: req.user,
     });
   }
 
-  //find and delete each KR calendar entry
-  for (const kr of keyResults) {
-    const keyResultEntries = await CalendarEntry.find({
-      $or: [{ _id: kr.calendarEntry || null }, { linkedKeyResult: kr._id }],
-    });
-
-    for (const entry of keyResultEntries) {
+  // Delete everything together so a failure part way doesn't leave orphans
+  await writes.transaction(async (session) => {
+    for (const entry of entries) {
       await deleteLinkedCalendarEntry({
         entryId: entry._id,
         actorUser: req.user,
+        session,
       });
     }
-  }
-
-  console.log("Starting OKR database deletion");
-
-  await OkrEvidence.deleteMany({ objective: objective._id });
-  await OkrKeyResult.deleteMany({
-    objective: objective._id,
+    await OkrEvidence.deleteMany({ objective: objective._id }, { session });
+    await OkrKeyResult.deleteMany({ objective: objective._id }, { session });
+    await objective.deleteOne({ session });
   });
-
-  console.log("Key Results deleted");
-
-  await objective.deleteOne();
 
   console.log("Objective deleted", objective.title);
 
@@ -1061,16 +1061,22 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
     );
   }
 
-  // Delete old key result calendar entries
-  if (keyResult.calendarEntry) {
+  // Cancel notice goes out first, it needs the entry and can't be rolled back
+  await notifyLinkedCalendarCancel({
+    entryId: keyResult.calendarEntry,
+    actorUser: req.user,
+  });
+
+  // Delete the calendar entry, evidence and key result together
+  await writes.transaction(async (session) => {
     await deleteLinkedCalendarEntry({
       entryId: keyResult.calendarEntry,
       actorUser: req.user,
+      session,
     });
-  }
-
-  await OkrEvidence.deleteMany({ keyResult: keyResult._id });
-  await keyResult.deleteOne();
+    await OkrEvidence.deleteMany({ keyResult: keyResult._id }, { session });
+    await keyResult.deleteOne({ session });
+  });
 
   await recalculateObjective(objectiveId);
 

@@ -170,23 +170,35 @@ async function updateLinkedCalendarEntry({
 }
 
 // Deletes calandar entry and handles history
-async function deleteLinkedCalendarEntry({ entryId, actorUser }) {
+// Tell the people on a linked calendar entry it was cancelled
+async function notifyLinkedCalendarCancel({ entryId, actorUser }) {
+  if (!entryId || !(await CalendarEntry.exists({ _id: entryId }))) {
+    return;
+  }
+
+  await runBusCalService("cancel", entryId, getActorName(actorUser), {
+    completionStatus: "cancelled",
+  });
+}
+
+// Inside a transaction (session given) the caller sends the cancel notice first,
+// since it needs the entry to still exist and can't be rolled back
+async function deleteLinkedCalendarEntry({ entryId, actorUser, session }) {
   if (!entryId) {
     return;
   }
 
-  const actorName = getActorName(actorUser);
-  const entry = await CalendarEntry.findById(entryId);
+  const entry = await CalendarEntry.findById(entryId, null, { session });
   if (!entry) {
     return;
   }
 
-  await runBusCalService("cancel", entryId, actorName, {
-    completionStatus: "cancelled",
-  });
+  if (!session) {
+    await notifyLinkedCalendarCancel({ entryId, actorUser });
+  }
 
-  await CalendarEntry.findByIdAndDelete(entryId);
-  await CalendarHistory.findOneAndDelete({ ref: entryId });
+  await CalendarEntry.findByIdAndDelete(entryId, { session });
+  await CalendarHistory.findOneAndDelete({ ref: entryId }, { session });
 }
 
 module.exports = {
@@ -195,4 +207,5 @@ module.exports = {
   createLinkedCalendarEntry,
   updateLinkedCalendarEntry,
   deleteLinkedCalendarEntry,
+  notifyLinkedCalendarCancel,
 };
