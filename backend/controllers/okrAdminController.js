@@ -15,6 +15,7 @@ const {
 const {
   getRoleName,
   hasPermission,
+  isAdminOrExec,
 } = require("../middleware/adminPermissions");
 const { ApiError } = require("../utils/ApiError");
 
@@ -208,6 +209,9 @@ const updateRolePermissions = asyncHandler(async (req, res) => {
   const role = req.params.role;
   const permissions = req.body.permissions;
 
+  // Custom roles with Manage Roles can't change what administrators can do
+  if (role === "Admin" && !isAdminOrExec(req.user))
+    throw new ApiError(403, "Only administrators can change the Admin role");
   validatePermissions(role, permissions);
   if (!isSystemRole(role) && !(await OkrRolePermission.exists({ role }))) {
     res.status(400);

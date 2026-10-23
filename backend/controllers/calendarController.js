@@ -11,6 +11,7 @@ const RRule = require("rrule").RRule;
 const handleRecurringEntries = require("../scheduling/handleRecurringEntries");
 const { runBusCalService } = require("../services/busCalendarServices");
 const { add } = require("lodash");
+const { visibleCalendarEntryFilter } = require("../middleware/okrPermissions");
 
 //--------------------------------------------------------------------//
 //---------------------------HELPER----------------------------------//
@@ -228,7 +229,8 @@ const processRecurrenceEntries = (entries) => {
 // @route   GET /api/calendar/entries
 // @access  Private
 const getAllEntry = asyncHandler(async (req, res) => {
-  const allEntries = await CalendarEntry.find({});
+  const okrFilter = await visibleCalendarEntryFilter(req.user);
+  const allEntries = await CalendarEntry.find(okrFilter || {});
   const updatedEntries = processRecurrenceEntries(allEntries);
   res.status(200).json(updatedEntries);
 });
@@ -240,7 +242,8 @@ const getEntryById = asyncHandler(async (req, res) => {
   const entryId = req.params.entryId;
 
   try {
-    const entry = await CalendarEntry.findById(entryId);
+    const okrFilter = await visibleCalendarEntryFilter(req.user);
+    const entry = await CalendarEntry.findOne({ _id: entryId, ...okrFilter });
     if (!entry) {
       return res.status(404).json({ message: "Entry not found" });
     }
@@ -259,8 +262,12 @@ const getUserEntries = asyncHandler(async (req, res) => {
   const userId = req.params.id;
 
   // Search for entries where the user is either the owner or assigned user
+  const okrFilter = await visibleCalendarEntryFilter(req.user);
   const userEntries = await CalendarEntry.find({
-    $or: [{ userOwner: userId }, { userAssigned: userId }],
+    $and: [
+      { $or: [{ userOwner: userId }, { userAssigned: userId }] },
+      okrFilter || {},
+    ],
   });
 
   const updatedUserEntries = processRecurrenceEntries(userEntries);
@@ -312,10 +319,14 @@ const getSupervisorEntries = asyncHandler(async (req, res) => {
     // Ensure reportingUserIds are unique
     reportingUserIds = [...new Set(reportingUserIds)];
     let allEntries = [];
+    const okrFilter = await visibleCalendarEntryFilter(req.user);
 
     // For each user ID in reportingUserIds, find their calendar entries
     for (const userId of reportingUserIds) {
-      const userEntries = await CalendarEntry.find({ userAssigned: userId });
+      const userEntries = await CalendarEntry.find({
+        userAssigned: userId,
+        ...okrFilter,
+      });
       allEntries = allEntries.concat(userEntries);
     }
 

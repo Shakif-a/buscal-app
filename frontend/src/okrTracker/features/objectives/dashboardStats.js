@@ -42,6 +42,15 @@ export const SCOPES = [
   { key: "mine", label: "Mine" },
 ];
 
+// "All" needs the View All OKRs permission; without it the dashboard starts on "My groups"
+export function getScopes(permissions) {
+  const canViewAll = Boolean(permissions && permissions.includes("View All OKRs"));
+  return {
+    scopes: canViewAll ? SCOPES : SCOPES.filter((item) => item.key !== "all"),
+    defaultScope: canViewAll ? "all" : "groups",
+  };
+}
+
 export const TIME_FRAMES = [
   { key: "all", label: "All" },
   { key: "this-week", label: "This week" },

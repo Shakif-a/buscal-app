@@ -50,7 +50,7 @@ test("the groups route is declared before the objective id route", () => {
   assert.equal(groupsIndex < objectiveIndex, true);
 });
 
-test("admin routes use authentication, and role editing stays admin only", () => {
+test("admin routes use authentication, and role editing follows Manage Roles", () => {
   const middleware = okrAdminRoutes.stack
     .filter((layer) => !layer.route)
     .map((layer) => layer.handle);
@@ -66,16 +66,12 @@ test("admin routes use authentication, and role editing stays admin only", () =>
     ["/groups", "post"],
     ["/groups/:id", "put"],
     ["/users/:id/role", "put"],
-  ]) {
-    assert.equal(adminOnly(path, method), false, `${method} ${path}`);
-  }
-  for (const [path, method] of [
     ["/roles", "post"],
     ["/roles/:role", "put"],
     ["/roles/:role", "delete"],
     ["/permissions", "get"],
     ["/permissions/:role", "put"],
   ]) {
-    assert.equal(adminOnly(path, method), true, `${method} ${path}`);
+    assert.equal(adminOnly(path, method), false, `${method} ${path}`);
   }
 });

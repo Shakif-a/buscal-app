@@ -19,6 +19,9 @@ const {
   canUserApproveKeyResults,
   isObjectiveOwner,
   isKeyResultAssignee,
+  getMyGroupNames,
+  visibleObjectiveFilter,
+  canUserViewObjective,
 } = require("../middleware/okrPermissions");
 // Calendar sync
 const {
@@ -27,6 +30,7 @@ const {
   createLinkedCalendarEntry,
   updateLinkedCalendarEntry,
   deleteLinkedCalendarEntry,
+  notifyLinkedCalendarCancel,
 } = require("../services/okrCalendarSyncService");
 
 const CalendarEntry = require("../models/calendarEntryModel");
@@ -34,7 +38,7 @@ const { permissionNames } = require("../config/okrPermissions");
 const { hasPermission } = require("../middleware/adminPermissions");
 const writes = require("../services/okrWrites");
 
-const {recalculateObjective, recalculateKeyResultStatuses, } = require("../services/okrObjectiveProgressService");
+const {recalculateObjective, recalculateKeyResultStatuses, syncEntryCompletion, } = require("../services/okrObjectiveProgressService");
 
 function getName(user) {
   let name = "";
@@ -48,6 +52,69 @@ function getName(user) {
 }
 
 // Obtain the access flags for the current user on a given objective, for key result actions
+function keyResultEntryDescription(objective) {
+  return "Key result for the objective: " + objective.title;
+}
+
+// Keep a key result's calendar entry with its assignee, title and due date
+async function syncKeyResultCalendar(keyResult, objective, user) {
+  if (!keyResult.assignedTo) {
+    if (keyResult.calendarEntry) {
+      await deleteLinkedCalendarEntry({ entryId: keyResult.calendarEntry, actorUser: user });
+      keyResult.calendarEntry = null;
+      await keyResult.save();
+    }
+    return;
+  }
+
+  const assignedId = keyResult.assignedTo._id || keyResult.assignedTo;
+  if (keyResult.calendarEntry) {
+    await updateLinkedCalendarEntry({
+      entryId: keyResult.calendarEntry,
+      title: keyResult.title,
+      description: keyResultEntryDescription(objective),
+      dueDate: keyResult.dueDate,
+      assignedId,
+      actorUser: user,
+    });
+    return;
+  }
+
+  const calendarEntry = await createLinkedCalendarEntry({
+    title: keyResult.title,
+    description: keyResultEntryDescription(objective),
+    dueDate: keyResult.dueDate,
+    ownerId: user.id,
+    assignedId,
+    category: KEY_RESULT_CATEGORY,
+    actorUser: user,
+  });
+  calendarEntry.linkedObjective = objective._id;
+  calendarEntry.linkedKeyResult = keyResult._id;
+  await calendarEntry.save();
+  keyResult.calendarEntry = calendarEntry._id;
+  await keyResult.save();
+}
+
+// Calendar day of a due date
+function dueDay(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+// The objective's owner, plus its group's manager and members
+async function getAssignableUserIds(objective) {
+  const ids = new Set();
+  const ownerId = objective.owner && (objective.owner._id || objective.owner);
+  if (ownerId) ids.add(ownerId.toString());
+
+  const group = await OkrGroup.findOne({ name: objective.group }, "manager members");
+  if (group) {
+    if (group.manager) ids.add(group.manager.toString());
+    for (const member of group.members || []) ids.add(member.toString());
+  }
+  return ids;
+}
+
 async function getKeyResultAccess(user, objective) {
   if (!user) {
     return { manage: false, create: false, edit: false, approve: false };
@@ -142,13 +209,12 @@ function compareObjectives(firstObjective, secondObjective) {
 // ============================================
 
 const getObjectives = asyncHandler(async (req, res) => {
-  const objectives = await OkrObjective.find();
-
   // Groups the user is a member or manager of, for the dashboard "My groups" filter
-  const myGroups = await OkrGroup.find({
-    $or: [{ members: req.user._id }, { manager: req.user._id }],
-  }).select("name");
-  const myGroupNames = new Set(myGroups.map((group) => group.name));
+  const groupNames = await getMyGroupNames(req.user);
+  const myGroupNames = new Set(groupNames);
+
+  const filter = await visibleObjectiveFilter(req.user, groupNames);
+  const objectives = await OkrObjective.find(filter || {});
 
   const result = [];
 
@@ -180,7 +246,7 @@ const getObjectiveGroups = asyncHandler(async (req, res) => {
 const getObjective = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
 
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found");
   }
@@ -336,6 +402,18 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please add a valid due date");
     }
+    const keyResults = await OkrKeyResult.find({ objective: objective._id }, "dueDate");
+    const latest = keyResults
+      .map((keyResult) => keyResult.dueDate && dueDay(keyResult.dueDate))
+      .filter(Boolean)
+      .sort()
+      .pop();
+    if (latest && dueDay(dueDate) < latest) {
+      res.status(400);
+      throw new Error(
+        "The due date can't be before its key results are due (latest " + latest + ")",
+      );
+    }
     objective.dueDate = dueDate;
   }
 
@@ -358,14 +436,18 @@ const updateObjective = asyncHandler(async (req, res) => {
   }
 
   if (objective.calendarEntry) {
-    await updateLinkedCalendarEntry({
-      entryId: objective.calendarEntry,
-      title: objective.title,
-      description: objective.description,
-      dueDate: objective.dueDate,
-      assignedId: objective.owner,
-      actorUser: req.user,
-    });
+    try {
+      await updateLinkedCalendarEntry({
+        entryId: objective.calendarEntry,
+        title: objective.title,
+        description: objective.description,
+        dueDate: objective.dueDate,
+        assignedId: objective.owner,
+        actorUser: req.user,
+      });
+    } catch (error) {
+      console.error("Could not sync calendar entry for objective", objective._id.toString(), error.message);
+    }
   }
 
   await objective.save();
@@ -400,37 +482,36 @@ const deleteObjective = asyncHandler(async (req, res) => {
     ],
   });
 
-  for (const entry of objectiveEntries) {
-    await deleteLinkedCalendarEntry({
+  //find each KR calendar entry
+  const entries = [...objectiveEntries];
+  for (const kr of keyResults) {
+    const keyResultEntries = await CalendarEntry.find({
+      $or: [{ _id: kr.calendarEntry || null }, { linkedKeyResult: kr._id }],
+    });
+    entries.push(...keyResultEntries);
+  }
+
+  // Cancel notices go out first, they need the entries and can't be rolled back
+  for (const entry of entries) {
+    await notifyLinkedCalendarCancel({
       entryId: entry._id,
       actorUser: req.user,
     });
   }
 
-  //find and delete each KR calendar entry
-  for (const kr of keyResults) {
-    const keyResultEntries = await CalendarEntry.find({
-      $or: [{ _id: kr.calendarEntry || null }, { linkedKeyResult: kr._id }],
-    });
-
-    for (const entry of keyResultEntries) {
+  // Delete everything together so a failure part way doesn't leave orphans
+  await writes.transaction(async (session) => {
+    for (const entry of entries) {
       await deleteLinkedCalendarEntry({
         entryId: entry._id,
         actorUser: req.user,
+        session,
       });
     }
-  }
-
-  console.log("Starting OKR database deletion");
-
-  await OkrEvidence.deleteMany({ objective: objective._id });
-  await OkrKeyResult.deleteMany({
-    objective: objective._id,
+    await OkrEvidence.deleteMany({ objective: objective._id }, { session });
+    await OkrKeyResult.deleteMany({ objective: objective._id }, { session });
+    await objective.deleteOne({ session });
   });
-
-  console.log("Key Results deleted");
-
-  await objective.deleteOne();
 
   console.log("Objective deleted", objective.title);
 
@@ -497,7 +578,7 @@ const getKeyResults = asyncHandler(async (req, res) => {
   }
 
   const objective = await OkrObjective.findById(objectiveId);
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found by ID");
   }
@@ -536,7 +617,7 @@ const getKeyResult = asyncHandler(async (req, res) => {
   }
 
   const objective = await OkrObjective.findById(objectiveId);
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found");
   }
@@ -601,6 +682,16 @@ const createKeyResult = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Please add a due date");
   }
+  if (isNaN(new Date(req.body.dueDate).getTime())) {
+    res.status(400);
+    throw new Error("Please add a valid due date");
+  }
+  if (dueDay(req.body.dueDate) > dueDay(objective.dueDate)) {
+    res.status(400);
+    throw new Error(
+      "Key results can't be due after the objective (" + dueDay(objective.dueDate) + ")",
+    );
+  }
 
   // Validate weight doesn't exceed 100
   const existingKeyResults = await OkrKeyResult.find({
@@ -645,17 +736,61 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Approved Key Results must be Completed");
   }
 
+  if (req.body.assignedTo) {
+    if (!mongoose.isValidObjectId(req.body.assignedTo)) {
+      res.status(400);
+      throw new Error("Invalid user ID");
+    }
+    if (!(await getAssignableUserIds(objective)).has(String(req.body.assignedTo))) {
+      res.status(400);
+      throw new Error("This user can't be assigned key results on this objective");
+    }
+  }
+
+  // Create the calendar entry for the assignee first before Key Result is attempted
+  let calendarEntry = null;
+  if (req.body.assignedTo) {
+    calendarEntry = await createLinkedCalendarEntry({
+      title: req.body.title,
+      description: keyResultEntryDescription(objective),
+      dueDate: req.body.dueDate,
+      ownerId: req.user.id,
+      assignedId: req.body.assignedTo,
+      category: KEY_RESULT_CATEGORY,
+      actorUser: req.user,
+    });
+  }
+
   //Create Key Result
-  const keyResult = await OkrKeyResult.create({
-    objective: objectiveId,
-    title: req.body.title,
-    weight: newWeight,
-    assignedTo: req.body.assignedTo || null,
-    dueDate: req.body.dueDate,
-    progress: req.body.progress ?? 0,
-    status: req.body.status || "in-progress",
-    approved: req.body.approved ?? false,
-  });
+  let keyResult;
+  try {
+    keyResult = await OkrKeyResult.create({
+      objective: objectiveId,
+      title: req.body.title,
+      weight: newWeight,
+      assignedTo: req.body.assignedTo || null,
+      dueDate: req.body.dueDate,
+      progress: req.body.approved === true ? 100 : req.body.progress ?? 0,
+      status: req.body.status || "in-progress",
+      approved: req.body.approved ?? false,
+      calendarEntry: calendarEntry ? calendarEntry._id : null,
+    });
+  } catch (error) {
+    // Roll back the calendar entry if key result fails
+    if (calendarEntry) {
+      await deleteLinkedCalendarEntry({
+        entryId: calendarEntry._id,
+        actorUser: req.user,
+      });
+    }
+    throw error;
+  }
+
+  if (calendarEntry) {
+    calendarEntry.linkedObjective = objective._id;
+    calendarEntry.linkedKeyResult = keyResult._id;
+    await calendarEntry.save();
+  }
 
   await recalculateObjective(objectiveId);
 
@@ -807,6 +942,12 @@ const updateKeyResult = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please add a valid due date");
     }
+    if (dueDay(dueDate) > dueDay(objective.dueDate)) {
+      res.status(400);
+      throw new Error(
+        "Key results can't be due after the objective (" + dueDay(objective.dueDate) + ")",
+      );
+    }
     keyResult.dueDate = dueDate;
   }
 
@@ -823,6 +964,13 @@ const updateKeyResult = asyncHandler(async (req, res) => {
       if (!userExists) {
         res.status(400);
         throw new Error("User not found");
+      }
+      if (
+        String(keyResult.assignedTo || "") !== String(req.body.assignedTo) &&
+        !(await getAssignableUserIds(objective)).has(String(req.body.assignedTo))
+      ) {
+        res.status(400);
+        throw new Error("This user can't be assigned key results on this objective");
       }
       keyResult.assignedTo = req.body.assignedTo;
     }
@@ -893,10 +1041,17 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     //Automatically complete kr when approved
     if (req.body.approved === true) {
       keyResult.status = "completed";
+      keyResult.progress = 100;
     }
   }
 
   await keyResult.save();
+  try {
+    await syncKeyResultCalendar(keyResult, objective, req.user);
+    await syncEntryCompletion(keyResult.calendarEntry, keyResult.status === "completed");
+  } catch (error) {
+    console.error("Could not sync calendar entry for key result", keyResult._id.toString(), error.message);
+  }
 
   //Recalculate parent Objective
   await recalculateObjective(objectiveId)
@@ -995,16 +1150,22 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
     );
   }
 
-  // Delete old key result calendar entries
-  if (keyResult.calendarEntry) {
+  // Cancel notice goes out first, it needs the entry and can't be rolled back
+  await notifyLinkedCalendarCancel({
+    entryId: keyResult.calendarEntry,
+    actorUser: req.user,
+  });
+
+  // Delete the calendar entry, evidence and key result together
+  await writes.transaction(async (session) => {
     await deleteLinkedCalendarEntry({
       entryId: keyResult.calendarEntry,
       actorUser: req.user,
+      session,
     });
-  }
-
-  await OkrEvidence.deleteMany({ keyResult: keyResult._id });
-  await keyResult.deleteOne();
+    await OkrEvidence.deleteMany({ keyResult: keyResult._id }, { session });
+    await keyResult.deleteOne({ session });
+  });
 
   await recalculateObjective(objectiveId);
 
@@ -1054,9 +1215,11 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   //Automatically complete KR when approved
   if (req.body.approved === true) {
     keyResult.status = "completed";
+    keyResult.progress = 100;
   }
 
   await keyResult.save();
+  await syncEntryCompletion(keyResult.calendarEntry, keyResult.status === "completed");
 
   //Recalculate parent Objective
   await recalculateObjective(req.params.id);
@@ -1122,6 +1285,23 @@ const getReport = asyncHandler(async (req, res) => {
   res.json({ objectives: details });
 });
 
+// Users who can be assigned key results on an objective
+const getAssignableUsers = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+  const objective = await OkrObjective.findById(req.params.id);
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+  const users = await User.find({ _id: { $in: [...(await getAssignableUserIds(objective))] } })
+    .select("firstName lastName")
+    .sort({ firstName: 1, lastName: 1 });
+  res.json(users);
+});
+
 // The signed in user's OKR permissions
 const getMyPermissions = asyncHandler(async (req, res) => {
   const permissions = [];
@@ -1133,6 +1313,7 @@ const getMyPermissions = asyncHandler(async (req, res) => {
 
 module.exports = {
   getMyPermissions,
+  getAssignableUsers,
   // Objectives
   getObjectives,
   getObjectiveGroups,

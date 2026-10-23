@@ -17,6 +17,7 @@ const {
   initializeCalendarScheduler,
 } = require("./scheduling/calendarScheduler");
 const { errorHandler } = require("./middleware/errorMiddleware");
+const { seedNewDefaults } = require("./middleware/adminPermissions");
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ const startServer = async () => {
   try {
     // 1. Wait until MongoDB is connected
     await connectDB();
+    await seedNewDefaults();
 
     // 2. Start the server
     server = app.listen(PORT, () => {

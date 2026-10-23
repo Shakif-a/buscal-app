@@ -11,6 +11,7 @@ const evidenceUpload = express.raw({
 const {
   getReport,
   getMyPermissions,
+  getAssignableUsers,
   approveKeyResult,
   getObjectives,
   getObjectiveGroups,
@@ -94,6 +95,7 @@ router.delete(
 router.get("/objectives", protect, getObjectives);
 router.post("/objectives", protect, canCreateObjective, createObjective);
 router.get("/objectives/groups", protect, getObjectiveGroups);
+router.get("/objectives/:id/assignable-users", protect, getAssignableUsers);
 router.get("/objectives/:id", protect, getObjective);
 router.put("/objectives/:id", protect, canManageObjective, updateObjective);
 router.delete("/objectives/:id", protect, canManageObjective, deleteObjective);
