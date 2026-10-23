@@ -42,6 +42,20 @@ function getName(user) {
 }
 
 // Obtain the access flags for the current user on a given objective, for key result actions
+// The objective's owner, plus its group's manager and members
+async function getAssignableUserIds(objective) {
+  const ids = new Set();
+  const ownerId = objective.owner && (objective.owner._id || objective.owner);
+  if (ownerId) ids.add(ownerId.toString());
+
+  const group = await OkrGroup.findOne({ name: objective.group }, "manager members");
+  if (group) {
+    if (group.manager) ids.add(group.manager.toString());
+    for (const member of group.members || []) ids.add(member.toString());
+  }
+  return ids;
+}
+
 async function getKeyResultAccess(user, objective) {
   if (!user) {
     return { manage: false, create: false, edit: false, approve: false };
@@ -639,6 +653,17 @@ const createKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Approved Key Results must be Completed");
   }
 
+  if (req.body.assignedTo) {
+    if (!mongoose.isValidObjectId(req.body.assignedTo)) {
+      res.status(400);
+      throw new Error("Invalid user ID");
+    }
+    if (!(await getAssignableUserIds(objective)).has(String(req.body.assignedTo))) {
+      res.status(400);
+      throw new Error("This user can't be assigned key results on this objective");
+    }
+  }
+
   //Create Key Result
   const keyResult = await OkrKeyResult.create({
     objective: objectiveId,
@@ -798,6 +823,13 @@ const updateKeyResult = asyncHandler(async (req, res) => {
       if (!userExists) {
         res.status(400);
         throw new Error("User not found");
+      }
+      if (
+        String(keyResult.assignedTo || "") !== String(req.body.assignedTo) &&
+        !(await getAssignableUserIds(objective)).has(String(req.body.assignedTo))
+      ) {
+        res.status(400);
+        throw new Error("This user can't be assigned key results on this objective");
       }
       keyResult.assignedTo = req.body.assignedTo;
     }
@@ -1004,6 +1036,23 @@ const getReport = asyncHandler(async (req, res) => {
   res.json({ objectives: details });
 });
 
+// Users who can be assigned key results on an objective
+const getAssignableUsers = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+  const objective = await OkrObjective.findById(req.params.id);
+  if (!objective) {
+    res.status(404);
+    throw new Error("Objective not found");
+  }
+  const users = await User.find({ _id: { $in: [...(await getAssignableUserIds(objective))] } })
+    .select("firstName lastName")
+    .sort({ firstName: 1, lastName: 1 });
+  res.json(users);
+});
+
 // The signed in user's OKR permissions
 const getMyPermissions = asyncHandler(async (req, res) => {
   const permissions = [];
@@ -1015,6 +1064,7 @@ const getMyPermissions = asyncHandler(async (req, res) => {
 
 module.exports = {
   getMyPermissions,
+  getAssignableUsers,
   // Objectives
   getObjectives,
   getObjectiveGroups,

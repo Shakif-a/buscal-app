@@ -309,6 +309,16 @@ function ObjectiveCard({ objective }) {
     }
   }, [editMode, showEditModal, token, dispatch]);
 
+  // Users who can be assigned this objective's key results
+  const [assignableUsers, setAssignableUsers] = useState([]);
+  useEffect(() => {
+    if (!editMode || !token) return;
+    objectiveService
+      .getAssignableUsers(objectiveId, token)
+      .then(setAssignableUsers)
+      .catch(() => setAssignableUsers([]));
+  }, [editMode, token, objectiveId, objective.group]);
+
   // Fetch objective's key results
   async function fetchKeyResults() {
     try {
@@ -1351,7 +1361,7 @@ function ObjectiveCard({ objective }) {
                           value={keyResult.assignedTo || ""}
                           onChange={(event) => {
                             const selectedId = event.target.value;
-                            const selectedUser = employees.find(
+                            const selectedUser = assignableUsers.find(
                               (employee) => employee._id === selectedId
                             );
                             updateLocalKeyResult(keyResult.id, {
@@ -1363,11 +1373,15 @@ function ObjectiveCard({ objective }) {
                           }}
                         >
                           <option value="">Assign Employee</option>
-                          {employees.map((employee) => (
+                          {assignableUsers.map((employee) => (
                             <option key={employee._id} value={employee._id}>
                               {employee.firstName} {employee.lastName}
                             </option>
                           ))}
+                          {keyResult.assignedTo &&
+                            !assignableUsers.some((employee) => employee._id === keyResult.assignedTo) && (
+                              <option value={keyResult.assignedTo}>{keyResult.assigned}</option>
+                            )}
                         </select>
                       ) : (
                         keyResult.assigned
