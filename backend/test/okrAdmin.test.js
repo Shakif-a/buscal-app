@@ -201,7 +201,7 @@ test("valid role permissions are saved without duplicates", async () => {
   ]);
 });
 
-test("the Admin role cannot lose Manage Roles or View Reports", async () => {
+test("the Admin role cannot lose Manage Roles, Manage Users or View Reports", async () => {
   let saved = false;
   OkrRolePermission.findOneAndUpdate = async (query, data) => {
     saved = true;
@@ -212,6 +212,7 @@ test("the Admin role cannot lose Manage Roles or View Reports", async () => {
     [],
     ["Manage Roles"],
     ["View Reports", "Manage Users"],
+    ["Manage Roles", "View Reports"],
   ]) {
     const result = await runHandler(updateRolePermissions, {
       params: { role: "Admin" },
@@ -223,7 +224,7 @@ test("the Admin role cannot lose Manage Roles or View Reports", async () => {
 
   const result = await runHandler(updateRolePermissions, {
     params: { role: "Admin" },
-    body: { permissions: ["Manage Roles", "View Reports"] },
+    body: { permissions: ["Manage Roles", "Manage Users", "View Reports"] },
   });
   assert.equal(result.statusCode, 200);
 });

@@ -22,7 +22,7 @@ const {
   requirePermission,
 } = require("../middleware/adminPermissions");
 
-router.use(protect, adminOrExec);
+router.use(protect);
 
 router.get(
   "/users",
@@ -38,17 +38,19 @@ router.get(
   requirePermission("Manage Roles", "Manage Users"),
   getRoles,
 );
-router.post("/roles", requirePermission("Manage Roles"), createRole);
-router.put("/roles/:role", requirePermission("Manage Roles"), renameRole);
-router.delete("/roles/:role", requirePermission("Manage Roles"), deleteRole);
+router.post("/roles", adminOrExec, requirePermission("Manage Roles"), createRole);
+router.put("/roles/:role", adminOrExec, requirePermission("Manage Roles"), renameRole);
+router.delete("/roles/:role", adminOrExec, requirePermission("Manage Roles"), deleteRole);
 router.put("/users/:id/role", requirePermission("Manage Users"), assignRole);
 router.get(
   "/permissions",
+  adminOrExec,
   requirePermission("Manage Roles"),
   getRolePermissions,
 );
 router.put(
   "/permissions/:role",
+  adminOrExec,
   requirePermission("Manage Roles"),
   updateRolePermissions,
 );

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import adminService from "../../features/admin/adminService";
+import useMyPermissions from "../../features/users/useMyPermissions";
 import "./GroupManagement.css";
 
 function canManageAdmin(user) {
@@ -47,10 +48,13 @@ function GroupManagement() {
   const [groupModalGroup, setGroupModalGroup] = useState(null);
   const [groupModalName, setGroupModalName] = useState("");
 
-  const allowed = canManageAdmin(user);
+  const myPermissions = useMyPermissions(user?.token);
+  const checkingAccess = !canManageAdmin(user) && myPermissions === null;
+  const allowed = canManageAdmin(user) || Boolean(myPermissions?.includes("Manage Groups"));
 
   useEffect(() => {
     async function loadPage() {
+      if (checkingAccess) return;
       if (!allowed) {
         setIsLoading(false);
         return;
@@ -70,7 +74,7 @@ function GroupManagement() {
     }
 
     loadPage();
-  }, [allowed, user]);
+  }, [allowed, checkingAccess, user]);
 
   function openEditor(group) {
     if (isSaving) {
@@ -262,11 +266,11 @@ function GroupManagement() {
     group.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
-  if (!allowed) {
+  if (!allowed && !checkingAccess) {
     return (
       <div className="group-management">
         <div role="alert" className="group-status group-error">
-          Admin or executive access is required.
+          Admin, executive or Manage Groups access is required.
         </div>
       </div>
     );

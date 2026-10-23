@@ -24,6 +24,8 @@ const {
 } = require("../services/okrCalendarSyncService");
 
 const CalendarEntry = require("../models/calendarEntryModel");
+const { permissionNames } = require("../config/okrPermissions");
+const { hasPermission } = require("../middleware/adminPermissions");
 const writes = require("../services/okrWrites");
 
 const {recalculateObjective, recalculateKeyResultStatuses, } = require("../services/okrObjectiveProgressService");
@@ -910,40 +912,32 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   res.json(keyResult);
 });
 
+// All objectives and KRs for the reports export
 const getReport = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find().populate(
     "owner",
     "firstName lastName",
   );
-  const groups = [];
   const details = [];
-  let totalProgress = 0;
-  let onTrack = 0;
   for (const objective of objectives) {
     //Recalculate so time based statuses (at risk, overdue) are current
     const updated = await recalculateObjective(objective._id);
-    objective.status = updated.status;
-    const progress = updated.progress || 0;
-    totalProgress += progress;
-    if (objective.status === "on-track") onTrack++;
-    const name =
-      !objective.group || objective.group === "none"
-        ? "Ungrouped"
-        : objective.group;
 
-    //Objective and key result details for the report export
     const keyResults = await OkrKeyResult.find({ objective: objective._id })
       .populate("assignedTo", "firstName lastName")
       .sort({ createdAt: 1 });
     details.push({
       id: objective._id.toString(),
       title: objective.title,
-      group: name,
+      group:
+        !objective.group || objective.group === "none"
+          ? "Ungrouped"
+          : objective.group,
       owner: getName(objective.owner),
       commitmentType: objective.commitmentType || "committed",
       dueDate: objective.dueDate,
       status: updated.status,
-      progress,
+      progress: updated.progress || 0,
       keyResults: keyResults.map((keyResult) => ({
         id: keyResult._id.toString(),
         title: keyResult.title,
@@ -955,30 +949,21 @@ const getReport = asyncHandler(async (req, res) => {
         approved: Boolean(keyResult.approved),
       })),
     });
-
-    let group = groups.find((item) => item.name === name);
-    if (!group) {
-      group = { name, objectives: 0, progress: 0 };
-      groups.push(group);
-    }
-    group.objectives++;
-    group.progress += progress;
   }
-  for (const group of groups)
-    group.progress = Math.round(group.progress / group.objectives);
-  groups.sort((a, b) => a.name.localeCompare(b.name));
-  res.json({
-    totalObjectives: objectives.length,
-    onTrack,
-    averageProgress: objectives.length
-      ? Math.round(totalProgress / objectives.length)
-      : 0,
-    groups,
-    objectives: details,
-  });
+  res.json({ objectives: details });
+});
+
+// The signed in user's OKR permissions
+const getMyPermissions = asyncHandler(async (req, res) => {
+  const permissions = [];
+  for (const permission of permissionNames) {
+    if (await hasPermission(req.user, permission)) permissions.push(permission);
+  }
+  res.json({ permissions });
 });
 
 module.exports = {
+  getMyPermissions,
   // Objectives
   getObjectives,
   getObjectiveGroups,

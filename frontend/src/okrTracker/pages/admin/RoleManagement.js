@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import adminService from "../../features/admin/adminService";
+import useMyPermissions from "../../features/users/useMyPermissions";
 import "./RoleManagement.css";
 
 function canManageAdmin(user) {
@@ -66,10 +67,13 @@ function RoleManagement() {
   const [roleModalAction, setRoleModalAction] = useState("");
   const [roleModalRole, setRoleModalRole] = useState("");
   const [roleModalName, setRoleModalName] = useState("");
-  const allowed = canManageAdmin(user);
+  const myPermissions = useMyPermissions(user?.token);
+  const checkingAccess = !canManageAdmin(user) && myPermissions === null;
+  const allowed = canManageAdmin(user) || Boolean(myPermissions?.includes("Manage Users"));
 
   useEffect(() => {
     async function loadPermissions() {
+      if (checkingAccess) return;
       if (!allowed) {
         setIsLoading(false);
         return;
@@ -85,7 +89,7 @@ function RoleManagement() {
     }
 
     loadPermissions();
-  }, [allowed, user]);
+  }, [allowed, checkingAccess, user]);
 
   async function loadRoles() {
     const data = await adminService.getRoles(user.token);
@@ -293,11 +297,11 @@ function RoleManagement() {
     .map((row) => row.role)
     .filter((name) => name.toLowerCase().includes(searchText.toLowerCase()));
 
-  if (!allowed) {
+  if (!allowed && !checkingAccess) {
     return (
       <div className="role-management">
         <div role="alert" className="role-status role-error">
-          Admin or executive access is required.
+          Admin, executive or Manage Users access is required.
         </div>
       </div>
     );
@@ -450,11 +454,9 @@ function RoleManagement() {
                         const isLocked = (row.lockedPermissions || []).includes(
                           permission,
                         );
-                        // A tick the user cannot remove is shown in grey.
-                        const isFixed =
-                          isLocked ||
-                          !canEdit ||
-                          !row.allowedPermissions.includes(permission);
+                        const isUnavailable = !row.allowedPermissions.includes(permission);
+                        // Ticks the user cannot change and unavailable permissions are shown in grey.
+                        const isFixed = isLocked || !canEdit || isUnavailable;
 
                         return (
                           <label
@@ -463,17 +465,14 @@ function RoleManagement() {
                             title={
                               isLocked
                                 ? `The ${roleName} role always keeps this permission`
-                                : undefined
+                                : isUnavailable
+                                  ? `The ${roleName} role can't have this permission`
+                                  : undefined
                             }
                           >
                             <input
                               type="checkbox"
-                              disabled={
-                                isSaving ||
-                                !canEdit ||
-                                isLocked ||
-                                !row.allowedPermissions.includes(permission)
-                              }
+                              disabled={isSaving || !canEdit || isLocked || isUnavailable}
                               checked={isChecked}
                               onChange={() =>
                                 togglePermission(roleName, permission)
@@ -482,7 +481,7 @@ function RoleManagement() {
                             />
                             <span
                               className={`role-permission-checkbox ${isChecked ? "checked" : ""
-                                } ${isChecked && isFixed ? "fixed" : ""}`}
+                                } ${isChecked && isFixed ? "fixed" : ""} ${!isChecked && isUnavailable ? "unavailable" : ""}`}
                             >
                               {isChecked ? "✓" : ""}
                             </span>
@@ -604,7 +603,8 @@ function RoleManagement() {
         <div className="role-reference-box">
           <div className="role-reference-title">PERMISSION REFERENCE</div>
           <p>
-            Admin pages are available only to administrators and executives.
+            Admin pages are available to administrators and executives, and to
+            custom roles with Manage Users or Manage Groups.
           </p>
           <p>
             Objective creation follows the saved Create Objectives permission.
@@ -619,8 +619,8 @@ function RoleManagement() {
             company settings and cannot be renamed, deleted, or assigned.
             Custom roles control OKR work and are assigned from the Members
             list under Edit. A role with members cannot be deleted. The Admin
-            role always keeps Manage Roles and View Reports, so administrators
-            can always reach this editor and the reports page. Reset to defaults changes the draft; select Save Changes to apply
+            role always keeps Manage Roles, Manage Users and View Reports, so
+            administrators can always reach this editor and the reports page. Reset to defaults changes the draft; select Save Changes to apply
             it.
           </p>
         </div>

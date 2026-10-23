@@ -3,6 +3,7 @@ import "../../src/okrTracker/pages/objectives/ObjectivesPage.css";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import objectiveReducer from "../../src/okrTracker/features/objectives/objectiveSlice";
 import userReducer from "../../src/okrTracker/features/users/userSlice";
 import ObjectiveCard from "../../src/okrTracker/pages/objectives/ObjectiveCard";
@@ -39,7 +40,12 @@ const objective = {
 createRoot(document.getElementById("root")).render(
   <Provider store={store}>
     {params.get("page") === "reports" ? (
-      <Reports />
+      <MemoryRouter>
+        <Routes>
+          <Route path="/" element={<Reports />} />
+          <Route path="/dashboard/okrtracker/okrdashboard" element={<p>Dashboard page</p>} />
+        </Routes>
+      </MemoryRouter>
     ) : (
       <ObjectiveCard objective={objective} />
     )}

@@ -1,0 +1,5 @@
+# Keep tests out of release
+backend/test/ export-ignore
+frontend/test/ export-ignore
+frontend/cypress/ export-ignore
+frontend/cypress.config.cjs export-ignore

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import { Navigate } from "react-router-dom";
 import reportService from "../../features/objectives/reportService";
 import "./Reports.css";
 
@@ -70,6 +71,7 @@ function Reports() {
   const { user } = useSelector((state) => state.auth);
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
   useEffect(() => {
     let active = true;
     setReport(null);
@@ -80,6 +82,11 @@ function Reports() {
         if (active) setReport(data);
       })
       .catch((failure) => {
+        // No View Reports permission
+        if (active && failure.response?.status === 403) {
+          setForbidden(true);
+          return;
+        }
         if (active)
           setError(
             failure.response?.data?.message ||
@@ -93,6 +100,8 @@ function Reports() {
   }, [user.token]);
 
   const rows = report ? buildReportRows(report) : [];
+
+  if (forbidden) return <Navigate to="/dashboard/okrtracker/okrdashboard" replace />;
 
   function exportReport() {
     const csv = rows
