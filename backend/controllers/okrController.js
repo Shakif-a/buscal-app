@@ -42,6 +42,50 @@ function getName(user) {
 }
 
 // Obtain the access flags for the current user on a given objective, for key result actions
+function keyResultEntryDescription(objective) {
+  return "Key result for the objective: " + objective.title;
+}
+
+// Keep a key result's calendar entry with its assignee, title and due date
+async function syncKeyResultCalendar(keyResult, objective, user) {
+  if (!keyResult.assignedTo) {
+    if (keyResult.calendarEntry) {
+      await deleteLinkedCalendarEntry({ entryId: keyResult.calendarEntry, actorUser: user });
+      keyResult.calendarEntry = null;
+      await keyResult.save();
+    }
+    return;
+  }
+
+  const assignedId = keyResult.assignedTo._id || keyResult.assignedTo;
+  if (keyResult.calendarEntry) {
+    await updateLinkedCalendarEntry({
+      entryId: keyResult.calendarEntry,
+      title: keyResult.title,
+      description: keyResultEntryDescription(objective),
+      dueDate: keyResult.dueDate,
+      assignedId,
+      actorUser: user,
+    });
+    return;
+  }
+
+  const calendarEntry = await createLinkedCalendarEntry({
+    title: keyResult.title,
+    description: keyResultEntryDescription(objective),
+    dueDate: keyResult.dueDate,
+    ownerId: user.id,
+    assignedId,
+    category: KEY_RESULT_CATEGORY,
+    actorUser: user,
+  });
+  calendarEntry.linkedObjective = objective._id;
+  calendarEntry.linkedKeyResult = keyResult._id;
+  await calendarEntry.save();
+  keyResult.calendarEntry = calendarEntry._id;
+  await keyResult.save();
+}
+
 // Calendar day of a due date
 function dueDay(date) {
   return new Date(date).toISOString().slice(0, 10);
@@ -691,17 +735,50 @@ const createKeyResult = asyncHandler(async (req, res) => {
     }
   }
 
+  // Create the calendar entry for the assignee first before Key Result is attempted
+  let calendarEntry = null;
+  if (req.body.assignedTo) {
+    calendarEntry = await createLinkedCalendarEntry({
+      title: req.body.title,
+      description: keyResultEntryDescription(objective),
+      dueDate: req.body.dueDate,
+      ownerId: req.user.id,
+      assignedId: req.body.assignedTo,
+      category: KEY_RESULT_CATEGORY,
+      actorUser: req.user,
+    });
+  }
+
   //Create Key Result
-  const keyResult = await OkrKeyResult.create({
-    objective: objectiveId,
-    title: req.body.title,
-    weight: newWeight,
-    assignedTo: req.body.assignedTo || null,
-    dueDate: req.body.dueDate,
-    progress: req.body.progress ?? 0,
-    status: req.body.status || "in-progress",
-    approved: req.body.approved ?? false,
-  });
+  let keyResult;
+  try {
+    keyResult = await OkrKeyResult.create({
+      objective: objectiveId,
+      title: req.body.title,
+      weight: newWeight,
+      assignedTo: req.body.assignedTo || null,
+      dueDate: req.body.dueDate,
+      progress: req.body.progress ?? 0,
+      status: req.body.status || "in-progress",
+      approved: req.body.approved ?? false,
+      calendarEntry: calendarEntry ? calendarEntry._id : null,
+    });
+  } catch (error) {
+    // Roll back the calendar entry if key result fails
+    if (calendarEntry) {
+      await deleteLinkedCalendarEntry({
+        entryId: calendarEntry._id,
+        actorUser: req.user,
+      });
+    }
+    throw error;
+  }
+
+  if (calendarEntry) {
+    calendarEntry.linkedObjective = objective._id;
+    calendarEntry.linkedKeyResult = keyResult._id;
+    await calendarEntry.save();
+  }
 
   await recalculateObjective(objectiveId);
 
@@ -924,6 +1001,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   await keyResult.save();
+  await syncKeyResultCalendar(keyResult, objective, req.user);
 
   //Recalculate parent Objective
   await recalculateObjective(objectiveId)

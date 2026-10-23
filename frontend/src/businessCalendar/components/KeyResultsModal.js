@@ -18,6 +18,7 @@ import CloseIcon from "@mui/icons-material/Close";
 const KeyResultsModal = ({
     objectiveId,
     objectiveTitle,
+    keyResultId,
     handleClose,
 }) => {
     const [expandedKeyResult, setExpandedKeyResult] = useState(null);
@@ -148,7 +149,9 @@ const KeyResultsModal = ({
             <Divider sx={{ my:2 }}/>
 
             {/*Key Results */}
-            {keyResults.map((keyResult, index) =>{
+            {keyResults
+              .filter((keyResult) => !keyResultId || String(keyResult._id || keyResult.id) === String(keyResultId))
+              .map((keyResult, index) =>{
                 const isExpanded =
                     expandedKeyResult === (keyResult._id || keyResult.id);
             
@@ -307,6 +310,7 @@ const KeyResultsModal = ({
                       <TextField
                         type="number"
                         size="small"
+                        disabled={!(editedKeyResult?.canEdit || editedKeyResult?.canEditProgress)}
                         value={editedKeyResult?.progress ?? 0}
                         onChange={(event) => {
                           const value = event.target.value;
@@ -353,6 +357,7 @@ const KeyResultsModal = ({
                     </Box>
                   </Box>
                     <Slider
+                      disabled={!(editedKeyResult?.canEdit || editedKeyResult?.canEditProgress)}
                       value={editedKeyResult?.progress ?? 0}
                       min={0}
                       max={100}

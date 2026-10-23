@@ -3,13 +3,16 @@ const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 const Calendar = require("../models/calendarEntryModel");
 const Objective = require("../models/okrObjectiveModel");
+const KeyResult = require("../models/okrKeyResultModel");
 const { protectOkrCalendar } = require("../middleware/okrCalendarGuard");
 
 const findById = Calendar.findById;
 const exists = Objective.exists;
+const keyResultExists = KeyResult.exists;
 test.afterEach(() => {
   Calendar.findById = findById;
   Objective.exists = exists;
+  KeyResult.exists = keyResultExists;
 });
 
 function check(req) {
@@ -22,6 +25,7 @@ test("ordinary calendar entries continue to their existing controller", async ()
     category: "general",
   });
   Objective.exists = async () => null;
+  KeyResult.exists = async () => null;
   const error = await check({
     body: { title: "Meeting" },
     params: { entryId: new mongoose.Types.ObjectId().toString() },
