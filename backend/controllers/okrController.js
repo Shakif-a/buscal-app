@@ -42,6 +42,11 @@ function getName(user) {
 }
 
 // Obtain the access flags for the current user on a given objective, for key result actions
+// Calendar day of a due date
+function dueDay(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
 // The objective's owner, plus its group's manager and members
 async function getAssignableUserIds(objective) {
   const ids = new Set();
@@ -344,6 +349,18 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please add a valid due date");
     }
+    const keyResults = await OkrKeyResult.find({ objective: objective._id }, "dueDate");
+    const latest = keyResults
+      .map((keyResult) => keyResult.dueDate && dueDay(keyResult.dueDate))
+      .filter(Boolean)
+      .sort()
+      .pop();
+    if (latest && dueDay(dueDate) < latest) {
+      res.status(400);
+      throw new Error(
+        "The due date can't be before its key results are due (latest " + latest + ")",
+      );
+    }
     objective.dueDate = dueDate;
   }
 
@@ -609,6 +626,16 @@ const createKeyResult = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Please add a due date");
   }
+  if (isNaN(new Date(req.body.dueDate).getTime())) {
+    res.status(400);
+    throw new Error("Please add a valid due date");
+  }
+  if (dueDay(req.body.dueDate) > dueDay(objective.dueDate)) {
+    res.status(400);
+    throw new Error(
+      "Key results can't be due after the objective (" + dueDay(objective.dueDate) + ")",
+    );
+  }
 
   // Validate weight doesn't exceed 100
   const existingKeyResults = await OkrKeyResult.find({
@@ -806,6 +833,12 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     if (isNaN(dueDate.getTime())) {
       res.status(400);
       throw new Error("Please add a valid due date");
+    }
+    if (dueDay(dueDate) > dueDay(objective.dueDate)) {
+      res.status(400);
+      throw new Error(
+        "Key results can't be due after the objective (" + dueDay(objective.dueDate) + ")",
+      );
     }
     keyResult.dueDate = dueDate;
   }

@@ -256,6 +256,15 @@ function ObjectiveCard({ objective }) {
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [keyResults, setKeyResults] = useState([]);
+  // KRs can't be due after the objective
+  const objectiveDueDay = objective.dueDate
+    ? new Date(objective.dueDate).toISOString().split("T")[0]
+    : undefined;
+  const latestKeyResultDueDay = keyResults
+    .map((kr) => kr.dueDate)
+    .filter(Boolean)
+    .sort()
+    .pop();
   const [originalKeyResults, setOriginalKeyResults] = useState([]);
 
   // Evidence
@@ -1394,6 +1403,7 @@ function ObjectiveCard({ objective }) {
                         <input
                           className="date-input"
                           type="date"
+                          max={objectiveDueDay}
                           value={keyResult.dueDate}
                           onChange={(event) =>
                             updateLocalKeyResult(keyResult.id, { dueDate: event.target.value })
@@ -2163,6 +2173,7 @@ function ObjectiveCard({ objective }) {
                 <label>Due Date</label>
                 <input
                   type="date"
+                  min={latestKeyResultDueDay}
                   value={editDueDate}
                   onChange={(e) => setEditDueDate(e.target.value)}
                 />
