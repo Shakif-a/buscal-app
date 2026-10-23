@@ -134,7 +134,6 @@ async function recalculateKeyResultStatuses(objectiveId) {
         if (kr.status !== status) {
             kr.status = status;
             await kr.save();
-            await syncEntryCompletion(kr.calendarEntry, status === "completed");
 
             //notify kr assigned employee and objective owner when status changes
             if (status === "at-risk" || status === "overdue") {
@@ -154,6 +153,8 @@ async function recalculateKeyResultStatuses(objectiveId) {
                 }
             }
         }
+
+        await syncEntryCompletion(kr.calendarEntry, status === "completed");
     }
 }
 
@@ -226,9 +227,6 @@ async function recalculateObjective(objectiveId) {
         objective.status = status;
 
         await objective.save();
-        if (statusChanged) {
-            await syncEntryCompletion(objective.calendarEntry, status === "completed");
-        }
 
         //notify objective owner when status changes
         if (
@@ -246,6 +244,8 @@ async function recalculateObjective(objectiveId) {
             }
         }
     }
+
+    await syncEntryCompletion(objective.calendarEntry, status === "completed");
     
     return objective;
 }
