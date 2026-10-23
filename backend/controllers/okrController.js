@@ -916,6 +916,7 @@ const getReport = asyncHandler(async (req, res) => {
     "firstName lastName",
   );
   const groups = [];
+  const details = [];
   let totalProgress = 0;
   let onTrack = 0;
   for (const objective of objectives) {
@@ -929,6 +930,32 @@ const getReport = asyncHandler(async (req, res) => {
       !objective.group || objective.group === "none"
         ? "Ungrouped"
         : objective.group;
+
+    //Objective and key result details for the report export
+    const keyResults = await OkrKeyResult.find({ objective: objective._id })
+      .populate("assignedTo", "firstName lastName")
+      .sort({ createdAt: 1 });
+    details.push({
+      id: objective._id.toString(),
+      title: objective.title,
+      group: name,
+      owner: getName(objective.owner),
+      commitmentType: objective.commitmentType || "committed",
+      dueDate: objective.dueDate,
+      status: updated.status,
+      progress,
+      keyResults: keyResults.map((keyResult) => ({
+        id: keyResult._id.toString(),
+        title: keyResult.title,
+        assigned: keyResult.assignedTo ? getName(keyResult.assignedTo) : "Unassigned",
+        weight: keyResult.weight,
+        dueDate: keyResult.dueDate,
+        status: keyResult.status,
+        progress: keyResult.progress || 0,
+        approved: Boolean(keyResult.approved),
+      })),
+    });
+
     let group = groups.find((item) => item.name === name);
     if (!group) {
       group = { name, objectives: 0, progress: 0 };
@@ -947,6 +974,7 @@ const getReport = asyncHandler(async (req, res) => {
       ? Math.round(totalProgress / objectives.length)
       : 0,
     groups,
+    objectives: details,
   });
 });
 

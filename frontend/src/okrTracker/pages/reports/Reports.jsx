@@ -29,16 +29,72 @@ function Reports() {
     };
   }, [user.token]);
 
+  // One row per key result, with its objective's details repeated so the file
+  // works as a single table for other programs. Objectives without key results
+  // get one row with the key result columns left blank.
+  // Dates are YYYY-MM-DD and numbers are plain (no % sign) so they stay machine readable.
   function exportReport() {
-    const rows = [["Group", "Objectives", "Average progress"]];
-    for (const group of report.groups)
-      rows.push([group.name, group.objectives, group.progress + "%"]);
+    const formatDate = (date) => {
+      const parsed = new Date(date);
+      return date && !isNaN(parsed) ? parsed.toISOString().slice(0, 10) : "";
+    };
+    const round = (value) => Math.round((Number(value) || 0) * 10) / 10;
+
+    const rows = [
+      [
+        "Objective ID",
+        "Objective",
+        "Group",
+        "Owner",
+        "Type",
+        "Objective Due Date",
+        "Objective Status",
+        "Objective Progress (%)",
+        "Key Result ID",
+        "Key Result",
+        "Assigned To",
+        "Weight (%)",
+        "Key Result Due Date",
+        "Key Result Status",
+        "Key Result Progress (%)",
+        "Approved",
+      ],
+    ];
+    for (const objective of report.objectives || []) {
+      const objectiveColumns = [
+        objective.id,
+        objective.title,
+        objective.group,
+        objective.owner,
+        objective.commitmentType,
+        formatDate(objective.dueDate),
+        objective.status,
+        round(objective.progress),
+      ];
+      if (objective.keyResults.length === 0) {
+        rows.push([...objectiveColumns, "", "", "", "", "", "", "", ""]);
+      }
+      for (const keyResult of objective.keyResults) {
+        rows.push([
+          ...objectiveColumns,
+          keyResult.id,
+          keyResult.title,
+          keyResult.assigned,
+          keyResult.weight,
+          formatDate(keyResult.dueDate),
+          keyResult.status,
+          round(keyResult.progress),
+          keyResult.approved ? "yes" : "no",
+        ]);
+      }
+    }
     const csv = rows
       .map((row) =>
         row
           .map((value) => {
-            let text = String(value);
-            if (/^[=+@-]/.test(text)) text = "'" + text;
+            let text = String(value ?? "");
+            // stop spreadsheet apps treating text as a formula
+            if (/^[=+@\-\t\r]/.test(text)) text = "'" + text;
             return '"' + text.replaceAll('"', '""') + '"';
           })
           .join(","),
@@ -49,7 +105,7 @@ function Reports() {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "okr-report.csv";
+    link.download = `okr-report-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }

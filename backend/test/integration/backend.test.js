@@ -2734,12 +2734,38 @@ test("reports use actual progress and enforce saved View Reports permission", as
     "employee",
   );
   assert.equal(report.status, 200);
-  assert.deepEqual(report.body, {
+  const { objectives: details, ...summary } = report.body;
+  assert.deepEqual(summary, {
     totalObjectives: 1,
     onTrack: 1,
     averageProgress: 60,
     groups: [{ name: "Sales", objectives: 1, progress: 60 }],
   });
+  // details for the export, one entry per objective with its key results
+  assert.equal(details.length, 1);
+  assert.equal(details[0].id, objective._id.toString());
+  assert.equal(details[0].group, "Sales");
+  assert.equal(details[0].progress, 60);
+  assert.deepEqual(
+    details[0].keyResults.map(({ title, weight, progress, approved, assigned, status }) => ({
+      title,
+      weight,
+      progress,
+      approved,
+      assigned,
+      status,
+    })),
+    [
+      {
+        title: "Result",
+        weight: 100,
+        progress: 60,
+        approved: false,
+        assigned: "Unassigned",
+        status: "in-progress",
+      },
+    ],
+  );
   await Permission.create({ role: "Employee", permissions: [] });
   assert.equal(
     (await request("GET", "/api/okr/reports", undefined, "employee")).status,
