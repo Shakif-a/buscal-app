@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/
+node_modules
 *.gz
 
 # Environment variables
@@ -37,4 +37,9 @@ pids/
 *.seed
 *.pid.lock
 
+# Browser test outputs
+frontend/cypress/screenshots/
+frontend/cypress/videos/
+
+# Mongo backups
 /backend/mongodb-backup/

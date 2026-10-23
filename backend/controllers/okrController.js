@@ -2,7 +2,18 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const OkrEvidence = require("../models/okrEvidenceModel");
 const User = require("../models/userModel");
+// Permission groups
+const OkrGroup = require("../models/okrGroupModel");
+const {
+  canUserManageObjective,
+  canUserCreateKeyResults,
+  canUserEditKeyResults,
+  canUserApproveKeyResults,
+  isKeyResultAssignee,
+} = require("../middleware/okrPermissions");
+// Calendar sync
 const {
   OBJECTIVE_CATEGORY,
   KEY_RESULT_CATEGORY,
@@ -12,6 +23,7 @@ const {
 } = require("../services/okrCalendarSyncService");
 
 const CalendarEntry = require("../models/calendarEntryModel");
+const writes = require("../services/okrWrites");
 
 const {recalculateObjective, recalculateKeyResultStatuses, } = require("../services/okrObjectiveProgressService");
 
@@ -26,7 +38,37 @@ function getName(user) {
   return name.trim();
 }
 
-async function loadObjective(objective) {
+// Obtain the access flags for the current user on a given objective, for key result actions
+async function getKeyResultAccess(user, objective) {
+  if (!user) {
+    return { manage: false, create: false, edit: false, approve: false };
+  }
+  return {
+    manage: await canUserManageObjective(user, objective),
+    create: await canUserCreateKeyResults(user, objective),
+    edit: await canUserEditKeyResults(user, objective),
+    approve: await canUserApproveKeyResults(user, objective),
+  };
+}
+
+async function addPermissionFlags(objectiveData, objective, user, access) {
+  objectiveData.canManage = access.manage;
+  objectiveData.canCreateKeyResult = access.create;
+  objectiveData.canEditKeyResults = access.edit;
+  objectiveData.canApproveKeyResult = access.approve;
+}
+
+function addKeyResultFlags(keyResultData, access, user) {
+  const isAssignee = Boolean(user) && isKeyResultAssignee(user, keyResultData);
+  keyResultData.canEdit = access.edit;
+  keyResultData.canEditProgress = access.edit || isAssignee;
+  keyResultData.canApprove = access.approve;
+  keyResultData.canManageEvidence = access.manage || isAssignee;
+}
+
+async function loadObjective(objective, user) {
+  const access = await getKeyResultAccess(user, objective);
+
   const keyResultDocuments = await OkrKeyResult.find({
     objective: objective._id,
   })
@@ -43,6 +85,7 @@ async function loadObjective(objective) {
     } else {
       keyResult.assigned = "Unassigned";
     }
+    addKeyResultFlags(keyResult, access, user);
     totalWeight = totalWeight + keyResult.weight;
     keyResults.push(keyResult);
   }
@@ -60,6 +103,8 @@ async function loadObjective(objective) {
   } else {
     objectiveData.type = "Committed";
   }
+
+  await addPermissionFlags(objectiveData, objective, user, access);
 
   return {
     objective: objectiveData,
@@ -92,14 +137,14 @@ const getObjectives = asyncHandler(async (req, res) => {
 
   for (const objective of objectives) {
     await recalculateObjective(objective._id);
-    
+
     const refreshedObjective = await OkrObjective.findById(
       objective._id
     ).populate(
       "owner",
       "firstName lastName");
 
-    const data = await loadObjective(refreshedObjective);
+    const data = await loadObjective(refreshedObjective, req.user);
     data.objective.keyResults = data.keyResults;
 
     result.push(data.objective);
@@ -110,8 +155,8 @@ const getObjectives = asyncHandler(async (req, res) => {
 });
 
 const getObjectiveGroups = asyncHandler(async (req, res) => {
-  const groups = await OkrObjective.distinct("group", { group: { $ne: "" } });
-  res.status(200).json(groups.sort());
+  const groups = await OkrGroup.find().select("name");
+  res.status(200).json(groups.map((group) => group.name).sort());
 });
 
 const getObjective = asyncHandler(async (req, res) => {
@@ -131,7 +176,7 @@ const getObjective = asyncHandler(async (req, res) => {
     "firstName lastName"
   );
 
-  const data = await loadObjective(refreshedObjective);
+  const data = await loadObjective(refreshedObjective, req.user);
 
   res.status(200).json(data);
 });
@@ -149,6 +194,16 @@ const createObjective = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Please add a due date");
   }
+
+  let group = "none";
+  if (req.body.group !== undefined) {
+    if (typeof req.body.group !== "string" || !req.body.group.trim()) {
+      res.status(400);
+      throw new Error("Please select a valid group");
+    }
+    group = req.body.group.trim();
+  }
+  await writes.requireGroup(group);
 
   let commitmentType = req.body.commitmentType;
   if (!commitmentType) {
@@ -171,13 +226,12 @@ const createObjective = asyncHandler(async (req, res) => {
     objective = await OkrObjective.create({
       title: req.body.title,
       description: req.body.description,
-      group: req.body.group,
+      group,
       owner: req.body.owner,
       dueDate: req.body.dueDate,
       commitmentType: commitmentType,
       calendarEntry: calendarEntry._id,
     });
-
   } catch (error) {
     // Roll back the calendar entry if objective fails
     await deleteLinkedCalendarEntry({
@@ -192,7 +246,11 @@ const createObjective = asyncHandler(async (req, res) => {
 
   const updatedObjective = await recalculateObjective(objective._id);
 
-  res.status(201).json(updatedObjective);
+  const objectiveData = updatedObjective.toObject();
+  const access = await getKeyResultAccess(req.user, updatedObjective);
+  await addPermissionFlags(objectiveData, updatedObjective, req.user, access);
+
+  res.status(201).json(objectiveData);
 });
 
 const updateObjective = asyncHandler(async (req, res) => {
@@ -233,6 +291,7 @@ const updateObjective = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Please select a group");
     }
+    if (group !== objective.group) await writes.requireGroup(group);
     objective.group = group;
   }
 
@@ -299,7 +358,7 @@ const updateObjective = asyncHandler(async (req, res) => {
     objective._id
   ).populate("owner", "firstName lastName");
 
-  const data = await loadObjective(refreshedObjective);
+  const data = await loadObjective(refreshedObjective, req.user);
   data.objective.keyResults = data.keyResults;
 
   res.status(200).json(data.objective);
@@ -319,7 +378,7 @@ const deleteObjective = asyncHandler(async (req, res) => {
   const objectiveEntries = await CalendarEntry.find({
     $or: [
       { _id: objective.calendarEntry || null },
-      {linkedObjective: objective._id },
+      { linkedObjective: objective._id },
     ],
   });
 
@@ -333,10 +392,7 @@ const deleteObjective = asyncHandler(async (req, res) => {
   //find and delete each KR calendar entry
   for (const kr of keyResults) {
     const keyResultEntries = await CalendarEntry.find({
-      $or: [
-        { _id: kr.calendarEntry || null },
-        { linkedKeyResult: kr._id },
-      ],
+      $or: [{ _id: kr.calendarEntry || null }, { linkedKeyResult: kr._id }],
     });
 
     for (const entry of keyResultEntries) {
@@ -346,26 +402,74 @@ const deleteObjective = asyncHandler(async (req, res) => {
       });
     }
   }
-console.log("Starting OKR database deletion");
 
-await OkrKeyResult.deleteMany({
-  objective: objective._id,
+  console.log("Starting OKR database deletion");
+
+  await OkrEvidence.deleteMany({ objective: objective._id });
+  await OkrKeyResult.deleteMany({
+    objective: objective._id,
+  });
+
+  console.log("Key Results deleted");
+
+  await objective.deleteOne();
+
+  console.log("Objective deleted", objective.title);
+
+  res.status(200).json({ id: req.params.id });
 });
-
-console.log("Key Results deleted");
-
-await objective.deleteOne();
-
-console.log("Objective deleted", objective.title);
-
-res.status(200).json({ id: req.params.id });
-});
-
-
 
 // ============================================
 // KEY RESULT CONTROLLER
 // ============================================
+//  - add: objective owner, or "Create Key Results"
+//  - edit / delete: objective owner, or "Edit Key Results"
+//  - approve: objective owner, or "Approve Key Results"
+//  - progress: objective owner, "Edit Key Results", or assignee
+
+const KEY_RESULT_FIELD_LABELS = {
+  title: "the title",
+  weight: "the weight",
+  dueDate: "the due date",
+  assignedTo: "the assignee",
+  status: "the status",
+  progress: "the progress",
+  approved: "the approval",
+};
+
+// Check if a key result field has actually changed. Handles edits and non-edits
+function keyResultFieldChanged(keyResult, field, value) {
+  switch (field) {
+    case "title":
+      return typeof value !== "string" || value.trim() !== keyResult.title;
+    case "weight":
+    case "progress":
+      return Number(value) !== keyResult[field];
+    case "dueDate": {
+      const next = new Date(value);
+      if (isNaN(next.getTime()) || !keyResult.dueDate) {
+        return true;
+      }
+      return (
+        next.toISOString().slice(0, 10) !==
+        new Date(keyResult.dueDate).toISOString().slice(0, 10)
+      );
+    }
+    case "assignedTo": {
+      const current = keyResult.assignedTo
+        ? keyResult.assignedTo.toString()
+        : null;
+      const next = value ? String(value) : null;
+      return current !== next;
+    }
+    case "status":
+      return value !== keyResult.status;
+    case "approved":
+      return Boolean(value) !== Boolean(keyResult.approved);
+    default:
+      return true;
+  }
+}
 
 const getKeyResults = asyncHandler(async (req, res) => {
   const { objectiveId } = req.params;
@@ -386,6 +490,8 @@ const getKeyResults = asyncHandler(async (req, res) => {
     .populate("assignedTo", "firstName lastName")
     .sort({ createdAt: 1 });
 
+  const access = await getKeyResultAccess(req.user, objective);
+
   const formattedKeyResults = keyResults.map((keyResult) => {
     const kr = keyResult.toObject();
     kr.id = kr._id.toString();
@@ -394,6 +500,7 @@ const getKeyResults = asyncHandler(async (req, res) => {
     } else {
       kr.assigned = "Unassigned";
     }
+    addKeyResultFlags(kr, access, req.user);
     return kr;
   });
 
@@ -402,7 +509,10 @@ const getKeyResults = asyncHandler(async (req, res) => {
 
 const getKeyResult = asyncHandler(async (req, res) => {
   const { objectiveId, keyResultId } = req.params;
-  if (!mongoose.isValidObjectId(objectiveId) || !mongoose.isValidObjectId(keyResultId)) {
+  if (
+    !mongoose.isValidObjectId(objectiveId) ||
+    !mongoose.isValidObjectId(keyResultId)
+  ) {
     res.status(400);
     throw new Error("Invalid ID");
   }
@@ -415,7 +525,7 @@ const getKeyResult = asyncHandler(async (req, res) => {
 
   const keyResult = await OkrKeyResult.findById(keyResultId).populate(
     "assignedTo",
-    "firstName lastName"
+    "firstName lastName",
   );
   if (!keyResult) {
     res.status(404);
@@ -430,6 +540,11 @@ const getKeyResult = asyncHandler(async (req, res) => {
   const kr = keyResult.toObject();
   kr.id = kr._id.toString();
   kr.assigned = kr.assignedTo ? getName(kr.assignedTo) : "Unassigned";
+  addKeyResultFlags(
+    kr,
+    await getKeyResultAccess(req.user, objective),
+    req.user,
+  );
 
   res.status(200).json(kr);
 });
@@ -445,6 +560,13 @@ const createKeyResult = asyncHandler(async (req, res) => {
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
+  }
+
+  // Check if they can create key results for this objective
+  const access = await getKeyResultAccess(req.user, objective);
+  if (req.body.approved && !access.approve) {
+    res.status(403);
+    throw new Error("You do not have permission to approve key results");
   }
 
   if (!req.body.title) {
@@ -478,20 +600,20 @@ const createKeyResult = asyncHandler(async (req, res) => {
   if (newWeight > weightLeft) {
     res.status(400);
     throw new Error(
-      "Weights cannot go over 100. Only " + weightLeft + " is left."
+      "Weights cannot go over 100. Only " + weightLeft + " is left.",
     );
   }
 
-const keyResult = await OkrKeyResult.create({
-  objective: objectiveId,
-  title: req.body.title,
-  weight: newWeight,
-  assignedTo: req.body.assignedTo || null,
-  dueDate: req.body.dueDate,
-  progress: req.body.progress ?? 0,
-  status: req.body.status || "in-progress",
-  approved: req.body.approved ?? false,
-})
+  const keyResult = await OkrKeyResult.create({
+    objective: objectiveId,
+    title: req.body.title,
+    weight: newWeight,
+    assignedTo: req.body.assignedTo || null,
+    dueDate: req.body.dueDate,
+    progress: req.body.progress ?? 0,
+    status: req.body.status || "in-progress",
+    approved: req.body.approved ?? false,
+  });
 
   await recalculateObjective(objectiveId);
 
@@ -499,13 +621,17 @@ const keyResult = await OkrKeyResult.create({
   const kr = keyResult.toObject();
   kr.id = kr._id.toString();
   kr.assigned = kr.assignedTo ? getName(kr.assignedTo) : "Unassigned";
+  addKeyResultFlags(kr, access, req.user);
 
   res.status(201).json(kr);
 });
 
 const updateKeyResult = asyncHandler(async (req, res) => {
   const { objectiveId, keyResultId } = req.params;
-  if (!mongoose.isValidObjectId(objectiveId) || !mongoose.isValidObjectId(keyResultId)) {
+  if (
+    !mongoose.isValidObjectId(objectiveId) ||
+    !mongoose.isValidObjectId(keyResultId)
+  ) {
     res.status(400);
     throw new Error("Invalid ID");
   }
@@ -527,8 +653,47 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result does not belong to this objective");
   }
 
+  // Check what feilds the user is allowed to change, and reject any changes to fields they don't have permission for.
+  const access = await getKeyResultAccess(req.user, objective);
+  const allowed = new Set();
+  if (access.edit) {
+    ["title", "weight", "dueDate", "assignedTo", "status", "progress"].forEach(
+      (field) => allowed.add(field),
+    );
+  }
+  if (isKeyResultAssignee(req.user, keyResult)) {
+    allowed.add("progress");
+  }
+  if (access.approve) {
+    allowed.add("approved");
+  }
+
+  if (allowed.size === 0) {
+    res.status(403);
+    throw new Error("You do not have permission to edit this key result");
+  }
+
+  // Reject changes to fields user has no permission to change (if they try anything funny).
+  // Unchanged values ignored.
+  for (const field of Object.keys(KEY_RESULT_FIELD_LABELS)) {
+    if (
+      req.body[field] !== undefined &&
+      !allowed.has(field) &&
+      keyResultFieldChanged(keyResult, field, req.body[field])
+    ) {
+      res.status(403);
+      throw new Error(
+        "You do not have permission to change " +
+          KEY_RESULT_FIELD_LABELS[field] +
+          " of this key result",
+      );
+    }
+  }
+
+  const mayChange = (field) => allowed.has(field) && req.body[field] !== undefined;
+
   // Update title
-  if (req.body.title !== undefined) {
+  if (mayChange("title")) {
     const title = req.body.title.trim();
     if (!title) {
       res.status(400);
@@ -538,7 +703,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   // Update weight
-  if (req.body.weight !== undefined) {
+  if (mayChange("weight")) {
     const newWeight = Number(req.body.weight);
     if (isNaN(newWeight) || newWeight < 1 || newWeight > 100) {
       res.status(400);
@@ -559,14 +724,14 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     if (newWeight > weightLeft) {
       res.status(400);
       throw new Error(
-        "Weights cannot go over 100. Only " + weightLeft + " is left."
+        "Weights cannot go over 100. Only " + weightLeft + " is left.",
       );
     }
     keyResult.weight = newWeight;
   }
 
   // Update dueDate
-  if (req.body.dueDate !== undefined) {
+  if (mayChange("dueDate")) {
     if (!req.body.dueDate) {
       res.status(400);
       throw new Error("Please add a valid due date");
@@ -580,7 +745,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   // Update assignedTo
-  if (req.body.assignedTo !== undefined) {
+  if (mayChange("assignedTo")) {
     if (req.body.assignedTo === null) {
       keyResult.assignedTo = null;
     } else {
@@ -598,7 +763,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   //Update Progress
-  if (req.body.progress !== undefined) {
+  if (mayChange("progress")) {
     const progress = Number(req.body.progress);
 
     if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
@@ -610,13 +775,8 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   //Update status
-  if (req.body.status !== undefined){
-    const allowedStatuses = [
-      "in-progress",
-      "at-risk",
-      "overdue",
-      "completed"
-    ];
+  if (mayChange("status")) {
+    const allowedStatuses = ["in-progress", "at-risk", "overdue", "completed"];
 
     if (!allowedStatuses.includes(req.body.status)) {
       res.status(400);
@@ -627,7 +787,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   }
 
   //Update approval
-  if (req.body.approved !== undefined) {
+  if (mayChange("approved")) {
     keyResult.approved = req.body.approved;
 
     //Automatically complete kr when approved
@@ -646,13 +806,17 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   const kr = keyResult.toObject();
   kr.id = kr._id.toString();
   kr.assigned = kr.assignedTo ? getName(kr.assignedTo) : "Unassigned";
+  addKeyResultFlags(kr, access, req.user);
 
   res.status(200).json(kr);
 });
 
 const deleteKeyResult = asyncHandler(async (req, res) => {
   const { objectiveId, keyResultId } = req.params;
-  if (!mongoose.isValidObjectId(objectiveId) || !mongoose.isValidObjectId(keyResultId)) {
+  if (
+    !mongoose.isValidObjectId(objectiveId) ||
+    !mongoose.isValidObjectId(keyResultId)
+  ) {
     res.status(400);
     throw new Error("Invalid ID");
   }
@@ -674,6 +838,14 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
     throw new Error("Key result does not belong to this objective");
   }
 
+  const access = await getKeyResultAccess(req.user, objective);
+  if (!access.edit) {
+    res.status(403);
+    throw new Error(
+      "You do not have permission to delete key results from this objective",
+    );
+  }
+
   // Delete old key result calendar entries
   if (keyResult.calendarEntry) {
     await deleteLinkedCalendarEntry({
@@ -682,11 +854,75 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
     });
   }
 
+  await OkrEvidence.deleteMany({ keyResult: keyResult._id });
   await keyResult.deleteOne();
 
   await recalculateObjective(objectiveId);
 
   res.status(200).json({ id: keyResultId });
+});
+
+// ============================================
+// BRANCH ADDITIONS (permission groups / API)
+// ============================================
+
+const approveKeyResult = asyncHandler(async (req, res) => {
+  if (!mongoose.isObjectIdOrHexString(req.params.keyResultId)) {
+    res.status(404);
+    throw new Error("Key result not found");
+  }
+  if (typeof req.body.approved !== "boolean") {
+    res.status(400);
+    throw new Error("Approved must be true or false");
+  }
+
+  const keyResult = await OkrKeyResult.findOne({
+    _id: req.params.keyResultId,
+    objective: req.params.id,
+  });
+  if (!keyResult) {
+    res.status(404);
+    throw new Error("Key result not found");
+  }
+
+  keyResult.approved = req.body.approved;
+  await keyResult.save();
+
+  res.json(keyResult);
+});
+
+const getReport = asyncHandler(async (req, res) => {
+  const objectives = await OkrObjective.find().populate(
+    "owner",
+    "firstName lastName",
+  );
+  const groups = [];
+  let totalProgress = 0;
+  let onTrack = 0;
+  for (const objective of objectives) {
+    const data = await loadObjective(objective);
+    const progress = data.objective.progress || 0;
+    totalProgress += progress;
+    if (objective.status === "on-track") onTrack++;
+    let group = groups.find((item) => item.name === objective.group);
+    if (!group) {
+      group = { name: objective.group, objectives: 0, progress: 0 };
+      groups.push(group);
+    }
+    group.objectives++;
+    group.progress += progress;
+  }
+  for (const group of groups)
+    group.progress = Math.round(group.progress / group.objectives);
+  groups.sort((a, b) => a.name.localeCompare(b.name));
+  res.json({
+    totalObjectives: objectives.length,
+    onTrack,
+    averageProgress: objectives.length
+      ? Math.round(totalProgress / objectives.length)
+      : 0,
+    groups,
+  });
 });
 
 module.exports = {
@@ -703,4 +939,6 @@ module.exports = {
   createKeyResult,
   updateKeyResult,
   deleteKeyResult,
+  approveKeyResult,
+  getReport,
 };

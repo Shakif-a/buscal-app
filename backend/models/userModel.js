@@ -37,6 +37,7 @@ const userSchema = mongoose.Schema(
       type: String,
       required: false,
     },
+    okrRole: { type: String, default: null },
     supervisor: {
       type: mongoose.Schema.Types.ObjectId,
       required: false,
@@ -69,7 +70,7 @@ const userSchema = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model("User", userSchema);

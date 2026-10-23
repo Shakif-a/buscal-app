@@ -4,7 +4,7 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 const AT_RISK_TOLERANCE = 10;
 
 function getSydneyDate() {
-    return new Int16Array.DateTimeFormat("en-CA", {
+    return new Intl.DateTimeFormat("en-CA", {
         timeZone: "Australia/Sydney",
         year: "numeric",
         month: "2-digit",
@@ -25,11 +25,13 @@ async function recalculateKeyResultStatuses(objectiveId) {
         const start = new Date(kr.createdAt).getTime();
         const end = new Date(kr.dueDate).getTime();
         //compare calendar dates rather than exact timestamps
-        const dueDate = new Date(kr.dueDate)
-            .toISOString()
-            .split("T")[0];
+        //(skip when the due date is missing or invalid so toISOString doesn't throw)
+        const hasDueDate = !isNaN(end);
+        const dueDate = hasDueDate
+            ? new Date(kr.dueDate).toISOString().split("T")[0]
+            : null;
 
-        const isOverdue = today > dueDate;
+        const isOverdue = hasDueDate && today > dueDate;
 
         const duration = end - start;
 
@@ -41,7 +43,8 @@ async function recalculateKeyResultStatuses(objectiveId) {
                 0,
                 Math.min(100, ((now - start) / duration) * 100)
             );
-        let status = kr.status;
+        //treat the old "on-track" name as "in-progress"
+        let status = kr.status === "on-track" ? "in-progress" : kr.status;
 
         //preserve completed kr
         if (kr.status === "completed" || kr.approved) {

@@ -45,7 +45,7 @@ const objectiveSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("OkrObjective", objectiveSchema);

@@ -70,7 +70,12 @@ function cancelAllSchedules() {
 /**
  * Schedules reminders for calendar entries based on the Scheduler model
  */
+let processingSchedules = false;
+
 async function processSchedules() {
+  if (processingSchedules) return;
+  processingSchedules = true;
+  let scheduler;
   try {
     // Check database connection
     const mongoose = require("mongoose");
@@ -79,7 +84,12 @@ async function processSchedules() {
       return;
     }
 
-    const scheduler = await Scheduler.findOne({ name: "calendarschedule" });
+    // Take only this batch. Calendar changes arriving during processing stay queued.
+    scheduler = await Scheduler.findOneAndUpdate(
+      { name: "calendarschedule" },
+      { $set: { toschedule: [], tocancel: [] } },
+      { new: false },
+    );
     if (!scheduler) {
       console.error("No Scheduler document found.");
       return;
@@ -92,10 +102,9 @@ async function processSchedules() {
       cancelSchedule(entryId);
     }
 
-    scheduler.tocancel = []; // Clear tocancel array
-
     for (const entryId of toschedule) {
       const calendarEntry = await CalendarEntry.findById(entryId);
+      cancelSchedule(entryId);
 
       if (!calendarEntry) {
         console.error(`CalendarEntry not found for ID: ${entryId}`);
@@ -109,14 +118,24 @@ async function processSchedules() {
 
       // console.log("Scheduling reminders for entry:", calendarEntry);
 
-      cancelSchedule(entryId); // Cancel existing schedules
       scheduleEntryReminders(calendarEntry); // Schedule new reminders
     }
-
-    scheduler.toschedule = []; // Clear toschedule array
-    await scheduler.save();
   } catch (error) {
-    console.error("Error processing schedules:", error);
+    if (scheduler) {
+      await Scheduler.updateOne(
+        { name: "calendarschedule" },
+        {
+          $addToSet: {
+            toschedule: { $each: scheduler.toschedule },
+            tocancel: { $each: scheduler.tocancel },
+          },
+        },
+        { upsert: true },
+      );
+    }
+    throw error;
+  } finally {
+    processingSchedules = false;
   }
 }
 
@@ -146,7 +165,7 @@ function scheduleEntryReminders(calendarEntry) {
   let dueTime = moment(
     category === "general" || category === "meeting" || category === "event"
       ? startTime
-      : endTime
+      : endTime,
   ).tz(TIMEZONE);
 
   // Skip if the dueTime is not valid or is in the past
@@ -159,7 +178,7 @@ function scheduleEntryReminders(calendarEntry) {
 
   // Immutably adjust due time
   const adjustedDueTime = moment(adjustWorkHours(dueTime.toDate())).tz(
-    TIMEZONE
+    TIMEZONE,
   );
 
   // Handle overdue entries with immutable date operations
@@ -167,7 +186,7 @@ function scheduleEntryReminders(calendarEntry) {
     const originalDueTime = moment(
       category === "general" || category === "meeting" || category === "event"
         ? startTime
-        : endTime
+        : endTime,
     ).tz(TIMEZONE);
 
     let startScheduleDate = adjustedDueTime.isBefore(now)
@@ -199,7 +218,7 @@ function scheduleEntryReminders(calendarEntry) {
             } catch (error) {
               console.error(
                 `Error triggering overdue reminder for entry ${_id}:`,
-                error
+                error,
               );
             }
           });
@@ -258,24 +277,24 @@ function scheduleEntryReminders(calendarEntry) {
           } catch (error) {
             console.error(
               `Error triggering ${type} reminder for entry ${_id}:`,
-              error
+              error,
             );
           }
-        }
+        },
       );
     }
   };
 
   // Schedule main alarm reminder
   scheduleReminder("reminder", (alarmTime) =>
-    moment(adjustWorkHours(alarmTime.toDate()))
+    moment(adjustWorkHours(alarmTime.toDate())),
   );
 
   // Schedule midpoint reminder
   scheduleReminder("reminder2", (alarmTime, dueTime) => {
     const midpointTime = moment(alarmTime).add(
       dueTime.diff(alarmTime) / 2,
-      "milliseconds"
+      "milliseconds",
     );
     return moment(adjustWorkHours(midpointTime.toDate()));
   });

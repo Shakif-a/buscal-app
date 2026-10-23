@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
 
@@ -25,7 +26,18 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new Error("Not authorized");
   }
 
-  const user = await User.findById(decodedToken.id).select("-password");
+  if (
+    !decodedToken ||
+    typeof decodedToken.id !== "string" ||
+    !mongoose.isObjectIdOrHexString(decodedToken.id)
+  ) {
+    res.status(401);
+    throw new Error("Not authorized");
+  }
+
+  const user = await User.findById(decodedToken.id).select(
+    "-password -resetPasswordToken -resetPasswordExpires",
+  );
 
   if (!user) {
     res.status(401);
