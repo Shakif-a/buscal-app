@@ -92,7 +92,7 @@ test("assigned OKR roles take precedence over company roles but not system admin
   );
 });
 
-test("custom roles use saved permissions and can manage users and groups but not roles", async () => {
+test("custom roles use saved permissions and can manage users, groups and roles", async () => {
   OkrRolePermission.findOne = async () => ({
     permissions: ["Create Objectives", "Manage Users", "Manage Groups", "Manage Roles"],
   });
@@ -100,7 +100,7 @@ test("custom roles use saved permissions and can manage users and groups but not
   assert.equal(await hasRolePermission("Reviewer", "Edit Objectives"), false);
   assert.equal(await hasRolePermission("Reviewer", "Manage Users"), true);
   assert.equal(await hasRolePermission("Reviewer", "Manage Groups"), true);
-  assert.equal(await hasRolePermission("Reviewer", "Manage Roles"), false);
+  assert.equal(await hasRolePermission("Reviewer", "Manage Roles"), true);
   OkrRolePermission.findOne = async () => null;
   assert.equal(await hasRolePermission("Missing", "View Reports"), false);
 });
@@ -112,6 +112,7 @@ test("Admin always keeps Manage Roles, Manage Users and View Reports", async () 
   assert.equal(await hasRolePermission("Admin", "View Reports"), true);
   assert.equal(await hasRolePermission("Admin", "Manage Groups"), false);
   assert.equal(await hasRolePermission("Manager", "View Reports"), false);
+  assert.equal(await hasRolePermission("Manager", "View All OKRs"), false);
 });
 
 test("only admins and executives can use admin routes", async () => {

@@ -2789,7 +2789,7 @@ test("Admin cannot save away Manage Roles, Manage Users or View Reports", async 
   assert.equal(
     (
       await request("PUT", "/api/okr/admin/permissions/Admin", {
-        permissions: ["Manage Roles", "Manage Users", "View Reports"],
+        permissions: ["Manage Roles", "Manage Users", "View Reports", "View All OKRs"],
       })
     ).status,
     200,

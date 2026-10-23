@@ -13,6 +13,9 @@ const {
   canUserApproveKeyResults,
   isObjectiveOwner,
   isKeyResultAssignee,
+  getMyGroupNames,
+  visibleObjectiveFilter,
+  canUserViewObjective,
 } = require("../middleware/okrPermissions");
 // Calendar sync
 const {
@@ -199,13 +202,12 @@ function compareObjectives(firstObjective, secondObjective) {
 // ============================================
 
 const getObjectives = asyncHandler(async (req, res) => {
-  const objectives = await OkrObjective.find();
-
   // Groups the user is a member or manager of, for the dashboard "My groups" filter
-  const myGroups = await OkrGroup.find({
-    $or: [{ members: req.user._id }, { manager: req.user._id }],
-  }).select("name");
-  const myGroupNames = new Set(myGroups.map((group) => group.name));
+  const groupNames = await getMyGroupNames(req.user);
+  const myGroupNames = new Set(groupNames);
+
+  const filter = await visibleObjectiveFilter(req.user, groupNames);
+  const objectives = await OkrObjective.find(filter || {});
 
   const result = [];
 
@@ -237,7 +239,7 @@ const getObjectiveGroups = asyncHandler(async (req, res) => {
 const getObjective = asyncHandler(async (req, res) => {
   const objective = await OkrObjective.findById(req.params.id);
 
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found");
   }
@@ -570,7 +572,7 @@ const getKeyResults = asyncHandler(async (req, res) => {
   }
 
   const objective = await OkrObjective.findById(objectiveId);
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found by ID");
   }
@@ -609,7 +611,7 @@ const getKeyResult = asyncHandler(async (req, res) => {
   }
 
   const objective = await OkrObjective.findById(objectiveId);
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found");
   }
@@ -1166,7 +1168,7 @@ const getAssignableUsers = asyncHandler(async (req, res) => {
     throw new Error("Objective not found");
   }
   const objective = await OkrObjective.findById(req.params.id);
-  if (!objective) {
+  if (!objective || !(await canUserViewObjective(req.user, objective))) {
     res.status(404);
     throw new Error("Objective not found");
   }
