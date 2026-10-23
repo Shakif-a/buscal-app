@@ -886,7 +886,16 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   }
 
   keyResult.approved = req.body.approved;
+
+  //Automatically complete kr when approved
+  if (req.body.approved === true) {
+    keyResult.status = "completed";
+  }
+
   await keyResult.save();
+
+  //Recalculate parent Objective
+  await recalculateObjective(req.params.id);
 
   res.json(keyResult);
 });

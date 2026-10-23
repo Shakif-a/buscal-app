@@ -3,6 +3,8 @@ const OkrKeyResult = require("../models/okrKeyResultModel");
 
 const AT_RISK_TOLERANCE = 10;
 
+// Get the current date in Sydney timezone
+// I asume the base system has or will have expanded timezone support, so this is a temporary solution
 function getSydneyDate() {
     return new Intl.DateTimeFormat("en-CA", {
         timeZone: "Australia/Sydney",
@@ -10,6 +12,14 @@ function getSydneyDate() {
         month: "2-digit",
         day: "2-digit",
     }).format(new Date());
+}
+
+//compare calendar dates rather than exact timestamps
+//(not overdue when the due date is missing or invalid so toISOString doesn't throw)
+function isPastDue(dueDate, today) {
+    const due = new Date(dueDate);
+    if (!dueDate || isNaN(due.getTime())) return false;
+    return today > due.toISOString().split("T")[0];
 }
 
 async function recalculateKeyResultStatuses(objectiveId) {
@@ -24,14 +34,8 @@ async function recalculateKeyResultStatuses(objectiveId) {
         const progress = kr.progress ?? 0;
         const start = new Date(kr.createdAt).getTime();
         const end = new Date(kr.dueDate).getTime();
-        //compare calendar dates rather than exact timestamps
-        //(skip when the due date is missing or invalid so toISOString doesn't throw)
-        const hasDueDate = !isNaN(end);
-        const dueDate = hasDueDate
-            ? new Date(kr.dueDate).toISOString().split("T")[0]
-            : null;
 
-        const isOverdue = hasDueDate && today > dueDate;
+        const isOverdue = isPastDue(kr.dueDate, today);
 
         const duration = end - start;
 
@@ -106,7 +110,7 @@ async function recalculateObjective(objectiveId) {
 
     if (progress >= 100) {
         status = "completed";
-    } else if (now > end) {
+    } else if (isPastDue(objective.dueDate, getSydneyDate())) {
         status = "overdue";
     } else if (progress === 0) {
         status = "not started";
