@@ -8,4 +8,11 @@ async function getReport(token) {
   return response.data;
 }
 
-export default { getReport };
+async function getMyPermissions(token) {
+  const response = await axios.get(`${API_URL}/permissions/mine`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data.permissions;
+}
+
+export default { getReport, getMyPermissions };

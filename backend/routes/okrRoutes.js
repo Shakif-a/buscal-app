@@ -10,6 +10,7 @@ const evidenceUpload = express.raw({
 
 const {
   getReport,
+  getMyPermissions,
   approveKeyResult,
   getObjectives,
   getObjectiveGroups,
@@ -52,6 +53,7 @@ router.get("/", (req, res) => {
 });
 
 router.get("/reports", protect, requirePermission("View Reports"), getReport);
+router.get("/permissions/mine", protect, getMyPermissions);
 router.put(
   "/objectives/:id/key-results/:keyResultId/approval",
   protect,

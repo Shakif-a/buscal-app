@@ -224,6 +224,11 @@
     background-color: #b0b0b0;
 }
 
+.role-permission-checkbox.unavailable {
+    border-color: #d0d0d0;
+    background-color: #e6e6e6;
+}
+
 .role-permission-name {
     color: #1a2b4a;
     font-size: 17px;

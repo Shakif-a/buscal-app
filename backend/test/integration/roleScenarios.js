@@ -149,13 +149,13 @@ module.exports = function roleScenarios({
     );
     assert.equal(
       (await request("GET", "/api/okr/reports", undefined, "employee")).status,
-      200,
+      403,
     );
   });
 
   test("custom roles reject unsupported admin grants and invalid permissions", async () => {
     for (const permissions of [
-      ["Manage Users"],
+      ["Manage Roles"],
       ["Unknown"],
       [42],
       null,

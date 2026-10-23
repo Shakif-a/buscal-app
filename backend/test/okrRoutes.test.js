@@ -50,17 +50,32 @@ test("the groups route is declared before the objective id route", () => {
   assert.equal(groupsIndex < objectiveIndex, true);
 });
 
-test("admin routes use authentication and admin access checks", () => {
+test("admin routes use authentication, and role editing stays admin only", () => {
   const middleware = okrAdminRoutes.stack
     .filter((layer) => !layer.route)
     .map((layer) => layer.handle);
   assert.ok(middleware.includes(protect));
-  assert.ok(middleware.includes(adminOrExec));
+  assert.ok(!middleware.includes(adminOrExec));
 
-  assert.ok(findRoute(okrAdminRoutes, "/users", "get"));
-  assert.ok(findRoute(okrAdminRoutes, "/groups", "get"));
-  assert.ok(findRoute(okrAdminRoutes, "/groups", "post"));
-  assert.ok(findRoute(okrAdminRoutes, "/groups/:id", "put"));
-  assert.ok(findRoute(okrAdminRoutes, "/permissions", "get"));
-  assert.ok(findRoute(okrAdminRoutes, "/permissions/:role", "put"));
+  const adminOnly = (path, method) =>
+    findRoute(okrAdminRoutes, path, method).stack.some((layer) => layer.handle === adminOrExec);
+
+  for (const [path, method] of [
+    ["/users", "get"],
+    ["/groups", "get"],
+    ["/groups", "post"],
+    ["/groups/:id", "put"],
+    ["/users/:id/role", "put"],
+  ]) {
+    assert.equal(adminOnly(path, method), false, `${method} ${path}`);
+  }
+  for (const [path, method] of [
+    ["/roles", "post"],
+    ["/roles/:role", "put"],
+    ["/roles/:role", "delete"],
+    ["/permissions", "get"],
+    ["/permissions/:role", "put"],
+  ]) {
+    assert.equal(adminOnly(path, method), true, `${method} ${path}`);
+  }
 });

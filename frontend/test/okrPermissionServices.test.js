@@ -189,13 +189,28 @@ test("reports use the protected backend report route", async () => {
   axios.get = async (url, config) => {
     assert.ok(url.endsWith("/api/okr/reports"));
     assert.equal(config.headers.Authorization, "Bearer report-token");
-    return { data: { totalObjectives: 2, averageProgress: 50, groups: [] } };
+    return { data: { objectives: [{ id: "objective-1", keyResults: [] }] } };
   };
 
   try {
     const report = await reportService.getReport("report-token");
-    assert.equal(report.totalObjectives, 2);
-    assert.equal(report.averageProgress, 50);
+    assert.equal(report.objectives.length, 1);
+  } finally {
+    axios.get = originalGet;
+  }
+});
+
+test("the user's own OKR permissions come from the protected route", async () => {
+  const originalGet = axios.get;
+
+  axios.get = async (url, config) => {
+    assert.ok(url.endsWith("/api/okr/permissions/mine"));
+    assert.equal(config.headers.Authorization, "Bearer my-token");
+    return { data: { permissions: ["View Reports"] } };
+  };
+
+  try {
+    assert.deepEqual(await reportService.getMyPermissions("my-token"), ["View Reports"]);
   } finally {
     axios.get = originalGet;
   }

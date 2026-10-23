@@ -575,29 +575,54 @@ describe("API-connected objective and report pages", () => {
       .and("not.be.disabled");
   });
 
-  it("loads actual report values through the protected report route", () => {
+  it("shows the exported report data through the protected report route", () => {
     cy.intercept("GET", "**/api/okr/reports", (req) => {
       expect(req.headers.authorization).to.equal("Bearer test-token");
       req.reply({
-        totalObjectives: 3,
-        onTrack: 2,
-        averageProgress: 65,
-        groups: [{ name: "Support", objectives: 3, progress: 65 }],
+        objectives: [
+          {
+            id: "objective-1",
+            title: "Improve support",
+            group: "Support",
+            owner: "Test Owner",
+            commitmentType: "committed",
+            dueDate: "2026-12-01T00:00:00.000Z",
+            status: "on-track",
+            progress: 65,
+            keyResults: [
+              {
+                id: "kr-1",
+                title: "Answer faster",
+                assigned: "Sam Lee",
+                weight: 100,
+                dueDate: "2026-11-01T00:00:00.000Z",
+                status: "in-progress",
+                progress: 65,
+                approved: false,
+              },
+            ],
+          },
+        ],
       });
     }).as("report");
     cy.visit(`${fixture}?page=reports`);
     cy.wait("@report");
-    cy.contains("Objectives On Track").parent().should("contain", "2");
-    cy.contains("Average Progress").parent().should("contain", "65%");
-    cy.contains("Support").parent().should("contain", "65%");
+    cy.contains("th", "Key Result Progress (%)").should("be.visible");
+    cy.contains("tr", "Answer faster")
+      .should("contain", "Improve support")
+      .and("contain", "Sam Lee")
+      .and("contain", "2026-12-01")
+      .and("contain", "65");
+    cy.contains("button", "Export Reports").should("be.visible");
   });
 
-  it("shows the backend report permission error", () => {
+  it("sends users without View Reports back to the dashboard", () => {
     cy.intercept("GET", "**/api/okr/reports", {
       statusCode: 403,
       body: { message: "Permission required: View Reports" },
     });
     cy.visit(`${fixture}?page=reports`);
-    cy.contains("Permission required: View Reports").should("be.visible");
+    cy.contains("Dashboard page").should("be.visible");
+    cy.contains("Export Reports").should("not.exist");
   });
 });

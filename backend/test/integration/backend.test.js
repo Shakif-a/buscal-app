@@ -2720,6 +2720,7 @@ test("evidence model validates stored files and objective deletion removes them"
   assert.equal(await Evidence.countDocuments(), 0);
 });
 test("reports use actual progress and enforce saved View Reports permission", async () => {
+  await Permission.create({ role: "Employee", permissions: ["View Reports"] });
   await KeyResult.create({
     objective: objective._id,
     title: "Result",
@@ -2734,19 +2735,48 @@ test("reports use actual progress and enforce saved View Reports permission", as
     "employee",
   );
   assert.equal(report.status, 200);
-  assert.deepEqual(report.body, {
-    totalObjectives: 1,
-    onTrack: 1,
-    averageProgress: 60,
-    groups: [{ name: "Sales", objectives: 1, progress: 60 }],
-  });
-  await Permission.create({ role: "Employee", permissions: [] });
+  assert.deepEqual(Object.keys(report.body), ["objectives"]);
+  const details = report.body.objectives;
+  assert.equal(details.length, 1);
+  assert.equal(details[0].id, objective._id.toString());
+  assert.equal(details[0].group, "Sales");
+  assert.equal(details[0].progress, 60);
+  assert.deepEqual(
+    details[0].keyResults.map(({ title, weight, progress, approved, assigned, status }) => ({
+      title,
+      weight,
+      progress,
+      approved,
+      assigned,
+      status,
+    })),
+    [
+      {
+        title: "Result",
+        weight: 100,
+        progress: 60,
+        approved: false,
+        assigned: "Unassigned",
+        status: "in-progress",
+      },
+    ],
+  );
+  assert.ok(
+    (await request("GET", "/api/okr/permissions/mine", undefined, "employee")).body.permissions.includes(
+      "View Reports",
+    ),
+  );
+  await Permission.updateOne({ role: "Employee" }, { permissions: [] });
   assert.equal(
     (await request("GET", "/api/okr/reports", undefined, "employee")).status,
     403,
   );
+  assert.deepEqual(
+    (await request("GET", "/api/okr/permissions/mine", undefined, "employee")).body,
+    { permissions: [] },
+  );
 });
-test("Admin cannot save away Manage Roles or View Reports", async () => {
+test("Admin cannot save away Manage Roles, Manage Users or View Reports", async () => {
   assert.equal(
     (
       await request("PUT", "/api/okr/admin/permissions/Admin", {
@@ -2759,7 +2789,7 @@ test("Admin cannot save away Manage Roles or View Reports", async () => {
   assert.equal(
     (
       await request("PUT", "/api/okr/admin/permissions/Admin", {
-        permissions: ["Manage Roles", "View Reports"],
+        permissions: ["Manage Roles", "Manage Users", "View Reports"],
       })
     ).status,
     200,

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
+import useMyPermissions from "../../okrTracker/features/users/useMyPermissions";
 
 
 function Navbar() {
@@ -13,6 +14,19 @@ function Navbar() {
   const { user } = useSelector((state) => state.auth);
   const isAdmin = user && user.roles && user.roles.includes("admin");
   const canManageAdmin = isAdmin || (user && user.exec === "yes");
+
+  const permissions = useMyPermissions(user?.token) || [];
+  const canViewReports = permissions.includes("View Reports");
+  const adminItems = [
+    (canManageAdmin || permissions.includes("Manage Users")) && {
+      label: "Role Management",
+      path: "/dashboard/okrtracker/admin/roles",
+    },
+    (canManageAdmin || permissions.includes("Manage Groups")) && {
+      label: "Group Management",
+      path: "/dashboard/okrtracker/admin/groups",
+    },
+  ].filter(Boolean);
   function isActive(path) {
     return location.pathname.startsWith(path);
   }
@@ -198,20 +212,19 @@ function Navbar() {
       ])}
 
       {/* Reports link */}
-      <Link
-        to="/dashboard/okrtracker/reports"
-        onMouseEnter={() => setHoverTab("reports")}
-        onMouseLeave={() => setHoverTab(null)}
-        style={tabStyle("reports", isActive("/dashboard/okrtracker/reports"))}
-      >
-        Reports
-      </Link>
+      {canViewReports && (
+        <Link
+          to="/dashboard/okrtracker/reports"
+          onMouseEnter={() => setHoverTab("reports")}
+          onMouseLeave={() => setHoverTab(null)}
+          style={tabStyle("reports", isActive("/dashboard/okrtracker/reports"))}
+        >
+          Reports
+        </Link>
+      )}
 
-      {canManageAdmin &&
-        dropdown("admin", "Admin", "/dashboard/okrtracker/admin", [
-          { label: "Role Management", path: "/dashboard/okrtracker/admin/roles" },
-          { label: "Group Management", path: "/dashboard/okrtracker/admin/groups" },
-        ])}
+      {adminItems.length > 0 &&
+        dropdown("admin", "Admin", "/dashboard/okrtracker/admin", adminItems)}
 
     </div>
   );

@@ -46,6 +46,7 @@ function mockRoles() {
         "Create Objectives",
         "Edit Objectives",
         "View Reports",
+        "Manage Users",
         "Manage Roles",
       ],
     },
@@ -58,7 +59,7 @@ function mockRoles() {
         ...row,
         system: ["Admin", "Manager", "Employee"].includes(row.role),
         lockedPermissions:
-          row.role === "Admin" ? ["Manage Roles", "View Reports"] : [],
+          row.role === "Admin" ? ["Manage Roles", "Manage Users", "View Reports"] : [],
         defaultPermissions:
           row.role === "Manager" ? permissionNames.slice(0, 5) : [],
         allowedPermissions:
@@ -284,8 +285,14 @@ describe("API-connected admin pages", () => {
     cy.visit(`${fixture}?page=roles`);
     openRole("Manager");
     cy.contains("label", "Manage Users").find("input").should("be.disabled");
+    cy.contains("label", "Manage Users")
+      .find(".role-permission-checkbox")
+      .should("have.class", "unavailable");
+    cy.contains("label", "Create Key Results")
+      .find(".role-permission-checkbox")
+      .should("not.have.class", "unavailable");
     openRole("Admin");
-    for (const permission of ["Manage Roles", "View Reports"]) {
+    for (const permission of ["Manage Roles", "Manage Users", "View Reports"]) {
       cy.contains("label", permission)
         .find("input")
         .should("be.checked")
@@ -362,12 +369,13 @@ describe("API-connected admin pages", () => {
 
   for (const access of ["manager", "employee"]) {
     it(`blocks ${access} access on direct routes and hides the Admin menu`, () => {
+      cy.intercept("GET", "**/api/okr/permissions/mine", { permissions: [] });
       cy.intercept(`${api}/**`, () => {
         throw new Error("Restricted page called the admin API");
       });
       for (const page of ["groups", "roles"]) {
         cy.visit(`${fixture}?access=${access}&page=${page}`);
-        cy.contains("Admin or executive access is required.").should(
+        cy.contains(/Admin, executive or Manage (Groups|Users) access is required\./).should(
           "be.visible",
         );
         cy.contains("button", /^Admin$/).should("not.exist");
@@ -375,4 +383,15 @@ describe("API-connected admin pages", () => {
       }
     });
   }
+
+  it("lets a custom role with Manage Groups open only Group Management", () => {
+    mockGroups();
+    cy.intercept("GET", "**/api/okr/permissions/mine", { permissions: ["Manage Groups"] });
+    cy.visit(`${fixture}?access=employee&page=groups`);
+    cy.get("h1").should("have.text", "Group Management");
+    cy.contains("Support").should("be.visible");
+    cy.contains("button", "Admin").click();
+    cy.contains("a", "Group Management").should("be.visible");
+    cy.contains("a", "Role Management").should("not.exist");
+  });
 });
