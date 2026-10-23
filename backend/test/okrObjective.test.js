@@ -549,3 +549,39 @@ test("the objective list flags ownership, my groups and my key results", async (
     [false, true],
   );
 });
+
+test("key results can only be assigned to the owner or the objective's group", async () => {
+  const objective = makeObjective({ group: "Sales" });
+  const manager = new mongoose.Types.ObjectId();
+  const member = new mongoose.Types.ObjectId();
+  const outsider = new mongoose.Types.ObjectId();
+  const created = [];
+
+  OkrObjective.findById = async () => objective;
+  OkrKeyResult.find = async () => [];
+  OkrKeyResult.create = async (data) => {
+    created.push(data.assignedTo);
+    return {
+      populate: async () => {},
+      toObject: () => ({ ...data, _id: new mongoose.Types.ObjectId() }),
+    };
+  };
+  OkrGroup.findOne = async (filter) =>
+    filter.name === "Sales" ? { manager, members: [member] } : null;
+
+  const create = (assignedTo) =>
+    runController(createKeyResult, {
+      params: { objectiveId: objective._id.toString() },
+      body: { title: "Result", weight: 10, dueDate: "2099-01-01", assignedTo: assignedTo.toString() },
+    });
+
+  for (const allowed of [objective.owner._id, manager, member]) {
+    assert.equal((await create(allowed)).statusCode, 201);
+  }
+  const rejected = await create(outsider);
+  assert.equal(rejected.statusCode, 400);
+  assert.deepEqual(
+    created.map(String),
+    [objective.owner._id, manager, member].map(String),
+  );
+});

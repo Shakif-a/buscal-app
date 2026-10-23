@@ -256,6 +256,15 @@ function ObjectiveCard({ objective }) {
   const [showKeyResults, setShowKeyResults] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [keyResults, setKeyResults] = useState([]);
+  // KRs can't be due after the objective
+  const objectiveDueDay = objective.dueDate
+    ? new Date(objective.dueDate).toISOString().split("T")[0]
+    : undefined;
+  const latestKeyResultDueDay = keyResults
+    .map((kr) => kr.dueDate)
+    .filter(Boolean)
+    .sort()
+    .pop();
   const [originalKeyResults, setOriginalKeyResults] = useState([]);
 
   // Evidence
@@ -308,6 +317,16 @@ function ObjectiveCard({ objective }) {
       dispatch(getAllUsers(token));
     }
   }, [editMode, showEditModal, token, dispatch]);
+
+  // Users who can be assigned this objective's key results
+  const [assignableUsers, setAssignableUsers] = useState([]);
+  useEffect(() => {
+    if (!editMode || !token) return;
+    objectiveService
+      .getAssignableUsers(objectiveId, token)
+      .then(setAssignableUsers)
+      .catch(() => setAssignableUsers([]));
+  }, [editMode, token, objectiveId, objective.group]);
 
   // Fetch objective's key results
   async function fetchKeyResults() {
@@ -1351,7 +1370,7 @@ function ObjectiveCard({ objective }) {
                           value={keyResult.assignedTo || ""}
                           onChange={(event) => {
                             const selectedId = event.target.value;
-                            const selectedUser = employees.find(
+                            const selectedUser = assignableUsers.find(
                               (employee) => employee._id === selectedId
                             );
                             updateLocalKeyResult(keyResult.id, {
@@ -1363,11 +1382,15 @@ function ObjectiveCard({ objective }) {
                           }}
                         >
                           <option value="">Assign Employee</option>
-                          {employees.map((employee) => (
+                          {assignableUsers.map((employee) => (
                             <option key={employee._id} value={employee._id}>
                               {employee.firstName} {employee.lastName}
                             </option>
                           ))}
+                          {keyResult.assignedTo &&
+                            !assignableUsers.some((employee) => employee._id === keyResult.assignedTo) && (
+                              <option value={keyResult.assignedTo}>{keyResult.assigned}</option>
+                            )}
                         </select>
                       ) : (
                         keyResult.assigned
@@ -1380,6 +1403,7 @@ function ObjectiveCard({ objective }) {
                         <input
                           className="date-input"
                           type="date"
+                          max={objectiveDueDay}
                           value={keyResult.dueDate}
                           onChange={(event) =>
                             updateLocalKeyResult(keyResult.id, { dueDate: event.target.value })
@@ -2149,6 +2173,7 @@ function ObjectiveCard({ objective }) {
                 <label>Due Date</label>
                 <input
                   type="date"
+                  min={latestKeyResultDueDay}
                   value={editDueDate}
                   onChange={(e) => setEditDueDate(e.target.value)}
                 />

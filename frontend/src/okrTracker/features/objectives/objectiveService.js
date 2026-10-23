@@ -76,6 +76,22 @@ const getKeyResults = async (objectiveId, token) => {
   }
 };
 
+// Function to get the users who can be assigned key results on an objective
+const getAssignableUsers = async (objectiveId, token) => {
+  const config = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+
+  const response = await axios.get(
+    `${API_URL}/api/okrTracker/objectives/${objectiveId}/assignable-users`,
+    config
+  );
+
+  return response.data;
+};
+
 //-----------------------------------------------------------------------------------
 //--------------------------------------CREATORS-------------------------------------
 //-----------------------------------------------------------------------------------
@@ -206,6 +222,7 @@ const okrService = {
   getObjectiveGroups,
   getObjectiveById,
   getKeyResults,
+  getAssignableUsers,
   createObjective,
   deleteObjective,
   updateObjective,
