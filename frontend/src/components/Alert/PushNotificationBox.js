@@ -232,6 +232,7 @@ const PushNotificationBox = ({
     error: "#F44336",
     newsletter: "#9C27B0",
     rma: "#795548",
+    okr: "#1f1e40",
   };
 
   const color = categoryColors[category] || "#000000";

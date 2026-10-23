@@ -1,5 +1,6 @@
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const { notifyKeyResultStatus, notifyObjectiveStatus, } = require("./okrNotificationService");
 const CalendarEntry = require("../models/calendarEntryModel");
 
 const AT_RISK_TOLERANCE = 10;
@@ -133,8 +134,27 @@ async function recalculateKeyResultStatuses(objectiveId) {
         if (kr.status !== status) {
             kr.status = status;
             await kr.save();
-            await syncEntryCompletion(kr.calendarEntry, status === "completed");
+
+            //notify kr assigned employee and objective owner when status changes
+            if (status === "at-risk" || status === "overdue") {
+                try {
+                    const objective = await OkrObjective.findById(objectiveId);
+
+                    if (objective) {
+                        await notifyKeyResultStatus(
+                            [kr.assignedTo, objective.owner],
+                            kr.title,
+                            objective.title,
+                            status
+                        );
+                    }
+                } catch (error) {
+                    console.error("KR status notification failed:", error);
+                }
+            }
         }
+
+        await syncEntryCompletion(kr.calendarEntry, status === "completed");
     }
 }
 
@@ -196,6 +216,8 @@ async function recalculateObjective(objectiveId) {
         status = "on-track";
     }
 
+    //store previous status to detect changes
+    const previousStatus = objective.status;
     if (
         objective.progress !== progress ||
         objective.status !== status
@@ -205,10 +227,25 @@ async function recalculateObjective(objectiveId) {
         objective.status = status;
 
         await objective.save();
-        if (statusChanged) {
-            await syncEntryCompletion(objective.calendarEntry, status === "completed");
+
+        //notify objective owner when status changes
+        if (
+            previousStatus !== status &&
+            (status === "at-risk" || status === "overdue")
+        ) {
+            try {
+                await notifyObjectiveStatus(
+                    objective.owner,
+                    objective.title,
+                    status
+                );
+            } catch (error) {
+                console.error("Objective status notification failed:", error);
+            }
         }
     }
+
+    await syncEntryCompletion(objective.calendarEntry, status === "completed");
     
     return objective;
 }
