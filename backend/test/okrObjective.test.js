@@ -29,11 +29,13 @@ const originalDeleteKeyResults = OkrKeyResult.deleteMany;
 const originalDeleteEvidence = OkrEvidence.deleteMany;
 const originalCreateKeyResult = OkrKeyResult.create;
 const originalFindGroup = OkrGroup.findOne;
+const originalFindGroups = OkrGroup.find;
 const originalCreateObjective = OkrObjective.create;
 const originalCreateCalendarEntry = CalendarEntry.create;
 
 test.beforeEach(() => {
   OkrGroup.findOne = async () => null;
+  OkrGroup.find = () => mockQuery([]);
   Permission.findOne = async () => null;
   writes.transaction = async (work) => work(undefined);
   writes.lockObjective = async (id) => OkrObjective.findById(id);
@@ -61,6 +63,7 @@ test.afterEach(() => {
   OkrEvidence.deleteMany = originalDeleteEvidence;
   OkrKeyResult.create = originalCreateKeyResult;
   OkrGroup.findOne = originalFindGroup;
+  OkrGroup.find = originalFindGroups;
   OkrObjective.create = originalCreateObjective;
   CalendarEntry.create = originalCreateCalendarEntry;
 });
@@ -94,6 +97,9 @@ function mockQuery(result) {
       return this;
     },
     sort() {
+      return this;
+    },
+    select() {
       return this;
     },
     then(resolve, reject) {
@@ -485,4 +491,61 @@ test("a key result can use the remaining weight", async () => {
   assert.equal(result.statusCode, 201);
   assert.equal(savedKeyResult.objective.toString(), objective._id.toString());
   assert.equal(savedKeyResult.weight, 25);
+});
+
+test("the objective list flags ownership, my groups and my key results", async () => {
+  const objective = makeObjective({ group: "Sales" });
+  const owner = {
+    _id: objective.owner._id,
+    roles: ["employee"],
+    exec: "no",
+    companyRoles: [],
+  };
+  const otherUser = { _id: new mongoose.Types.ObjectId(), roles: ["employee"] };
+  const keyResults = [
+    new OkrKeyResult({
+      objective: objective._id,
+      title: "Mine",
+      weight: 50,
+      progress: 50,
+      assignedTo: owner._id,
+      dueDate: "2099-01-01",
+    }),
+    new OkrKeyResult({
+      objective: objective._id,
+      title: "Someone else's",
+      weight: 50,
+      progress: 50,
+      assignedTo: otherUser._id,
+      dueDate: "2099-01-01",
+    }),
+  ];
+
+  mockObjectiveList([objective]);
+  OkrKeyResult.find = () => mockQuery(keyResults);
+  OkrGroup.find = (filter) => {
+    assert.deepEqual(filter, {
+      $or: [{ members: owner._id }, { manager: owner._id }],
+    });
+    return mockQuery([{ name: "Sales" }]);
+  };
+
+  const result = await runController(getObjectives, { user: owner });
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.data[0].isOwner, true);
+  assert.equal(result.data[0].inMyGroups, true);
+  assert.deepEqual(
+    result.data[0].keyResults.map((kr) => kr.isAssignedToMe),
+    [true, false],
+  );
+
+  OkrGroup.find = () => mockQuery([]);
+  const otherResult = await runController(getObjectives, { user: otherUser });
+  assert.equal(otherResult.data[0].isOwner, false);
+  assert.equal(otherResult.data[0].inMyGroups, false);
+  assert.deepEqual(
+    otherResult.data[0].keyResults.map((kr) => kr.isAssignedToMe),
+    [false, true],
+  );
 });

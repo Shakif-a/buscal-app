@@ -11,6 +11,7 @@ const {
   canUserCreateKeyResults,
   canUserEditKeyResults,
   canUserApproveKeyResults,
+  isObjectiveOwner,
   isKeyResultAssignee,
 } = require("../middleware/okrPermissions");
 // Calendar sync
@@ -56,10 +57,12 @@ async function addPermissionFlags(objectiveData, objective, user, access) {
   objectiveData.canCreateKeyResult = access.create;
   objectiveData.canEditKeyResults = access.edit;
   objectiveData.canApproveKeyResult = access.approve;
+  objectiveData.isOwner = Boolean(user) && isObjectiveOwner(user, objective);
 }
 
 function addKeyResultFlags(keyResultData, access, user) {
   const isAssignee = Boolean(user) && isKeyResultAssignee(user, keyResultData);
+  keyResultData.isAssignedToMe = isAssignee;
   keyResultData.canEdit = access.edit;
   keyResultData.canEditProgress = access.edit || isAssignee;
   keyResultData.canApprove = access.approve;
@@ -133,6 +136,12 @@ function compareObjectives(firstObjective, secondObjective) {
 const getObjectives = asyncHandler(async (req, res) => {
   const objectives = await OkrObjective.find();
 
+  // Groups the user is a member or manager of, for the dashboard "My groups" filter
+  const myGroups = await OkrGroup.find({
+    $or: [{ members: req.user._id }, { manager: req.user._id }],
+  }).select("name");
+  const myGroupNames = new Set(myGroups.map((group) => group.name));
+
   const result = [];
 
   for (const objective of objectives) {
@@ -146,6 +155,7 @@ const getObjectives = asyncHandler(async (req, res) => {
 
     const data = await loadObjective(refreshedObjective, req.user);
     data.objective.keyResults = data.keyResults;
+    data.objective.inMyGroups = myGroupNames.has(refreshedObjective.group);
 
     result.push(data.objective);
   }
@@ -960,13 +970,19 @@ const getReport = asyncHandler(async (req, res) => {
   let totalProgress = 0;
   let onTrack = 0;
   for (const objective of objectives) {
-    const data = await loadObjective(objective);
-    const progress = data.objective.progress || 0;
+    //Recalculate so time based statuses (at risk, overdue) are current
+    const updated = await recalculateObjective(objective._id);
+    objective.status = updated.status;
+    const progress = updated.progress || 0;
     totalProgress += progress;
     if (objective.status === "on-track") onTrack++;
-    let group = groups.find((item) => item.name === objective.group);
+    const name =
+      !objective.group || objective.group === "none"
+        ? "Ungrouped"
+        : objective.group;
+    let group = groups.find((item) => item.name === name);
     if (!group) {
-      group = { name: objective.group, objectives: 0, progress: 0 };
+      group = { name, objectives: 0, progress: 0 };
       groups.push(group);
     }
     group.objectives++;

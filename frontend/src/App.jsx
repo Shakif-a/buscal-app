@@ -33,6 +33,7 @@ import BusCalAdmin from "./businessCalendar/pages/BusCalAdmin";
 // OKR Tracker
 import DevPlayground from "./okrTracker/pages/DevPlayground";
 import OkrDashboard from "./okrTracker/pages/okrdashboard/OkrDashboard";
+import OkrKiosk from "./okrTracker/pages/okrdashboard/OkrKiosk";
 import GroupManagement from "./okrTracker/pages/admin/GroupManagement";
 import RoleManagement from "./okrTracker/pages/admin/RoleManagement";
 import ObjectivesPage from "./okrTracker/pages/objectives/ObjectivesPage";
@@ -167,6 +168,11 @@ function App() {
             <Route
               path="/dashboard/okrtracker/okrdashboard" 
               element={<Nav main={[<OkrLayout><OkrDashboard/></OkrLayout>,]} />}
+            />
+            {/* Okr Dashboard kiosk display (no navigation, for an always-on screen) */}
+            <Route
+              path="/dashboard/okrtracker/okrdashboard/kiosk"
+              element={<OkrKiosk/>}
             />
             {/* All Objectives */}
             <Route
