@@ -14,6 +14,7 @@ import {
     TextField,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import EvidenceDialog from "../../okrTracker/pages/objectives/EvidenceDialog";
 
 const KeyResultsModal = ({
     objectiveId,
@@ -23,6 +24,8 @@ const KeyResultsModal = ({
 }) => {
     const [expandedKeyResult, setExpandedKeyResult] = useState(null);
     const [editedKeyResult, setEditedKeyResult] = useState(null);
+    // Evidence popup: the key result and whether it opened to view or upload
+    const [evidenceTarget, setEvidenceTarget] = useState(null);
 
     const dispatch = useDispatch();
 
@@ -476,28 +479,39 @@ const KeyResultsModal = ({
                       <strong>Evidence</strong>
                     </Typography>
 
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1,
-                      }}
-                    >
-                      <Button variant="outlined">
-                       View
-                      </Button>
-
-                      <Button
-                        variant="outlined"
-                        component="label"
+                    {editedKeyResult?.canManageEvidence ? (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                        }}
                       >
-                        Upload
+                        <Button
+                          variant="outlined"
+                          onClick={() =>
+                            setEvidenceTarget({ keyResult: editedKeyResult, mode: "view" })
+                          }
+                        >
+                         View
+                        </Button>
 
-                        <input
-                          type="file"
-                          hidden
-                        />
-                      </Button>
-                    </Box>
+                        <Button
+                          variant="outlined"
+                          onClick={() =>
+                            setEvidenceTarget({ keyResult: editedKeyResult, mode: "upload" })
+                          }
+                        >
+                          Upload
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        title="Only the person assigned to this key result, or a manager of the objective, can view or upload evidence"
+                      >
+                        Not available
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
 
@@ -567,6 +581,19 @@ const KeyResultsModal = ({
           Close
         </Button>
       </Box>
+
+      {evidenceTarget && (
+        <EvidenceDialog
+          objectiveId={objectiveId}
+          keyResult={{
+            ...evidenceTarget.keyResult,
+            name: evidenceTarget.keyResult.title,
+          }}
+          initialMode={evidenceTarget.mode}
+          onClose={() => setEvidenceTarget(null)}
+          onChange={() => dispatch(getKeyResults(objectiveId)).unwrap()}
+        />
+      )}
     </Box>
   );
 };
