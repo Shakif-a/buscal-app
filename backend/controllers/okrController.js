@@ -513,7 +513,6 @@ const deleteObjective = asyncHandler(async (req, res) => {
     await objective.deleteOne({ session });
   });
 
-  console.log("Objective deleted", objective.title);
 
   res.status(200).json({ id: req.params.id });
 });

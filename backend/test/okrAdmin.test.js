@@ -217,6 +217,7 @@ test("the Admin role cannot lose Manage Roles, Manage Users or View Reports", as
     const result = await runHandler(updateRolePermissions, {
       params: { role: "Admin" },
       body: { permissions },
+      user: { roles: ["admin"] },
     });
     assert.equal(result.statusCode, 400);
   }
@@ -224,6 +225,7 @@ test("the Admin role cannot lose Manage Roles, Manage Users or View Reports", as
 
   const result = await runHandler(updateRolePermissions, {
     params: { role: "Admin" },
+    user: { roles: ["admin"] },
     body: {
       permissions: ["Manage Roles", "Manage Users", "View Reports", "View All OKRs"],
     },

@@ -1,0 +1,1190 @@
+{
+  "_readme": "Fictional sample data for the OKR tracker demo (Harbourline Technologies is not a real company). Reference users by email; IDs are generated on import. Key result weights sum to 100 for every objective. Reference date: 22 Oct 2026.",
+  "users": [
+    {
+      "firstName": "Priya",
+      "lastName": "Raman",
+      "email": "priya.raman@harbourline.example.com",
+      "roles": [
+        "admin"
+      ],
+      "companyRoles": [
+        {
+          "role": "Managing Director",
+          "managementLevel": 1
+        }
+      ],
+      "exec": "yes"
+    },
+    {
+      "firstName": "Daniel",
+      "lastName": "Okafor",
+      "email": "daniel.okafor@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Head of Sales",
+          "managementLevel": 2
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Megan",
+      "lastName": "Holloway",
+      "email": "megan.holloway@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Marketing Manager",
+          "managementLevel": 2
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Tom",
+      "lastName": "Vasquez",
+      "email": "tom.vasquez@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Engineering Manager",
+          "managementLevel": 2
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Hannah",
+      "lastName": "Lindqvist",
+      "email": "hannah.lindqvist@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "R&D Team Leader",
+          "managementLevel": 2
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Callum",
+      "lastName": "Reid",
+      "email": "callum.reid@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Operations Manager",
+          "managementLevel": 2
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Yuki",
+      "lastName": "Tanaka",
+      "email": "yuki.tanaka@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Finance & Admin Manager",
+          "managementLevel": 3
+        }
+      ],
+      "exec": "no",
+      "okrRole": "Reporting Analyst"
+    },
+    {
+      "firstName": "Rebecca",
+      "lastName": "Osei",
+      "email": "rebecca.osei@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "People & Culture Lead",
+          "managementLevel": 3
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Marcus",
+      "lastName": "Webb",
+      "email": "marcus.webb@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Quality & Safety Coordinator",
+          "managementLevel": 3
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Ava",
+      "lastName": "Mitchell",
+      "email": "ava.mitchell@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Account Manager",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Jordan",
+      "lastName": "Pike",
+      "email": "jordan.pike@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Account Manager",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Sofia",
+      "lastName": "Marchetti",
+      "email": "sofia.marchetti@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Senior Software Engineer",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Ethan",
+      "lastName": "Cho",
+      "email": "ethan.cho@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Software Engineer",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Lena",
+      "lastName": "Petrova",
+      "email": "lena.petrova@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Systems Engineer",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Noah",
+      "lastName": "Fitzgerald",
+      "email": "noah.fitzgerald@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Service Desk Technician",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Isla",
+      "lastName": "Barrett",
+      "email": "isla.barrett@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Marketing Coordinator",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Omar",
+      "lastName": "Haddad",
+      "email": "omar.haddad@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "Warehouse & Logistics Coordinator",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    },
+    {
+      "firstName": "Zara",
+      "lastName": "Quinn",
+      "email": "zara.quinn@harbourline.example.com",
+      "roles": [
+        "employee"
+      ],
+      "companyRoles": [
+        {
+          "role": "R&D Intern",
+          "managementLevel": 4
+        }
+      ],
+      "exec": "no"
+    }
+  ],
+  "groups": [
+    {
+      "name": "Sales",
+      "managerEmail": "daniel.okafor@harbourline.example.com",
+      "memberEmails": [
+        "ava.mitchell@harbourline.example.com",
+        "isla.barrett@harbourline.example.com",
+        "jordan.pike@harbourline.example.com",
+        "yuki.tanaka@harbourline.example.com"
+      ]
+    },
+    {
+      "name": "Marketing",
+      "managerEmail": "megan.holloway@harbourline.example.com",
+      "memberEmails": [
+        "ethan.cho@harbourline.example.com",
+        "isla.barrett@harbourline.example.com",
+        "sofia.marchetti@harbourline.example.com"
+      ]
+    },
+    {
+      "name": "Tech",
+      "managerEmail": "tom.vasquez@harbourline.example.com",
+      "memberEmails": [
+        "ethan.cho@harbourline.example.com",
+        "lena.petrova@harbourline.example.com",
+        "noah.fitzgerald@harbourline.example.com",
+        "sofia.marchetti@harbourline.example.com"
+      ]
+    },
+    {
+      "name": "R & D",
+      "managerEmail": "hannah.lindqvist@harbourline.example.com",
+      "memberEmails": [
+        "lena.petrova@harbourline.example.com",
+        "sofia.marchetti@harbourline.example.com",
+        "zara.quinn@harbourline.example.com"
+      ]
+    },
+    {
+      "name": "Operations",
+      "managerEmail": "callum.reid@harbourline.example.com",
+      "memberEmails": [
+        "isla.barrett@harbourline.example.com",
+        "marcus.webb@harbourline.example.com",
+        "noah.fitzgerald@harbourline.example.com",
+        "omar.haddad@harbourline.example.com",
+        "rebecca.osei@harbourline.example.com",
+        "tom.vasquez@harbourline.example.com",
+        "yuki.tanaka@harbourline.example.com"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "role": "Reporting Analyst",
+      "permissions": [
+        "View Reports",
+        "View All OKRs"
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "title": "Win more profitable projects in our target verticals",
+      "description": "Grow the sales pipeline and convert more quotes into signed work in retail, health and aged care.",
+      "ownerEmail": "daniel.okafor@harbourline.example.com",
+      "group": "Sales",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-18",
+      "keyResults": [
+        {
+          "title": "Grow qualified pipeline from $3.2M to $4.5M",
+          "weight": 30,
+          "assignedToEmail": "jordan.pike@harbourline.example.com",
+          "progress": 70,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "CRM pipeline report, week 42",
+          "approved": false
+        },
+        {
+          "title": "Close $1.4M of new signed contracts",
+          "weight": 35,
+          "assignedToEmail": "ava.mitchell@harbourline.example.com",
+          "progress": 55,
+          "dueDate": "2026-12-18",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Lift quote-to-win conversion rate from 22% to 30%",
+          "weight": 20,
+          "assignedToEmail": "daniel.okafor@harbourline.example.com",
+          "progress": 40,
+          "dueDate": "2026-12-11",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Complete 12 customer site visits or demos in target verticals",
+          "weight": 15,
+          "assignedToEmail": "jordan.pike@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-13",
+          "status": "completed",
+          "evidence": "Visit log: 12 of 12 logged",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "title": "Grow recurring revenue through managed-service subscriptions",
+      "description": "Shift revenue towards subscription and long-term service contracts that give customers ongoing value.",
+      "ownerEmail": "daniel.okafor@harbourline.example.com",
+      "group": "Sales",
+      "commitmentType": "aspirational",
+      "dueDate": "2027-03-31",
+      "keyResults": [
+        {
+          "title": "Sign 15 new managed-service subscription customers",
+          "weight": 35,
+          "assignedToEmail": "ava.mitchell@harbourline.example.com",
+          "progress": 20,
+          "dueDate": "2027-03-31",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Increase monthly recurring revenue from $38K to $60K",
+          "weight": 35,
+          "assignedToEmail": "daniel.okafor@harbourline.example.com",
+          "progress": 25,
+          "dueDate": "2027-03-31",
+          "status": "in-progress",
+          "evidence": "Finance MRR report, September",
+          "approved": false
+        },
+        {
+          "title": "Convert 8 existing project customers to service contracts",
+          "weight": 20,
+          "assignedToEmail": "jordan.pike@harbourline.example.com",
+          "progress": 12,
+          "dueDate": "2027-03-31",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Launch standard three-tier subscription pricing",
+          "weight": 10,
+          "assignedToEmail": "yuki.tanaka@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-10-30",
+          "status": "completed",
+          "evidence": "Approved pricing sheet v1.2",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "title": "Re-engage dormant customers and grow share of wallet",
+      "description": "Reconnect with customers we have not worked with recently and offer more of what they currently buy elsewhere.",
+      "ownerEmail": "ava.mitchell@harbourline.example.com",
+      "group": "Sales",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-11",
+      "keyResults": [
+        {
+          "title": "Contact 80 dormant accounts and log outcomes in the CRM",
+          "weight": 30,
+          "assignedToEmail": "jordan.pike@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-27",
+          "status": "awaiting-approval",
+          "evidence": "CRM activity export",
+          "approved": false
+        },
+        {
+          "title": "Reactivate 15 dormant accounts with a quote or order",
+          "weight": 30,
+          "assignedToEmail": "ava.mitchell@harbourline.example.com",
+          "progress": 47,
+          "dueDate": "2026-12-11",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Raise customers using two or more products from 38% to 50%",
+          "weight": 25,
+          "assignedToEmail": "daniel.okafor@harbourline.example.com",
+          "progress": 50,
+          "dueDate": "2026-12-11",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Collect 40+ responses to the customer satisfaction survey",
+          "weight": 15,
+          "assignedToEmail": "isla.barrett@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-06",
+          "status": "completed",
+          "evidence": "Survey results: 46 responses",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "title": "Build a trusted brand presence in our priority markets",
+      "description": "Make Harbourline the first name customers think of when they need a technology solution provider.",
+      "ownerEmail": "megan.holloway@harbourline.example.com",
+      "group": "Marketing",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-15",
+      "keyResults": [
+        {
+          "title": "Publish 8 customer case studies with measurable outcomes",
+          "weight": 25,
+          "assignedToEmail": "isla.barrett@harbourline.example.com",
+          "progress": 62,
+          "dueDate": "2026-12-04",
+          "status": "in-progress",
+          "evidence": "5 of 8 published on website",
+          "approved": false
+        },
+        {
+          "title": "Grow qualified website enquiries from 45 to 70 per month",
+          "weight": 30,
+          "assignedToEmail": "megan.holloway@harbourline.example.com",
+          "progress": 58,
+          "dueDate": "2026-12-15",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Increase organic search traffic by 25% compared with Q3",
+          "weight": 20,
+          "assignedToEmail": "isla.barrett@harbourline.example.com",
+          "progress": 30,
+          "dueDate": "2026-12-15",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Present at 2 industry events and capture 60 qualified leads",
+          "weight": 25,
+          "assignedToEmail": "megan.holloway@harbourline.example.com",
+          "progress": 50,
+          "dueDate": "2026-11-20",
+          "status": "in-progress",
+          "evidence": "Event 1 lead list: 31 captured",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Make sure no enquiry goes cold",
+      "description": "Streamline how leads are captured, scored and followed up so every prospect gets a fast, consistent response.",
+      "ownerEmail": "megan.holloway@harbourline.example.com",
+      "group": "Marketing",
+      "commitmentType": "aspirational",
+      "dueDate": "2027-01-29",
+      "keyResults": [
+        {
+          "title": "Respond to 95% of web enquiries within 4 business hours",
+          "weight": 35,
+          "assignedToEmail": "isla.barrett@harbourline.example.com",
+          "progress": 70,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "Weekly response-time report",
+          "approved": false
+        },
+        {
+          "title": "Consolidate three websites into one content hub",
+          "weight": 30,
+          "assignedToEmail": "ethan.cho@harbourline.example.com",
+          "progress": 35,
+          "dueDate": "2027-01-29",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Automate lead scoring and routing in the CRM",
+          "weight": 25,
+          "assignedToEmail": "sofia.marchetti@harbourline.example.com",
+          "progress": 20,
+          "dueDate": "2027-01-29",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Reduce cost per qualified lead from $120 to $85",
+          "weight": 10,
+          "assignedToEmail": "megan.holloway@harbourline.example.com",
+          "progress": 15,
+          "dueDate": "2027-01-29",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Deliver a secure, reliable platform for customer deployments",
+      "description": "Keep customer-facing systems fast, available and protected against known threats.",
+      "ownerEmail": "tom.vasquez@harbourline.example.com",
+      "group": "Tech",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-15",
+      "keyResults": [
+        {
+          "title": "Achieve 99.9% uptime across managed deployments",
+          "weight": 30,
+          "assignedToEmail": "tom.vasquez@harbourline.example.com",
+          "progress": 90,
+          "dueDate": "2026-12-15",
+          "status": "in-progress",
+          "evidence": "Monitoring dashboard export",
+          "approved": false
+        },
+        {
+          "title": "Close all critical and high vulnerabilities from the Q3 security scan",
+          "weight": 25,
+          "assignedToEmail": "sofia.marchetti@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-27",
+          "status": "awaiting-approval",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Enforce multi-factor authentication for 100% of admin and manager accounts",
+          "weight": 20,
+          "assignedToEmail": "ethan.cho@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-06",
+          "status": "completed",
+          "evidence": "Access audit export, 21 Oct",
+          "approved": true
+        },
+        {
+          "title": "Reduce 95th percentile API response time to under 250ms",
+          "weight": 25,
+          "assignedToEmail": "sofia.marchetti@harbourline.example.com",
+          "progress": 40,
+          "dueDate": "2026-12-15",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Modernise our internal tools so staff spend less time on admin",
+      "description": "Replace manual spreadsheets and repeated data entry with simple dashboards and automation.",
+      "ownerEmail": "tom.vasquez@harbourline.example.com",
+      "group": "Tech",
+      "commitmentType": "aspirational",
+      "dueDate": "2027-03-26",
+      "keyResults": [
+        {
+          "title": "Launch a dashboard giving managers live KPIs on one screen",
+          "weight": 30,
+          "assignedToEmail": "ethan.cho@harbourline.example.com",
+          "progress": 45,
+          "dueDate": "2027-02-26",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Automate 5 manual monthly reporting tasks",
+          "weight": 30,
+          "assignedToEmail": "noah.fitzgerald@harbourline.example.com",
+          "progress": 20,
+          "dueDate": "2027-03-26",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Cut average support ticket resolution time from 3 days to 1.5 days",
+          "weight": 25,
+          "assignedToEmail": "noah.fitzgerald@harbourline.example.com",
+          "progress": 36,
+          "dueDate": "2027-03-26",
+          "status": "in-progress",
+          "evidence": "Service desk report, October",
+          "approved": false
+        },
+        {
+          "title": "Reach 85% weekly active use of the new tools among staff",
+          "weight": 15,
+          "assignedToEmail": "tom.vasquez@harbourline.example.com",
+          "progress": 10,
+          "dueDate": "2027-03-26",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Prove out our next-generation wireless monitoring product",
+      "description": "Take the sensor node from concept to a field-tested design that customers are willing to pilot.",
+      "ownerEmail": "hannah.lindqvist@harbourline.example.com",
+      "group": "R & D",
+      "commitmentType": "aspirational",
+      "dueDate": "2027-02-26",
+      "keyResults": [
+        {
+          "title": "Build and bench-test 3 working prototypes of the sensor node",
+          "weight": 30,
+          "assignedToEmail": "lena.petrova@harbourline.example.com",
+          "progress": 80,
+          "dueDate": "2026-11-27",
+          "status": "in-progress",
+          "evidence": "Bench test log, prototypes A and B",
+          "approved": false
+        },
+        {
+          "title": "Achieve 12-month battery life in a field trial of 20 units",
+          "weight": 25,
+          "assignedToEmail": "lena.petrova@harbourline.example.com",
+          "progress": 30,
+          "dueDate": "2027-02-26",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Run a pilot with 2 customers and collect structured feedback",
+          "weight": 25,
+          "assignedToEmail": "hannah.lindqvist@harbourline.example.com",
+          "progress": 20,
+          "dueDate": "2027-02-26",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Document design decisions and test results for every build",
+          "weight": 20,
+          "assignedToEmail": "zara.quinn@harbourline.example.com",
+          "progress": 65,
+          "dueDate": "2026-12-11",
+          "status": "in-progress",
+          "evidence": "Shared engineering notebook",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Strengthen R&D practices and keep reliable project records",
+      "description": "Make sure every experiment is documented, reviewed and shared with the wider team.",
+      "ownerEmail": "hannah.lindqvist@harbourline.example.com",
+      "group": "R & D",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-18",
+      "keyResults": [
+        {
+          "title": "Maintain up-to-date records for 100% of R&D projects each fortnight",
+          "weight": 35,
+          "assignedToEmail": "hannah.lindqvist@harbourline.example.com",
+          "progress": 88,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "Fortnightly record checks, 4 of 5 clean",
+          "approved": false
+        },
+        {
+          "title": "Complete technical reviews of 4 active projects with documented findings",
+          "weight": 25,
+          "assignedToEmail": "sofia.marchetti@harbourline.example.com",
+          "progress": 50,
+          "dueDate": "2026-12-04",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Host 3 mentoring sessions for interns and student teams",
+          "weight": 20,
+          "assignedToEmail": "hannah.lindqvist@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-13",
+          "status": "completed",
+          "evidence": "Session notes and attendance",
+          "approved": true
+        },
+        {
+          "title": "Submit 2 invention disclosures for internal review",
+          "weight": 20,
+          "assignedToEmail": "lena.petrova@harbourline.example.com",
+          "progress": 25,
+          "dueDate": "2026-12-18",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Improve delivery speed and stock accuracy",
+      "description": "Get products to customers faster while keeping warehouse records accurate and freight costs under control.",
+      "ownerEmail": "callum.reid@harbourline.example.com",
+      "group": "Operations",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-11",
+      "keyResults": [
+        {
+          "title": "Cut average order-to-dispatch time from 4.2 to 2.5 days",
+          "weight": 30,
+          "assignedToEmail": "omar.haddad@harbourline.example.com",
+          "progress": 66,
+          "dueDate": "2026-12-11",
+          "status": "in-progress",
+          "evidence": "Dispatch report, week 42",
+          "approved": false
+        },
+        {
+          "title": "Reach 98% cycle-count stock accuracy",
+          "weight": 25,
+          "assignedToEmail": "omar.haddad@harbourline.example.com",
+          "progress": 85,
+          "dueDate": "2026-11-20",
+          "status": "in-progress",
+          "evidence": "Cycle count results, October",
+          "approved": false
+        },
+        {
+          "title": "Reduce freight cost per order by 12% through consolidated shipping",
+          "weight": 30,
+          "assignedToEmail": "callum.reid@harbourline.example.com",
+          "progress": 45,
+          "dueDate": "2026-12-11",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Onboard 2 backup carriers and document service levels",
+          "weight": 15,
+          "assignedToEmail": "callum.reid@harbourline.example.com",
+          "progress": 80,
+          "dueDate": "2026-10-16",
+          "status": "overdue",
+          "evidence": "Carrier A signed, Carrier B awaiting contract",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Keep every workplace injury-free and every site audit-ready",
+      "description": "Maintain a safe working environment for staff, contractors and visitors across all sites.",
+      "ownerEmail": "marcus.webb@harbourline.example.com",
+      "group": "Operations",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-18",
+      "keyResults": [
+        {
+          "title": "Achieve zero lost-time injuries this quarter",
+          "weight": 30,
+          "assignedToEmail": "marcus.webb@harbourline.example.com",
+          "progress": 82,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "Incident register, no entries this quarter",
+          "approved": false
+        },
+        {
+          "title": "Complete safety induction for 100% of new staff and contractors within 7 days",
+          "weight": 20,
+          "assignedToEmail": "rebecca.osei@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-11-13",
+          "status": "completed",
+          "evidence": "Induction records",
+          "approved": true
+        },
+        {
+          "title": "Close 100% of open hazard reports within 14 days",
+          "weight": 25,
+          "assignedToEmail": "marcus.webb@harbourline.example.com",
+          "progress": 74,
+          "dueDate": "2026-12-04",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Complete emergency evacuation drills at all 3 sites",
+          "weight": 25,
+          "assignedToEmail": "marcus.webb@harbourline.example.com",
+          "progress": 66,
+          "dueDate": "2026-12-04",
+          "status": "in-progress",
+          "evidence": "2 of 3 drills completed",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Reduce our environmental footprint",
+      "description": "Cut energy use and waste at our offices and warehouse, and report our progress openly.",
+      "ownerEmail": "callum.reid@harbourline.example.com",
+      "group": "Operations",
+      "commitmentType": "aspirational",
+      "dueDate": "2027-03-31",
+      "keyResults": [
+        {
+          "title": "Reduce site electricity use by 15% compared with last year",
+          "weight": 30,
+          "assignedToEmail": "omar.haddad@harbourline.example.com",
+          "progress": 40,
+          "dueDate": "2027-03-31",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Divert 90% of e-waste and batteries to certified recycling",
+          "weight": 25,
+          "assignedToEmail": "omar.haddad@harbourline.example.com",
+          "progress": 60,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "Recycler collection receipts",
+          "approved": false
+        },
+        {
+          "title": "Publish a monthly energy usage report",
+          "weight": 25,
+          "assignedToEmail": "noah.fitzgerald@harbourline.example.com",
+          "progress": 50,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "October report published",
+          "approved": false
+        },
+        {
+          "title": "Switch 100% of outbound packaging to recyclable materials",
+          "weight": 20,
+          "assignedToEmail": "callum.reid@harbourline.example.com",
+          "progress": 10,
+          "dueDate": "2027-03-31",
+          "status": "at-risk",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Build a supportive, high-performing team culture",
+      "description": "Help our people grow, stay engaged and feel supported in a friendly workplace.",
+      "ownerEmail": "rebecca.osei@harbourline.example.com",
+      "group": "Operations",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-18",
+      "keyResults": [
+        {
+          "title": "Hold fortnightly 1-on-1 meetings with 100% of staff",
+          "weight": 30,
+          "assignedToEmail": "rebecca.osei@harbourline.example.com",
+          "progress": 80,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "1-on-1 log",
+          "approved": false
+        },
+        {
+          "title": "Score 85% or higher in the staff pulse survey",
+          "weight": 25,
+          "assignedToEmail": "rebecca.osei@harbourline.example.com",
+          "progress": 60,
+          "dueDate": "2026-12-04",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Complete personal development plans for all 18 staff",
+          "weight": 25,
+          "assignedToEmail": "tom.vasquez@harbourline.example.com",
+          "progress": 72,
+          "dueDate": "2026-12-11",
+          "status": "in-progress",
+          "evidence": "13 of 18 plans submitted",
+          "approved": false
+        },
+        {
+          "title": "Run 2 team wellbeing events",
+          "weight": 20,
+          "assignedToEmail": "isla.barrett@harbourline.example.com",
+          "progress": 50,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "First event held 9 Oct",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Strengthen financial health and operating margin",
+      "description": "Grow profit sustainably by lifting margin, collecting cash faster and controlling costs.",
+      "ownerEmail": "yuki.tanaka@harbourline.example.com",
+      "group": "Operations",
+      "commitmentType": "committed",
+      "dueDate": "2026-12-18",
+      "keyResults": [
+        {
+          "title": "Reach a 9.5% operating margin for the quarter, up from 7.8%",
+          "weight": 30,
+          "assignedToEmail": "yuki.tanaka@harbourline.example.com",
+          "progress": 60,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Reduce debtor days from 52 to 40",
+          "weight": 25,
+          "assignedToEmail": "yuki.tanaka@harbourline.example.com",
+          "progress": 45,
+          "dueDate": "2026-12-04",
+          "status": "at-risk",
+          "evidence": "Aged debtors report, 15 Oct",
+          "approved": false
+        },
+        {
+          "title": "Cut non-essential operating costs by 6%",
+          "weight": 25,
+          "assignedToEmail": "callum.reid@harbourline.example.com",
+          "progress": 70,
+          "dueDate": "2026-12-18",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Deliver monthly management accounts within 5 business days",
+          "weight": 20,
+          "assignedToEmail": "yuki.tanaka@harbourline.example.com",
+          "progress": 67,
+          "dueDate": "2026-12-07",
+          "status": "in-progress",
+          "evidence": "Oct and Nov reports delivered on time",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Refresh management system documentation ahead of re-certification",
+      "description": "Get procedures, audits and staff training ready for our quality re-certification.",
+      "ownerEmail": "marcus.webb@harbourline.example.com",
+      "group": "Operations",
+      "commitmentType": "committed",
+      "dueDate": "2026-10-16",
+      "keyResults": [
+        {
+          "title": "Review and update all 24 controlled procedures",
+          "weight": 40,
+          "assignedToEmail": "marcus.webb@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-10-02",
+          "status": "completed",
+          "evidence": "Document register v7",
+          "approved": true
+        },
+        {
+          "title": "Complete internal audit across all departments",
+          "weight": 35,
+          "assignedToEmail": "marcus.webb@harbourline.example.com",
+          "progress": 90,
+          "dueDate": "2026-10-16",
+          "status": "overdue",
+          "evidence": "Audit schedule: 9 of 10 departments done",
+          "approved": false
+        },
+        {
+          "title": "Train 100% of staff on updated procedures via e-learning",
+          "weight": 25,
+          "assignedToEmail": "rebecca.osei@harbourline.example.com",
+          "progress": 80,
+          "dueDate": "2026-10-16",
+          "status": "overdue",
+          "evidence": "Training platform completion report",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Migrate customer file storage to the new cloud tenancy",
+      "description": "Move every customer's shared files off the old file server and onto the new cloud tenancy.",
+      "ownerEmail": "tom.vasquez@harbourline.example.com",
+      "group": "Tech",
+      "commitmentType": "committed",
+      "dueDate": "2026-10-09",
+      "keyResults": [
+        {
+          "title": "Migrate all 42 customer file shares with zero data loss",
+          "weight": 50,
+          "assignedToEmail": "lena.petrova@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-10-02",
+          "status": "completed",
+          "evidence": "Migration checklist, 42 of 42 verified",
+          "approved": true
+        },
+        {
+          "title": "Decommission the old file server",
+          "weight": 30,
+          "assignedToEmail": "noah.fitzgerald@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-10-09",
+          "status": "completed",
+          "evidence": "Asset disposal certificate",
+          "approved": true
+        },
+        {
+          "title": "Publish a how-to guide for the new file storage",
+          "weight": 20,
+          "assignedToEmail": "ethan.cho@harbourline.example.com",
+          "progress": 100,
+          "dueDate": "2026-10-09",
+          "status": "completed",
+          "evidence": "Knowledge base article KB-118",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "title": "Launch a partner referral program",
+      "description": "Give resellers and installers a simple way to refer work to us and get rewarded for it.",
+      "ownerEmail": "megan.holloway@harbourline.example.com",
+      "group": "Marketing",
+      "commitmentType": "aspirational",
+      "dueDate": "2027-05-28",
+      "keyResults": [
+        {
+          "title": "Sign referral agreements with 10 partners",
+          "weight": 40,
+          "assignedToEmail": "megan.holloway@harbourline.example.com",
+          "progress": 0,
+          "dueDate": "2027-05-28",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Build a referral landing page and tracking form",
+          "weight": 35,
+          "assignedToEmail": "ethan.cho@harbourline.example.com",
+          "progress": 0,
+          "dueDate": "2027-03-26",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        },
+        {
+          "title": "Generate 20 referred leads",
+          "weight": 25,
+          "assignedToEmail": "isla.barrett@harbourline.example.com",
+          "progress": 0,
+          "dueDate": "2027-05-28",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "title": "Set company-wide OKRs for FY27",
+      "description": "Agree the FY27 company objectives with the leadership team before the new financial year.",
+      "ownerEmail": "priya.raman@harbourline.example.com",
+      "group": "none",
+      "commitmentType": "committed",
+      "dueDate": "2027-04-30",
+      "keyResults": [
+        {
+          "title": "Run a strategy workshop with all department heads",
+          "weight": 60,
+          "assignedToEmail": "priya.raman@harbourline.example.com",
+          "progress": 30,
+          "dueDate": "2027-02-26",
+          "status": "in-progress",
+          "evidence": "Workshop agenda drafted",
+          "approved": false
+        },
+        {
+          "title": "Publish the FY27 company objectives to all staff",
+          "weight": 40,
+          "assignedToEmail": "priya.raman@harbourline.example.com",
+          "progress": 0,
+          "dueDate": "2027-04-30",
+          "status": "in-progress",
+          "evidence": "",
+          "approved": false
+        }
+      ]
+    }
+  ]
+}

@@ -21,7 +21,7 @@ test("objective write routes include authentication and permission checks", () =
   const create = findRoute(okrRoutes, "/objectives", "post");
   const update = findRoute(okrRoutes, "/objectives/:id", "put");
   const remove = findRoute(okrRoutes, "/objectives/:id", "delete");
-  const keyResult = findRoute(okrRoutes, "/objectives/:id/key-results", "post");
+  const keyResult = findRoute(okrRoutes, "/objectives/:objectiveId/key-results", "post");
 
   assert.equal(create.stack.length, 3);
   assert.equal(update.stack.length, 3);

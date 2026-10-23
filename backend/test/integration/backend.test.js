@@ -523,8 +523,13 @@ for (const role of [
         canCreate ? 201 : 403,
       );
       const detail = await request("GET", pathForObjective(), undefined, role);
-      assert.equal(detail.status, 200);
-      assert.equal(detail.body.objective.canManage, canManage);
+      // the manager isn't in the objective's group and doesn't have View All OKRs
+      if (role === "manager") {
+        assert.equal(detail.status, 404);
+      } else {
+        assert.equal(detail.status, 200);
+        assert.equal(detail.body.objective.canManage, canManage);
+      }
       assert.equal(
         (await request("PUT", pathForObjective(), { title: "Edited" }, role))
           .status,
@@ -612,11 +617,13 @@ for (const role of ["admin", "exec", "manager", "groupManager"]) {
       (await request("DELETE", pathForObjective(), undefined, role)).status,
       403,
     );
-    assert.equal(
-      (await request("GET", pathForObjective(), undefined, role)).body.objective
-        .canManage,
-      false,
-    );
+    const detail = await request("GET", pathForObjective(), undefined, role);
+    // only the group manager can still see it, the empty saved rows drop View All OKRs
+    if (role === "groupManager") {
+      assert.equal(detail.body.objective.canManage, false);
+    } else {
+      assert.equal(detail.status, 404);
+    }
     assert.equal((await Objective.findById(objective._id)).title, "Original");
   });
 }
@@ -1394,10 +1401,10 @@ test("changing group manager immediately transfers objective access", async () =
     ).status,
     200,
   );
+  // the old manager is no longer in the group, so can't see the objective either
   assert.equal(
-    (await request("GET", pathForObjective(), undefined, "groupManager")).body
-      .objective.canManage,
-    false,
+    (await request("GET", pathForObjective(), undefined, "groupManager")).status,
+    404,
   );
   assert.equal(
     (await request("GET", pathForObjective(), undefined, "employee")).body
@@ -2390,7 +2397,7 @@ test("evidence access follows assignments, objective roles and saved permissions
     "outsider",
   );
   assert.equal(assignedView.body.keyResults[0].canManageEvidence, true);
-  assert.equal(outsiderView.body.keyResults[0].canManageEvidence, false);
+  assert.equal(outsiderView.status, 404);
 
   await Permission.create({ role: "Manager", permissions: [] });
   assert.equal(

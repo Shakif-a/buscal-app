@@ -49,6 +49,7 @@ Open a new terminal window and navigate to the frontend:
 ```bash
 cd frontend
 yarn install
+yarn add recharts
 yarn start
 ```
 
@@ -73,6 +74,24 @@ http://localhost:3000
 - On first run, register a new user account.
 - The **first registered account is automatically assigned admin privileges**.
 - Any subsequent accounts require **admin approval** before full access is granted.
+
+---
+
+## 🧪 Sample Data (Optional)
+
+To fill the database with a fictional company's users, groups, objectives and key results, run this from the backend folder (after setting up `.env`):
+
+```bash
+cd backend
+yarn seed:sample
+```
+
+Every sample user signs in with the password `SamplePass123!`. The admin is `priya.raman@harbourline.example.com`.
+
+- Use `yarn seed:sample --password <password>` to pick a different password.
+- Use `yarn seed:sample --reset` to remove the sample data and load it again.
+
+The data lives in `backend/seed/okrSampleData.json`.
 
 ---
 

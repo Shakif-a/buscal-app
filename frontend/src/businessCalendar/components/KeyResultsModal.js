@@ -29,19 +29,7 @@ const KeyResultsModal = ({
 
     const dispatch = useDispatch();
 
-    const {
-      keyResults,
-      isLoading,
-      isError,
-      message,
-    } = useSelector((state) => state.okr);
-
-    console.log("KEY RESULTS FROM REDUX:", keyResults);
-    console.log("KR LOADING:", isLoading);
-    console.log("KR ERROR:", isError);
-    console.log("KR MESSAGE:", message);
-
-    console.log("Objective ID received by KeyResultsModal:", objectiveId);
+    const { keyResults } = useSelector((state) => state.okr);
 
     useEffect(() => {
       if (objectiveId) {

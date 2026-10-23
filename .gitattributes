@@ -3,3 +3,7 @@ backend/test/ export-ignore
 frontend/test/ export-ignore
 frontend/cypress/ export-ignore
 frontend/cypress.config.cjs export-ignore
+# Test files added anywhere else
+*.test.js export-ignore
+*.test.jsx export-ignore
+*.cy.js export-ignore
