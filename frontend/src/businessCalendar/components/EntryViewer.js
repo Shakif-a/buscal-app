@@ -33,6 +33,7 @@ import {
   updateEntry,
   updateRecurringEntries,
 } from "../features/calendar/calendarSlice";
+import { getObjectives } from "../../okrTracker/features/objectives/objectiveSlice";
 import { boxSizing, maxWidth, minHeight, width } from "@mui/system";
 
 const modalStyle = {
@@ -82,6 +83,7 @@ const EntryViewer = ({ entryData, type }) => {
     notes,
     objective,
     linkedObjective,
+    linkedKeyResult,
   } = entryData;
 
   const objectiveReference = linkedObjective || objective;
@@ -92,6 +94,11 @@ const EntryViewer = ({ entryData, type }) => {
   const isObjectiveEntry = 
     category === "OKR Objective" && Boolean(objectiveId);
 
+  const keyResultId = linkedKeyResult?._id || linkedKeyResult || null;
+  const isKeyResultEntry =
+    category === "OKR Key Result" && Boolean(keyResultId) && Boolean(objectiveId);
+  const isOkrEntry = isObjectiveEntry || isKeyResultEntry;
+
   const objectives = useSelector(
     (state) => state.okr.objectives || []
   );
@@ -101,6 +108,16 @@ const EntryViewer = ({ entryData, type }) => {
   );
   
   const dispatch = useDispatch();
+  const objectivesLoading = useSelector((state) => state.okr.isLoading);
+
+  // Fetch objectives if this is an OKR entry and objective data not already loaded
+  useEffect(() => {
+    if (isOkrEntry && !linkedObjectiveData) {
+      dispatch((innerDispatch, getState) => {
+        if (!getState().okr.isLoading) innerDispatch(getObjectives());
+      });
+    }
+  }, [isOkrEntry, linkedObjectiveData, dispatch]);
 
   console.log("Calendar Entry:", {
     title,
@@ -149,12 +166,18 @@ const EntryViewer = ({ entryData, type }) => {
   const objectiveStatusColours = {
       "not started": "#9ca3af",
       "on-track": "#72cdf4",
+      "in-progress": "#72cdf4",
       "at-risk": "#f4b400",
       overdue: "#e57373",
       completed: "#00b085",
     };
   //Temporary status
-  const objectiveStatus = linkedObjectiveData?.status;
+  const linkedKeyResultData = linkedObjectiveData?.keyResults?.find(
+    (kr) => String(kr._id || kr.id) === String(keyResultId)
+  );
+  const objectiveStatus = isKeyResultEntry
+    ? linkedKeyResultData?.status
+    : linkedObjectiveData?.status;
 
   const statusColour = objectiveStatus
     ? objectiveStatusColours[objectiveStatus] || "#d9dfea" : "#d9dfea";
@@ -165,10 +188,10 @@ const EntryViewer = ({ entryData, type }) => {
     height: "fit-content",
     borderRadius: "12px",
     backgroundColor:
-      entryData.completionStatus === "cancelled" ? "#A9A9A9" : isObjectiveEntry ? "#ffffff" : backgroundColor,
+      entryData.completionStatus === "cancelled" ? "#A9A9A9" : isOkrEntry ? "#ffffff" : backgroundColor,
     padding: "20px 24px",
     display: "flex",
-    borderLeft: `6px solid ${isObjectiveEntry ? statusColour : "#72cdf4"}`,
+    borderLeft: `6px solid ${isOkrEntry ? statusColour : "#72cdf4"}`,
     alignItems: "center",
     justifyContent: "flex-start",
     gap: "12px",
@@ -178,7 +201,7 @@ const EntryViewer = ({ entryData, type }) => {
         ? "0px 0px 15px rgba(255, 0, 0, 0.55)"
         : "0px 2px 4px rgba(0, 0, 0, 0.4)",
   };
-  const fontColour = isObjectiveEntry ? "#1f1e40" : "#ffffff";
+  const fontColour = isOkrEntry ? "#1f1e40" : "#ffffff";
   // Get priority color
   const priorityColor =
     priority.toLowerCase() === "high" ? "#ffcdd2" : "#00b085"; // Red for high, Green for normal
@@ -333,7 +356,7 @@ const EntryViewer = ({ entryData, type }) => {
             ? {
                 ...boxStyles,
                 cursor: "pointer",
-                "&:hover": { bgcolor: isObjectiveEntry ? "#f8fafc" : alpha(backgroundColor, 0.8) },
+                "&:hover": { bgcolor: isOkrEntry ? "#f8fafc" : alpha(backgroundColor, 0.8) },
               }
             : boxStyles
         }
@@ -425,7 +448,7 @@ const EntryViewer = ({ entryData, type }) => {
                       gap: 1.5,
                     }}
                   >
-                    {isObjectiveEntry && (
+                    {isOkrEntry && (
                       <Box
                         sx={{
                           width: "12px",
@@ -480,7 +503,7 @@ const EntryViewer = ({ entryData, type }) => {
                     <Typography
                       variant="body"
                       sx={{
-                        color: isObjectiveEntry ? "#64748B" : "rgba(255, 255, 255, 0.8)",
+                        color: isOkrEntry ? "#64748B" : "rgba(255, 255, 255, 0.8)",
                           /*entryData.completionStatus === "overdue"
                             ? "yellow"
                             : fontColour,*/
@@ -547,7 +570,7 @@ const EntryViewer = ({ entryData, type }) => {
                         variant="body"
                         sx={{ 
                           fontSize: "12px", 
-                          color: isObjectiveEntry ? "#64748B" : "rgba(255, 255, 255, 0.8)",
+                          color: isOkrEntry ? "#64748B" : "rgba(255, 255, 255, 0.8)",
                         }}
                       >
                         {userAssigned.map((user, index) => (
@@ -594,7 +617,7 @@ const EntryViewer = ({ entryData, type }) => {
                         gap: "4px",
                       }}
                     >
-                    {!isObjectiveEntry && (
+                    {!isOkrEntry && (
                       <>
                         <IconButton
                           title="Change completion status"
@@ -769,7 +792,7 @@ const EntryViewer = ({ entryData, type }) => {
                   sx={{
                     mt: 2,
                     pt: 2,
-                    borderTop: isObjectiveEntry ? "1px solid #D9DFEA" : "1px solid rgba(255, 255, 255, 0.3)",
+                    borderTop: isOkrEntry ? "1px solid #D9DFEA" : "1px solid rgba(255, 255, 255, 0.3)",
                   }}>
                   <Typography variant="subtitle2" sx={{ color: fontColour }}>
                     Category:{" "}
@@ -834,15 +857,17 @@ const EntryViewer = ({ entryData, type }) => {
                     <Box
                       component="span"
                       sx={{
-                        color: isObjectiveEntry ? statusColour : fontColour,
+                        color: isOkrEntry ? statusColour : fontColour,
                         fontWeight: 800,
                         letterSpacing: "0.5px",
                       }}
                     >
-                      {isObjectiveEntry
+                      {isOkrEntry
                         ? objectiveStatus
                           ? objectiveStatus
-                          : "Loading..."
+                          : objectivesLoading
+                            ? "Loading..."
+                            : "Unavailable"
                         : completionStatus}
                     </Box>
                   </Typography>
@@ -862,13 +887,13 @@ const EntryViewer = ({ entryData, type }) => {
                     <Typography 
                       variant="subtitle2" 
                       sx={{ 
-                        color: isObjectiveEntry ? "#1F1E40" : "#000",
+                        color: isOkrEntry ? "#1F1E40" : "#000",
                         fontWeight: "bold",
                         marginBottom: "2px",
                       }}>
                       Description:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: isObjectiveEntry ? "#1F1E40" : "#000", }}>
+                    <Typography variant="body2" sx={{ color: isOkrEntry ? "#1F1E40" : "#000", }}>
                       {description}
                     </Typography>
                   </Box>
@@ -958,12 +983,12 @@ const EntryViewer = ({ entryData, type }) => {
                           gap: 1,
                           mt: 2,
                           pt: 1.5,
-                          borderTop: isObjectiveEntry ? "1px solid #D9DFEA" : "1px solid rgba(255, 255, 255, 0.3)",
+                          borderTop: isOkrEntry ? "1px solid #D9DFEA" : "1px solid rgba(255, 255, 255, 0.3)",
                       }}>
                     <Button
                       variant="contained"
                       size="small"
-                      onClick={handleOpenProgress}
+                      onClick={isKeyResultEntry ? handleOpenKeyResults : handleOpenProgress}
                       sx={{
                         color: "#ffffff",
                         borderColor: "#1f1e40",
@@ -1006,7 +1031,7 @@ const EntryViewer = ({ entryData, type }) => {
                     </Modal>
 
                     <Modal
-                      open={openKeyResults && isObjectiveEntry}
+                      open={openKeyResults && isOkrEntry}
                       onClose={handleCloseKeyResults}
                     >
                       <Box
@@ -1015,7 +1040,8 @@ const EntryViewer = ({ entryData, type }) => {
                         <KeyResultsModal
                           objectiveId={objectiveId}
                           //entryId={_id}
-                          objectiveTitle={title}
+                          objectiveTitle={isKeyResultEntry ? linkedObjectiveData?.title || title : title}
+                          keyResultId={isKeyResultEntry ? keyResultId : undefined}
                           handleClose={handleCloseKeyResults}
                         />
                       </Box>

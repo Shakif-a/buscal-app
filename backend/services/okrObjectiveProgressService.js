@@ -1,5 +1,6 @@
 const OkrObjective = require("../models/okrObjectiveModel");
 const OkrKeyResult = require("../models/okrKeyResultModel");
+const CalendarEntry = require("../models/calendarEntryModel");
 
 const AT_RISK_TOLERANCE = 10;
 
@@ -25,6 +26,29 @@ function isPastDue(dueDate, today) {
     const due = new Date(dueDate);
     if (!dueDate || isNaN(due.getTime())) return false;
     return today > due.toISOString().split("T")[0];
+}
+
+//mirror OKR completion onto the linked calendar entry so it stops being marked overdue
+async function syncEntryCompletion(entryId, completed) {
+    if (!entryId) return;
+    try {
+        const entry = await CalendarEntry.findById(entryId);
+        if (!entry || entry.completionStatus === "cancelled") return;
+
+        let status = entry.completionStatus;
+        if (completed) {
+            status = "completed";
+        } else if (status === "completed") {
+            status = "in progress";
+        }
+
+        if (status !== entry.completionStatus) {
+            entry.completionStatus = status;
+            await entry.save();
+        }
+    } catch (error) {
+        console.error("Could not sync calendar completion for entry", entryId, error.message);
+    }
 }
 
 async function recalculateKeyResultStatuses(objectiveId) {
@@ -109,6 +133,7 @@ async function recalculateKeyResultStatuses(objectiveId) {
         if (kr.status !== status) {
             kr.status = status;
             await kr.save();
+            await syncEntryCompletion(kr.calendarEntry, status === "completed");
         }
     }
 }
@@ -175,13 +200,17 @@ async function recalculateObjective(objectiveId) {
         objective.progress !== progress ||
         objective.status !== status
     ) {
+        const statusChanged = objective.status !== status;
         objective.progress = progress;
         objective.status = status;
 
         await objective.save();
+        if (statusChanged) {
+            await syncEntryCompletion(objective.calendarEntry, status === "completed");
+        }
     }
     
     return objective;
 }
 
-module.exports = {recalculateObjective, recalculateKeyResultStatuses};
+module.exports = {recalculateObjective, recalculateKeyResultStatuses, syncEntryCompletion};

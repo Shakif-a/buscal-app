@@ -13,6 +13,7 @@ const originalWrites = { ...writes };
 const originalPermission = Permission.findOne;
 const originalKeySave = OkrKeyResult.prototype.save;
 const CalendarEntry = require("../models/calendarEntryModel");
+const CalendarHistory = require("../models/calendarHistoryModel");
 const {
   getObjectives,
   getObjective,
@@ -32,6 +33,8 @@ const originalFindGroup = OkrGroup.findOne;
 const originalFindGroups = OkrGroup.find;
 const originalCreateObjective = OkrObjective.create;
 const originalCreateCalendarEntry = CalendarEntry.create;
+const originalFindCalendarEntry = CalendarEntry.findById;
+const originalCreateCalendarHistory = CalendarHistory.create;
 
 test.beforeEach(() => {
   OkrGroup.findOne = async () => null;
@@ -66,6 +69,8 @@ test.afterEach(() => {
   OkrGroup.find = originalFindGroups;
   OkrObjective.create = originalCreateObjective;
   CalendarEntry.create = originalCreateCalendarEntry;
+  CalendarEntry.findById = originalFindCalendarEntry;
+  CalendarHistory.create = originalCreateCalendarHistory;
 });
 
 function runController(controller, req) {
@@ -568,11 +573,18 @@ test("key results can only be assigned to the owner or the objective's group", a
   };
   OkrGroup.findOne = async (filter) =>
     filter.name === "Sales" ? { manager, members: [member] } : null;
+  CalendarEntry.create = async (data) => ({
+    ...data,
+    _id: new mongoose.Types.ObjectId(),
+    save: async () => {},
+  });
+  CalendarEntry.findById = async () => null;
+  CalendarHistory.create = async () => ({});
 
   const create = (assignedTo) =>
     runController(createKeyResult, {
       params: { objectiveId: objective._id.toString() },
-      body: { title: "Result", weight: 10, dueDate: "2099-01-01", assignedTo: assignedTo.toString() },
+      body: { title: "Result", weight: 10, dueDate: "2026-11-01", assignedTo: assignedTo.toString() },
     });
 
   for (const allowed of [objective.owner._id, manager, member]) {

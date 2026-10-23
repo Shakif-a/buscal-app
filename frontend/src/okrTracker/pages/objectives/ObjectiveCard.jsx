@@ -1499,7 +1499,16 @@ function ObjectiveCard({ objective }) {
                       <input
                         type="checkbox"
                         checked={keyResult.approved}
-                        disabled={!editMode || !objective.canApproveKeyResult}
+                        disabled={
+                          !editMode ||
+                          !objective.canApproveKeyResult ||
+                          (!keyResult.approved && Number(keyResult.progress) !== 100)
+                        }
+                        title={
+                          !keyResult.approved && Number(keyResult.progress) !== 100
+                            ? "Key results can only be approved at 100% progress"
+                            : undefined
+                        }
                         onChange={(event) => {
                           if (!editMode || !objective.canApproveKeyResult) return;
 
