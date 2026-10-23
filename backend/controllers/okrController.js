@@ -25,6 +25,8 @@ const {
 const CalendarEntry = require("../models/calendarEntryModel");
 const writes = require("../services/okrWrites");
 
+const {recalculateObjective, recalculateKeyResultStatuses, } = require("../services/okrObjectiveProgressService");
+
 function getName(user) {
   let name = "";
   if (user && user.firstName) {
@@ -129,17 +131,26 @@ function compareObjectives(firstObjective, secondObjective) {
 // ============================================
 
 const getObjectives = asyncHandler(async (req, res) => {
-  const objectives = await OkrObjective.find().populate(
-    "owner",
-    "firstName lastName",
-  );
+  const objectives = await OkrObjective.find();
+
   const result = [];
-  for (let i = 0; i < objectives.length; i++) {
-    const data = await loadObjective(objectives[i], req.user);
+
+  for (const objective of objectives) {
+    await recalculateObjective(objective._id);
+
+    const refreshedObjective = await OkrObjective.findById(
+      objective._id
+    ).populate(
+      "owner",
+      "firstName lastName");
+
+    const data = await loadObjective(refreshedObjective, req.user);
     data.objective.keyResults = data.keyResults;
+
     result.push(data.objective);
   }
   result.sort(compareObjectives);
+
   res.status(200).json(result);
 });
 
@@ -149,16 +160,24 @@ const getObjectiveGroups = asyncHandler(async (req, res) => {
 });
 
 const getObjective = asyncHandler(async (req, res) => {
-  const objective = await OkrObjective.findById(req.params.id).populate(
-    "owner",
-    "firstName lastName",
-  );
+  const objective = await OkrObjective.findById(req.params.id);
+
   if (!objective) {
     res.status(404);
     throw new Error("Objective not found");
   }
 
-  const data = await loadObjective(objective, req.user);
+  await recalculateObjective(objective._id);
+
+  const refreshedObjective = await OkrObjective.findById(
+    objective._id
+  ).populate(
+    "owner",
+    "firstName lastName"
+  );
+
+  const data = await loadObjective(refreshedObjective, req.user);
+
   res.status(200).json(data);
 });
 
@@ -225,9 +244,11 @@ const createObjective = asyncHandler(async (req, res) => {
   calendarEntry.linkedObjective = objective._id;
   await calendarEntry.save();
 
-  const objectiveData = objective.toObject();
-  const access = await getKeyResultAccess(req.user, objective);
-  await addPermissionFlags(objectiveData, objective, req.user, access);
+  const updatedObjective = await recalculateObjective(objective._id);
+
+  const objectiveData = updatedObjective.toObject();
+  const access = await getKeyResultAccess(req.user, updatedObjective);
+  await addPermissionFlags(objectiveData, updatedObjective, req.user, access);
 
   res.status(201).json(objectiveData);
 });
@@ -330,9 +351,14 @@ const updateObjective = asyncHandler(async (req, res) => {
   }
 
   await objective.save();
-  await objective.populate("owner", "firstName lastName");
 
-  const data = await loadObjective(objective, req.user);
+  await recalculateObjective(objective._id);
+
+  const refreshedObjective = await OkrObjective.findById(
+    objective._id
+  ).populate("owner", "firstName lastName");
+
+  const data = await loadObjective(refreshedObjective, req.user);
   data.objective.keyResults = data.keyResults;
 
   res.status(200).json(data.objective);
@@ -457,6 +483,8 @@ const getKeyResults = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Objective not found by ID");
   }
+
+  await recalculateKeyResultStatuses(objectiveId);
 
   const keyResults = await OkrKeyResult.find({ objective: objectiveId })
     .populate("assignedTo", "firstName lastName")
@@ -583,9 +611,11 @@ const createKeyResult = asyncHandler(async (req, res) => {
     assignedTo: req.body.assignedTo || null,
     dueDate: req.body.dueDate,
     progress: req.body.progress ?? 0,
-    status: req.body.status || "on-track",
+    status: req.body.status || "in-progress",
     approved: req.body.approved ?? false,
   });
+
+  await recalculateObjective(objectiveId);
 
   await keyResult.populate("assignedTo", "firstName lastName");
   const kr = keyResult.toObject();
@@ -746,7 +776,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
 
   //Update status
   if (mayChange("status")) {
-    const allowedStatuses = ["on-track", "at-risk", "overdue", "completed"];
+    const allowedStatuses = ["in-progress", "at-risk", "overdue", "completed"];
 
     if (!allowedStatuses.includes(req.body.status)) {
       res.status(400);
@@ -759,9 +789,17 @@ const updateKeyResult = asyncHandler(async (req, res) => {
   //Update approval
   if (mayChange("approved")) {
     keyResult.approved = req.body.approved;
+
+    //Automatically complete kr when approved
+    if (req.body.approved === true) {
+      keyResult.status = "completed";
+    }
   }
 
   await keyResult.save();
+
+  //Recalculate parent Objective
+  await recalculateObjective(objectiveId)
 
   await keyResult.populate("assignedTo", "firstName lastName");
 
@@ -818,6 +856,9 @@ const deleteKeyResult = asyncHandler(async (req, res) => {
 
   await OkrEvidence.deleteMany({ keyResult: keyResult._id });
   await keyResult.deleteOne();
+
+  await recalculateObjective(objectiveId);
+
   res.status(200).json({ id: keyResultId });
 });
 
@@ -845,7 +886,16 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   }
 
   keyResult.approved = req.body.approved;
+
+  //Automatically complete kr when approved
+  if (req.body.approved === true) {
+    keyResult.status = "completed";
+  }
+
   await keyResult.save();
+
+  //Recalculate parent Objective
+  await recalculateObjective(req.params.id);
 
   res.json(keyResult);
 });

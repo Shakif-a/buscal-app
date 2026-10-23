@@ -4,6 +4,8 @@ import { getObjectives, reset } from "../../features/objectives/objectiveSlice";
 import "./ObjectivesPage.css";
 import ObjectiveCard from "./ObjectiveCard";
 
+
+{/* Pagination controls */}
 function PaginationControls({
   currentPage,
   totalPages,
@@ -280,30 +282,6 @@ function ObjectivesPage() {
           totalPages={totalPages}
           onPageChange={handlePageChange}
         />
-
-
-      {/* Pagination controls */}
-      {/*<div className="objectives-footer">
-        <button
-          className="page-button"
-          onClick={() => setCurrentPage(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          ← Previous
-        </button>
-
-        <span className="page-count">
-          {currentPage} of {totalPages}
-        </span>
-
-        <button
-          className="page-button"
-          onClick={() => setCurrentPage(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          Next →
-        </button>
-      </div>*/}
     </div>
   );
 }

@@ -81,7 +81,7 @@ const KeyResultsModal = ({
     //formatting status
     const formatStatus = (status) => {
       const statusLabels = {
-        "on-track" : "On Track",
+        "in-progress" : "In Progress",
         "at-risk" : "At Risk",
         "overdue" : "Overdue",
         "completed" : "Completed",
@@ -91,17 +91,17 @@ const KeyResultsModal = ({
     }
 
     const statusColours = {
-      "on-track": "#00b085",
+      "in-progress": "#72cdf4",
       "at-risk": "#f4b400",
-      overdue: "#e53935",
-      completed: "#72cdf4",
+      overdue: "#e57373",
+      completed: "#00b085",
     };
 
     const statusBackgroundColours = {
-      "on-track": "#a5dfc9",
+      "in-progress": "#b6e3f8",
       "at-risk": "#ffe29a",
       overdue: "#f4a6a6",
-      completed: "#b6e3f8",
+      completed: "#a5dfc9",
     };
 
     return (
@@ -138,6 +138,10 @@ const KeyResultsModal = ({
                 key={keyResult._id || keyResult.id}
                 sx={{
                     border: "1px solid #d9dfea",
+                    borderLeftWidth: "6px",
+                    borderLeftStyle: "solid",
+                    borderLeftColor:
+                      statusColours[keyResult.status?.trim().toLowerCase()] || "#72CDF4",
                     borderRadius: "12px",
                     padding: 2,
                     backgroundColor: "#fafafa",
@@ -394,8 +398,8 @@ const KeyResultsModal = ({
                           Choose Progress
                         </MenuItem>
 
-                        <MenuItem value="on-track">
-                          On Track
+                        <MenuItem value="in-progress">
+                          In Progress
                         </MenuItem>
 
                         <MenuItem value="at-risk">

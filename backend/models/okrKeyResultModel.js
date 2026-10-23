@@ -34,8 +34,8 @@ const keyResultSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["on-track", "at-risk", "overdue", "completed"],
-      default: "on-track",
+      enum: ["in-progress", "at-risk", "overdue", "completed"],
+      default: "in-progress",
     },
     evidence: {
       type: String,
@@ -53,5 +53,11 @@ const keyResultSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+// Key results saved before "on-track" was renamed would otherwise fail
+// enum validation on every save
+keyResultSchema.pre("validate", function () {
+  if (this.status === "on-track") this.status = "in-progress";
+});
 
 module.exports = mongoose.model("OkrKeyResult", keyResultSchema);

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
   alpha,
   Container,
@@ -92,6 +92,16 @@ const EntryViewer = ({ entryData, type }) => {
   const isObjectiveEntry = 
     category === "OKR Objective" && Boolean(objectiveId);
 
+  const objectives = useSelector(
+    (state) => state.okr.objectives || []
+  );
+
+  const linkedObjectiveData = objectives.find(
+    (obj) => String(obj._id || obj.id) === String(objectiveId)
+  );
+  
+  const dispatch = useDispatch();
+
   console.log("Calendar Entry:", {
     title,
     category,
@@ -137,16 +147,17 @@ const EntryViewer = ({ entryData, type }) => {
   const backgroundColor = getCategoryColour(category);
   // Objective status colours
   const objectiveStatusColours = {
-      "not started": "#72cdf4",
-      "in progress": "#00b085",
+      "not started": "#e5a673",
+      "on-track": "#72cdf4",
       "at-risk": "#f4b400",
       overdue: "#e57373",
-      completed: "#4caf50",
+      completed: "#00b085",
     };
   //Temporary status
-  const objectiveStatus = null;
+  const objectiveStatus = linkedObjectiveData?.status;
 
-  const statusColour = objectiveStatusColours[objectiveStatus] || "#72cdf4";
+  const statusColour = objectiveStatus
+    ? objectiveStatusColours[objectiveStatus] || "#d9dfea" : "#d9dfea";
 
   const boxStyles = {
     width: "100%",
@@ -154,7 +165,7 @@ const EntryViewer = ({ entryData, type }) => {
     height: "fit-content",
     borderRadius: "12px",
     backgroundColor:
-      entryData.completionStatus === "cancelled" ? "#A9A9A9" : backgroundColor,
+      entryData.completionStatus === "cancelled" ? "#A9A9A9" : isObjectiveEntry ? "#ffffff" : backgroundColor,
     padding: "20px 24px",
     display: "flex",
     borderLeft: `6px solid ${isObjectiveEntry ? statusColour : "#72cdf4"}`,
@@ -167,7 +178,7 @@ const EntryViewer = ({ entryData, type }) => {
         ? "0px 0px 15px rgba(255, 0, 0, 0.55)"
         : "0px 2px 4px rgba(0, 0, 0, 0.4)",
   };
-  const fontColour = "#ffffff";
+  const fontColour = isObjectiveEntry ? "#1f1e40" : "#ffffff";
   // Get priority color
   const priorityColor =
     priority.toLowerCase() === "high" ? "#ffcdd2" : "#00b085"; // Red for high, Green for normal
@@ -322,7 +333,7 @@ const EntryViewer = ({ entryData, type }) => {
             ? {
                 ...boxStyles,
                 cursor: "pointer",
-                "&:hover": { bgcolor: alpha(backgroundColor, 0.8) },
+                "&:hover": { bgcolor: isObjectiveEntry ? "#f8fafc" : alpha(backgroundColor, 0.8) },
               }
             : boxStyles
         }
@@ -406,7 +417,25 @@ const EntryViewer = ({ entryData, type }) => {
                   md={3}
                   lg={3}
                 >
-                  <GridLegacy item>
+                  <GridLegacy 
+                    item
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                    }}
+                  >
+                    {isObjectiveEntry && (
+                      <Box
+                        sx={{
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "50%",
+                          backgroundColor: statusColour,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
                     <Typography
                       variant="h6"
                       sx={{
@@ -451,7 +480,7 @@ const EntryViewer = ({ entryData, type }) => {
                     <Typography
                       variant="body"
                       sx={{
-                        color: "rgba(255, 255, 255, 0.8)",
+                        color: isObjectiveEntry ? "#64748B" : "rgba(255, 255, 255, 0.8)",
                           /*entryData.completionStatus === "overdue"
                             ? "yellow"
                             : fontColour,*/
@@ -485,17 +514,6 @@ const EntryViewer = ({ entryData, type }) => {
                         minWidth: 0,
                       }}
                     >
-                      {isObjectiveEntry && (
-                        <Box
-                          sx={{
-                            width: "12px",
-                            height: "12px",
-                            borderRadius: "50%",
-                            backgroundColor: statusColour,
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
 
                       <Typography 
                         variant="h5" 
@@ -508,28 +526,6 @@ const EntryViewer = ({ entryData, type }) => {
                         }}
                       >
                         {title}
-                      </Typography>
-                    </Box>
-
-                    <Box
-                      sx={{
-                        backgroundColor: priorityColor,
-                        borderRadius: "12px",
-                        padding: "2px 8px",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        marginTop: "4px",
-                      }}
-                    >
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: "#ffffff",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Priority: {priority.toUpperCase()}
                       </Typography>
                     </Box>
                   </Box>
@@ -551,7 +547,7 @@ const EntryViewer = ({ entryData, type }) => {
                         variant="body"
                         sx={{ 
                           fontSize: "12px", 
-                          color: "rgba(255, 255, 255, 0.8)",
+                          color: isObjectiveEntry ? "#64748B" : "rgba(255, 255, 255, 0.8)",
                         }}
                       >
                         {userAssigned.map((user, index) => (
@@ -583,43 +579,57 @@ const EntryViewer = ({ entryData, type }) => {
                   <Box
                     sx={{
                       display: "flex",
-                      flexDirection: "row",
+                      flexDirection: "column",
                       justifyContent: "flex-end",
                       alignItems: "center",
-                      gap: "4px"
+                      gap: "8px"
                     }}
                   >
-                    <IconButton
-                      title="Change completion status"
-                      onClick={() => {
-                        handleCompletionClick();
-                      }}
+                    <Box
                       sx={{
-                        color: fontColour,
-                        "&:hover": {
-                          backgroundColor: "rgba(255, 255, 255, 0.15)",
-                        },
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: "4px",
                       }}
                     >
-                      {completionStatus === "not started" ? (
-                        <PlayCircleOutline />
-                      ) : (
-                        <CheckCircleOutline />
-                      )}
-                    </IconButton>
-                    {/*Completion Status Modal */}
-                    <div>
-                      <Modal open={openCompletion} onClose={handleCloseComp}>
-                        <Box sx={modalStyle}>
-                          <ChangeCompletionStatus
-                            status={completionStatus}
-                            id={_id}
-                            progress={progress}
-                            onCancel={handleCloseComp}
-                          />
-                        </Box>
-                      </Modal>
-                    </div>
+                    {!isObjectiveEntry && (
+                      <>
+                        <IconButton
+                          title="Change completion status"
+                          onClick={() => {
+                            handleCompletionClick();
+                          }}
+                          sx={{
+                            color: fontColour,
+                            "&:hover": {
+                            backgroundColor: "rgba(255, 255, 255, 0.15)",
+                            },
+                          }}
+                        >
+                        {completionStatus === "not started" ? (
+                          <PlayCircleOutline />
+                          ) : (
+                          <CheckCircleOutline />
+                        )}
+                        </IconButton>
+                        {/*Completion Status Modal */}
+                        <div>
+                          <Modal open={openCompletion} onClose={handleCloseComp}>
+                            <Box sx={modalStyle}>
+                              <ChangeCompletionStatus
+                                status={completionStatus}
+                                id={_id}
+                                progress={progress}
+                                onCancel={handleCloseComp}
+                              />
+                            </Box>
+                          </Modal>
+                        </div>
+                      </>
+                    )}
+
                     <IconButton
                       title="Edit"
                       onClick={() => {
@@ -705,6 +715,30 @@ const EntryViewer = ({ entryData, type }) => {
                           </Box>
                         </Modal>
                       </div>
+                      </Box>
+
+                      <Box
+                      sx={{
+                        backgroundColor: priorityColor,
+                        borderRadius: "12px",
+                        padding: "2px 8px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        marginTop: "4px",
+                      }}
+                    >
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Priority: {priority.toUpperCase()}
+                      </Typography>
+                      </Box>
+
                       <Modal
                         open={openAllOrOne.visible}
                         onClose={() =>
@@ -735,7 +769,7 @@ const EntryViewer = ({ entryData, type }) => {
                   sx={{
                     mt: 2,
                     pt: 2,
-                    borderTop: "1px solid rgba(255, 255, 255, 0.3)",
+                    borderTop: isObjectiveEntry ? "1px solid #D9DFEA" : "1px solid rgba(255, 255, 255, 0.3)",
                   }}>
                   <Typography variant="subtitle2" sx={{ color: fontColour }}>
                     Category:{" "}
@@ -805,7 +839,11 @@ const EntryViewer = ({ entryData, type }) => {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      {completionStatus}
+                      {isObjectiveEntry
+                        ? objectiveStatus
+                          ? objectiveStatus
+                          : "Loading..."
+                        : completionStatus}
                     </Box>
                   </Typography>
                 </GridLegacy>
@@ -824,13 +862,13 @@ const EntryViewer = ({ entryData, type }) => {
                     <Typography 
                       variant="subtitle2" 
                       sx={{ 
-                        color: "#000",
+                        color: isObjectiveEntry ? "#1F1E40" : "#000",
                         fontWeight: "bold",
                         marginBottom: "2px",
                       }}>
                       Description:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: "#000" }}>
+                    <Typography variant="body2" sx={{ color: isObjectiveEntry ? "#1F1E40" : "#000", }}>
                       {description}
                     </Typography>
                   </Box>
@@ -920,7 +958,7 @@ const EntryViewer = ({ entryData, type }) => {
                           gap: 1,
                           mt: 2,
                           pt: 1.5,
-                          borderTop: "1px solid rgba(255, 255, 255, 0.25)",
+                          borderTop: isObjectiveEntry ? "1px solid #D9DFEA" : "1px solid rgba(255, 255, 255, 0.3)",
                       }}>
                     <Button
                       variant="contained"

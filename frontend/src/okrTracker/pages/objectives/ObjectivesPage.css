@@ -1445,12 +1445,12 @@
   background-color: #ffffff;
 }
 
-.key-results-table .status-select.on-track {
-  background-color: #a5dfc9;
+.key-results-table .status-select.in-progress {
+  background-color: #b6e3f8;
 }
 
 .key-results-table .status-select.completed {
-  background-color: #b6e3f8;
+  background-color: #a5dfc9;
 }
 
 .key-results-table .status-select.at-risk {

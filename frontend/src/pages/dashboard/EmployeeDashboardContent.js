@@ -43,19 +43,24 @@ export default function EmployeeDashboardContent() {
     <>
       <style>{`
         .module-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 20px;
           padding: 24px;
-          max-width: 860px;
+          max-width: 1300px;
+          margin: 0 auto;
+          box-sizing: border-box;
         }
 
         .module-card {
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 14px;
-          padding: 14px 18px;
-          width: 260px;
+          justify-content: center;
+          gap: 20px;
+          padding: 30px 24px;
+          min-height: 280px;
+          box-sizing: border-box;
           border-radius: 10px;
           border: 1px solid #e2e8f0;
           background: #fff;
@@ -80,9 +85,9 @@ export default function EmployeeDashboardContent() {
 
         .module-icon-wrap {
           flex-shrink: 0;
-          width: 44px;
-          height: 44px;
-          border-radius: 8px;
+          width: 90px;
+          height: 90px;
+          border-radius: 12px;
           background: var(--card-accent-bg);
           display: flex;
           align-items: center;
@@ -90,41 +95,35 @@ export default function EmployeeDashboardContent() {
         }
 
         .module-icon-wrap img {
-          width: 26px;
-          height: 26px;
+          width: 65px;
+          height: 65px;
           object-fit: contain;
         }
 
         .module-text {
-          flex: 1;
+          width: 100%;
           min-width: 0;
+          text-align: center;
         }
 
         .module-title {
-          font-size: 13.5px;
+          font-size: 20px;
           font-weight: 600;
           color: #1e293b;
-          margin: 0 0 3px 0;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          margin: 0 0 12px 0;
           font-family: 'DM Sans', sans-serif;
         }
 
         .module-desc {
-          font-size: 11.5px;
+          font-size: 14px;
           color: #64748b;
-          margin: 0 0 6px 0;
-          line-height: 1.4;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+          margin: 0 0 20px 0;
+          line-height: 1.5;
           font-family: 'DM Sans', sans-serif;
         }
 
         .module-action {
-          font-size: 11px;
+          font-size: 14px;
           font-weight: 600;
           color: #94a3b8;
           letter-spacing: 0.04em;
@@ -134,13 +133,26 @@ export default function EmployeeDashboardContent() {
         }
 
         .section-label {
-          font-size: 11px;
+          font-size: 28px;
           font-weight: 600;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.02em;
           text-transform: uppercase;
           color: #94a3b8;
           padding: 24px 24px 4px;
+          margin: 0;
           font-family: 'DM Sans', sans-serif;
+        }
+
+        @media (max-width: 900px) {
+          .module-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 600px) {
+          .module-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
 
