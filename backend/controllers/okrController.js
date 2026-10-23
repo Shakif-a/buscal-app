@@ -762,7 +762,7 @@ const createKeyResult = asyncHandler(async (req, res) => {
       weight: newWeight,
       assignedTo: req.body.assignedTo || null,
       dueDate: req.body.dueDate,
-      progress: req.body.progress ?? 0,
+      progress: req.body.approved === true ? 100 : req.body.progress ?? 0,
       status: req.body.status || "in-progress",
       approved: req.body.approved ?? false,
       calendarEntry: calendarEntry ? calendarEntry._id : null,
@@ -1001,6 +1001,7 @@ const updateKeyResult = asyncHandler(async (req, res) => {
     //Automatically complete kr when approved
     if (req.body.approved === true) {
       keyResult.status = "completed";
+      keyResult.progress = 100;
     }
   }
 
@@ -1104,6 +1105,7 @@ const approveKeyResult = asyncHandler(async (req, res) => {
   //Automatically complete kr when approved
   if (req.body.approved === true) {
     keyResult.status = "completed";
+    keyResult.progress = 100;
   }
   //need to check if progress is 100% and status is awaiting approval, and if requesting user has approval permission
 
