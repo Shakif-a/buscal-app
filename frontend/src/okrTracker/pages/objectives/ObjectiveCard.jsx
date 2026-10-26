@@ -735,7 +735,13 @@ function ObjectiveCard({ objective }) {
                         disabled={
                           !editMode ||
                           !objective.canApproveKeyResult ||
-                          (!keyResult.approved && Number(keyResult.progress) !== 100)
+                          (
+                            !keyResult.approved &&
+                            (
+                              Number(keyResult.progress) !== 100 ||
+                              keyResult.status !== "Awaiting Approval"
+                            )
+                          )
                         }
                         title={
                           !keyResult.approved && Number(keyResult.progress) !== 100
@@ -745,12 +751,8 @@ function ObjectiveCard({ objective }) {
                         onChange={(event) => {
                           if (!editMode || !objective.canApproveKeyResult) return;
 
-                          const isApproved = event.target.checked;
-
-
                           updateLocalKeyResult(keyResult.id, {
-                            approved: isApproved,
-                            ...(isApproved && {status: "Completed"}),
+                            approved: event.target.checked,
                           });
                         }}
                       />
